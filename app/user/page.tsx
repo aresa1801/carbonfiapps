@@ -1,390 +1,455 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { TransactionAlert } from "@/components/transaction-alert"
-import { StableBalanceCard } from "@/components/stable-balance-card"
-import { FaucetStatCard } from "@/components/faucet-stat-card"
-import { ClaimStatusCard } from "@/components/claim-status-card"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Droplets, TrendingUp, Coins, ShoppingCart, Leaf, RefreshCw, Clock } from "lucide-react"
+import { useState, useEffect } from "react"
 import { useWeb3 } from "@/components/web3-provider"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { TransactionStatus } from "@/components/transaction-status"
 import { useToast } from "@/hooks/use-toast"
-import { useEventRefresh } from "@/hooks/use-event-refresh"
 import { contractService } from "@/lib/contract-utils"
-import Link from "next/link"
+import {
+  Wallet,
+  Coins,
+  Droplets,
+  TrendingUp,
+  Leaf,
+  Recycle,
+  ShoppingCart,
+  PlusCircle,
+  Target,
+  Award,
+  RefreshCw,
+} from "lucide-react"
 
-export default function UserDashboardPage() {
-  const [isClient, setIsClient] = useState(false)
-  const [isClaimingTokens, setIsClaimingTokens] = useState(false)
-  const [txStatus, setTxStatus] = useState<"success" | "error" | "none">("none")
-  const [txMessage, setTxMessage] = useState("")
+export default function UserDashboard() {
+  const {
+    account,
+    isConnected,
+    balance,
+    ethBalance,
+    tokenSymbol,
+    refreshBalances,
+    faucetContractExists,
+    stakingContractExists,
+    farmingContractExists,
+    nftContractExists,
+    marketplaceContractExists,
+  } = useWeb3()
 
   const { toast } = useToast()
 
-  // Get Web3 context
-  const {
-    account = "",
-    isConnected = false,
-    balance = "0",
-    ethBalance = "0",
-    refreshBalances = async () => {},
-    tokenSymbol = "CAFI",
-    faucetContractExists = false,
-    isLoadingBalance = false,
-    networkName = "",
-    faucetStats = {
-      dailyLimit: "0",
-      remainingQuota: "0",
-      todayTotal: "0",
-      hasClaimedToday: false,
-    },
-    isLoadingFaucetData = false,
-    fetchFaucetData = async () => {},
-  } = useWeb3()
-
-  // Initialize client-side rendering
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  // Event-based refresh (no time-based auto refresh)
-  const handleRefresh = useCallback(async () => {
-    if (!isConnected || !account) return
-
-    try {
-      await Promise.all([refreshBalances(), fetchFaucetData(account)])
-    } catch (error) {
-      console.error("Refresh error:", error)
-    }
-  }, [isConnected, account, refreshBalances, fetchFaucetData])
-
-  const { refreshCount, isRefreshing, lastRefresh, manualRefresh, triggerRefresh } = useEventRefresh({
-    onRefresh: handleRefresh,
-    enabled: isClient && isConnected && !!account,
+  const [faucetStats, setFaucetStats] = useState({
+    totalSupply: "0",
+    remainingQuota: "0",
+    dailyLimit: "0",
+    hasClaimedToday: false,
   })
 
-  const handleManualRefresh = useCallback(async () => {
+  const [stakingStats, setStakingStats] = useState({
+    totalStaked: "0",
+    rewardPool: "0",
+    userStakes: 0,
+  })
+
+  const [farmingStats, setFarmingStats] = useState({
+    totalFarms: 0,
+    userFarms: 0,
+    totalRewards: "0",
+  })
+
+  const [nftStats, setNftStats] = useState({
+    totalMinted: 0,
+    userNFTs: 0,
+    totalRetired: 0,
+  })
+
+  const [isLoading, setIsLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [txStatus, setTxStatus] = useState<{
+    hash: string
+    status: "pending" | "success" | "error"
+    message: string
+  } | null>(null)
+
+  // Load dashboard data
+  useEffect(() => {
+    if (isConnected && account) {
+      loadDashboardData()
+    }
+  }, [isConnected, account])
+
+  const loadDashboardData = async () => {
+    setIsLoading(true)
     try {
-      await manualRefresh()
-      toast({
-        title: "Data refreshed",
-        description: "Wallet data has been updated successfully",
+      await Promise.all([loadFaucetStats(), loadStakingStats(), loadFarmingStats(), loadNFTStats()])
+    } catch (error) {
+      console.error("Error loading dashboard data:", error)
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
+    }
+  }
+
+  const loadFaucetStats = async () => {
+    if (!faucetContractExists) return
+
+    try {
+      const faucetContract = await contractService.getFaucetContract()
+      const [totalSupply, remainingQuota, dailyLimit, hasClaimedToday] = await Promise.all([
+        faucetContract.totalSupply().catch(() => "0"),
+        faucetContract.getRemainingQuota().catch(() => "0"),
+        faucetContract.DAILY_LIMIT().catch(() => "0"),
+        account ? faucetContract.hasClaimedToday(account).catch(() => false) : false,
+      ])
+
+      setFaucetStats({
+        totalSupply: contractService.formatTokenAmount(totalSupply),
+        remainingQuota: contractService.formatTokenAmount(remainingQuota),
+        dailyLimit: contractService.formatTokenAmount(dailyLimit),
+        hasClaimedToday,
       })
     } catch (error) {
-      toast({
-        title: "Refresh failed",
-        description: "Failed to refresh wallet data",
-        variant: "destructive",
-      })
+      console.error("Error loading faucet stats:", error)
     }
-  }, [manualRefresh, toast])
+  }
 
-  const handleClaimTokens = useCallback(async () => {
-    if (!isConnected) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to claim tokens",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (faucetStats.hasClaimedToday) {
-      toast({
-        title: "Already claimed today",
-        description: "You have already claimed tokens today. Please try again tomorrow.",
-        variant: "destructive",
-      })
-      return
-    }
+  const loadStakingStats = async () => {
+    if (!stakingContractExists) return
 
     try {
-      setIsClaimingTokens(true)
-      setTxStatus("none")
+      const stakingContract = await contractService.getStakingContract()
+      const [totalStaked, rewardPool] = await Promise.all([
+        stakingContract.totalStaked().catch(() => "0"),
+        stakingContract.getRewardPoolBalance().catch(() => stakingContract.rewardPoolBalance().catch(() => "0")),
+      ])
 
-      const faucetContract = await contractService.getFaucetContract(true)
-      const tx = await faucetContract.claimTokens()
-
-      const receipt = await tx.wait()
-
-      if (receipt.status === 1) {
-        setTxStatus("success")
-        setTxMessage("Successfully claimed CAFI tokens from faucet!")
-
-        // Trigger refresh after successful transaction
-        await triggerRefresh()
-
-        toast({
-          title: "CAFI tokens claimed successfully",
-          description: `You have successfully claimed ${tokenSymbol} tokens from the faucet`,
-        })
-      } else {
-        throw new Error("Transaction failed")
-      }
-    } catch (error: any) {
-      console.error("Error claiming tokens:", error)
-      setTxStatus("error")
-
-      let errorMessage = "Failed to claim CAFI tokens"
-      if (error.message?.includes("Already claimed")) {
-        errorMessage = "You have already claimed CAFI tokens today"
-      } else if (error.message?.includes("Insufficient ETH")) {
-        errorMessage = "Insufficient ETH balance for gas fees"
-      } else if (error.message?.includes("user rejected")) {
-        errorMessage = "Transaction was rejected by user"
+      let userStakes = 0
+      if (account) {
+        try {
+          const stakes = await stakingContract.getActiveStakes(account)
+          userStakes = stakes.length
+        } catch (error) {
+          console.log("Could not get user stakes")
+        }
       }
 
-      setTxMessage(errorMessage)
-      toast({
-        title: "Failed to claim CAFI tokens",
-        description: errorMessage,
-        variant: "destructive",
+      setStakingStats({
+        totalStaked: contractService.formatTokenAmount(totalStaked),
+        rewardPool: contractService.formatTokenAmount(rewardPool),
+        userStakes,
       })
-    } finally {
-      setIsClaimingTokens(false)
+    } catch (error) {
+      console.error("Error loading staking stats:", error)
     }
-  }, [isConnected, faucetStats.hasClaimedToday, tokenSymbol, triggerRefresh, toast])
-
-  // Show loading state while client is initializing
-  if (!isClient) {
-    return null
   }
 
-  const formatLastRefresh = (date: Date | null) => {
-    if (!date) return "Never"
-    const now = new Date()
-    const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-    if (diff < 60) return `${diff}s ago`
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-    return date.toLocaleTimeString()
+  const loadFarmingStats = async () => {
+    if (!farmingContractExists) return
+
+    try {
+      const farmingContract = await contractService.getFarmingContract()
+      let userFarms = 0
+
+      if (account) {
+        try {
+          const stakes = await farmingContract.getUserStakes(account)
+          userFarms = stakes.length
+        } catch (error) {
+          console.log("Could not get user farms")
+        }
+      }
+
+      setFarmingStats({
+        totalFarms: 3, // Default number of farm packages
+        userFarms,
+        totalRewards: "0",
+      })
+    } catch (error) {
+      console.error("Error loading farming stats:", error)
+    }
   }
 
-  const remainingPercentage =
-    Number(faucetStats.dailyLimit) > 0
-      ? ((Number(faucetStats.remainingQuota) / Number(faucetStats.dailyLimit)) * 100).toFixed(0)
-      : "0"
+  const loadNFTStats = async () => {
+    if (!nftContractExists) return
+
+    try {
+      const nftContract = await contractService.getNftContract()
+      let totalMinted = 0
+      let userNFTs = 0
+
+      try {
+        totalMinted = await nftContract.getCurrentTokenId()
+      } catch (error) {
+        console.log("Could not get total minted")
+      }
+
+      if (account) {
+        try {
+          // Check user's NFT balance for existing tokens
+          for (let tokenId = 1; tokenId <= Math.min(totalMinted, 50); tokenId++) {
+            try {
+              const balance = await nftContract.balanceOf(account, tokenId)
+              if (balance > 0) {
+                userNFTs++
+              }
+            } catch (error) {
+              continue
+            }
+          }
+        } catch (error) {
+          console.log("Could not get user NFTs")
+        }
+      }
+
+      setNftStats({
+        totalMinted,
+        userNFTs,
+        totalRetired: 0, // This would need to be tracked separately
+      })
+    } catch (error) {
+      console.error("Error loading NFT stats:", error)
+    }
+  }
+
+  const handleRefresh = () => {
+    setIsRefreshing(true)
+    Promise.all([refreshBalances(), loadDashboardData()])
+  }
+
+  const quickActions = [
+    {
+      title: "Claim Tokens",
+      description: "Get free CAFI tokens",
+      icon: Droplets,
+      href: "/user/faucet",
+      color: "blue",
+      available: faucetContractExists,
+    },
+    {
+      title: "Stake Tokens",
+      description: "Earn rewards by staking",
+      icon: TrendingUp,
+      href: "/user/staking",
+      color: "green",
+      available: stakingContractExists,
+    },
+    {
+      title: "Yield Farming",
+      description: "Farm tokens for rewards",
+      icon: Leaf,
+      href: "/user/farming",
+      color: "emerald",
+      available: farmingContractExists,
+    },
+    {
+      title: "Mint NFT",
+      description: "Create carbon credit NFTs",
+      icon: PlusCircle,
+      href: "/user/mint-nft",
+      color: "purple",
+      available: nftContractExists,
+    },
+    {
+      title: "Marketplace",
+      description: "Buy and sell NFTs",
+      icon: ShoppingCart,
+      href: "/user/marketplace",
+      color: "orange",
+      available: marketplaceContractExists,
+    },
+    {
+      title: "Retire Credits",
+      description: "Offset your carbon footprint",
+      icon: Recycle,
+      href: "/user/retire",
+      color: "red",
+      available: nftContractExists,
+    },
+  ]
+
+  if (!isConnected) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card className="group overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-gray-700 hover:border-blue-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-2 hover:scale-[1.02]">
+          <CardContent className="flex flex-col items-center justify-center py-12 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <Wallet className="h-12 w-12 text-blue-400 mb-4 group-hover:text-blue-300 group-hover:scale-110 transition-all duration-300" />
+            <h3 className="text-lg font-semibold mb-2 text-white group-hover:text-blue-300 transition-colors duration-300">
+              Connect Your Wallet
+            </h3>
+            <p className="text-gray-400 text-center group-hover:text-gray-300 transition-colors duration-300">
+              Please connect your wallet to access the CarbonFi dashboard
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex h-screen bg-gray-950">
-      <DashboardSidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex-1 overflow-auto p-6">
-          {/* Welcome Section with Manual Refresh Button */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-white mb-2">Welcome to CAFI Dashboard</h1>
-                <p className="text-gray-400">Manage your carbon credits and earn rewards with CAFI tokens</p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-right space-y-1">
-                  <p className="text-sm text-gray-400">Network</p>
-                  <p className="text-emerald-400 font-medium">{networkName || "Sepolia Testnet"}</p>
-                  <div className="flex items-center justify-end space-x-2">
-                    <Badge variant="outline" className="text-xs">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {formatLastRefresh(lastRefresh)}
-                    </Badge>
-                  </div>
-                  {refreshCount > 0 && <p className="text-xs text-gray-500">Refreshed {refreshCount} times</p>}
-                </div>
-                <Button
-                  onClick={handleManualRefresh}
-                  disabled={isRefreshing}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center space-x-2"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                  <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {txStatus !== "none" && (
-            <div className="mb-6">
-              <TransactionAlert status={txStatus} message={txMessage} />
-            </div>
-          )}
-
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <Link href="/user/mint-nft">
-              <Card className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors cursor-pointer">
-                <CardContent className="p-4 flex items-center space-x-3">
-                  <div className="p-2 bg-emerald-500/10 rounded-lg">
-                    <Coins className="h-6 w-6 text-emerald-500" />
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">Mint NFT</p>
-                    <p className="text-gray-400 text-sm">Create carbon credits</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Link href="/user/staking">
-              <Card className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors cursor-pointer">
-                <CardContent className="p-4 flex items-center space-x-3">
-                  <div className="p-2 bg-blue-500/10 rounded-lg">
-                    <TrendingUp className="h-6 w-6 text-blue-500" />
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">Staking</p>
-                    <p className="text-gray-400 text-sm">Earn rewards</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Link href="/user/marketplace">
-              <Card className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors cursor-pointer">
-                <CardContent className="p-4 flex items-center space-x-3">
-                  <div className="p-2 bg-purple-500/10 rounded-lg">
-                    <ShoppingCart className="h-6 w-6 text-purple-500" />
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">Marketplace</p>
-                    <p className="text-gray-400 text-sm">Trade NFTs</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Link href="/user/retire">
-              <Card className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors cursor-pointer">
-                <CardContent className="p-4 flex items-center space-x-3">
-                  <div className="p-2 bg-green-500/10 rounded-lg">
-                    <Leaf className="h-6 w-6 text-green-500" />
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">Retire</p>
-                    <p className="text-gray-400 text-sm">Offset carbon</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Droplets className="h-6 w-6 text-emerald-500" />
-                  <div>
-                    <h2 className="text-xl font-bold text-white">CAFI Token Faucet</h2>
-                    <p className="text-sm text-gray-400">
-                      Claim free CAFI tokens for testing purposes on CarbonFi Testnet
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  onClick={handleManualRefresh}
-                  disabled={isRefreshing}
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-400 hover:text-white"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                </Button>
-              </div>
-
-              <div className="grid gap-6 md:grid-cols-2">
-                <StableBalanceCard
-                  type="eth"
-                  balance={ethBalance}
-                  isLoading={isLoadingBalance}
-                  symbol="ETH"
-                  subtitle="✓ Available for gas"
-                  isRefreshing={isRefreshing}
-                />
-
-                <StableBalanceCard
-                  type="cafi"
-                  balance={balance}
-                  isLoading={isLoadingBalance}
-                  symbol={tokenSymbol}
-                  subtitle="Ready for staking & minting"
-                  isRefreshing={isRefreshing}
-                />
-              </div>
-
-              <div className="mt-6">
-                <ClaimStatusCard
-                  isLoading={isLoadingFaucetData}
-                  hasClaimedToday={faucetStats.hasClaimedToday}
-                  remainingQuota={faucetStats.remainingQuota}
-                />
-              </div>
-
-              <div className="mt-6">
-                <Button
-                  onClick={handleClaimTokens}
-                  disabled={
-                    !isConnected ||
-                    !faucetContractExists ||
-                    isClaimingTokens ||
-                    faucetStats.hasClaimedToday ||
-                    Number(faucetStats.remainingQuota) <= 0 ||
-                    isLoadingFaucetData
-                  }
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                  size="lg"
-                >
-                  {isClaimingTokens ? (
-                    <div className="flex items-center">
-                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Claiming...
-                    </div>
-                  ) : (
-                    `Claim CAFI Tokens`
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-6 flex items-center gap-3">
-                <TrendingUp className="h-6 w-6 text-emerald-500" />
-                <div>
-                  <h2 className="text-xl font-bold text-white">Faucet Statistics</h2>
-                  <p className="text-sm text-gray-400">Current faucet status and daily metrics</p>
-                </div>
-              </div>
-
-              <div className="grid gap-6">
-                <FaucetStatCard
-                  title="Daily Limit"
-                  value={`${Number(faucetStats.dailyLimit).toLocaleString()} CAFI`}
-                  isLoading={isLoadingFaucetData}
-                />
-
-                <FaucetStatCard
-                  title="Remaining Today"
-                  value={`${Number(faucetStats.remainingQuota).toLocaleString()} CAFI`}
-                  isLoading={isLoadingFaucetData}
-                  subtitle={`${remainingPercentage}% remaining`}
-                />
-
-                <FaucetStatCard
-                  title="Claimed Today"
-                  value={`${Number(faucetStats.todayTotal).toLocaleString()} CAFI`}
-                  isLoading={isLoadingFaucetData}
-                  subtitle={`${
-                    Number(faucetStats.dailyLimit) > 0
-                      ? ((Number(faucetStats.todayTotal) / Number(faucetStats.dailyLimit)) * 100).toFixed(0)
-                      : "0"
-                  }% of daily limit`}
-                />
-              </div>
-            </div>
-          </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+          <p className="text-gray-400">Welcome to CarbonFi - Your Carbon Credit Platform</p>
         </div>
+        <Button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          variant="outline"
+          className="border-gray-600 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-gray-500 transition-all duration-300"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </div>
+
+      {/* Balance Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="group overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 border-blue-700 transition-all duration-500">
+          <CardContent className="p-6 relative">
+            <div className="flex items-center justify-between relative z-10">
+              <div className="text-sm font-medium text-blue-300">ETH Balance</div>
+              <Wallet className="h-5 w-5 text-blue-400" />
+            </div>
+            <div className="mt-2 flex items-center">
+              <div className="text-2xl font-bold text-white">{ethBalance} ETH</div>
+            </div>
+            <div className="mt-1 text-xs text-blue-400">Network currency</div>
+          </CardContent>
+        </Card>
+
+        <Card className="group overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 border-emerald-700 transition-all duration-500">
+          <CardContent className="p-6 relative">
+            <div className="flex items-center justify-between relative z-10">
+              <div className="text-sm font-medium text-emerald-300">CAFI Balance</div>
+              <Coins className="h-5 w-5 text-emerald-400" />
+            </div>
+            <div className="mt-2 flex items-center">
+              <div className="text-2xl font-bold text-white">
+                {balance} {tokenSymbol}
+              </div>
+            </div>
+            <div className="mt-1 text-xs text-emerald-400">Platform token</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="group overflow-hidden bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 border-purple-700 transition-all duration-500">
+          <CardContent className="p-6 relative">
+            <div className="flex items-center justify-between relative z-10">
+              <div>
+                <p className="text-sm font-medium text-purple-300">Total Staked</p>
+                <p className="text-2xl font-bold text-white">{stakingStats.totalStaked}</p>
+                <p className="text-xs text-purple-400">{tokenSymbol} tokens</p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-purple-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="group overflow-hidden bg-gradient-to-br from-orange-900 via-orange-800 to-orange-900 border-orange-700 transition-all duration-500">
+          <CardContent className="p-6 relative">
+            <div className="flex items-center justify-between relative z-10">
+              <div>
+                <p className="text-sm font-medium text-orange-300">Your NFTs</p>
+                <p className="text-2xl font-bold text-white">{nftStats.userNFTs}</p>
+                <p className="text-xs text-orange-400">Carbon credits</p>
+              </div>
+              <Award className="h-8 w-8 text-orange-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="group overflow-hidden bg-gradient-to-br from-green-900 via-green-800 to-green-900 border-green-700 transition-all duration-500">
+          <CardContent className="p-6 relative">
+            <div className="flex items-center justify-between relative z-10">
+              <div>
+                <p className="text-sm font-medium text-green-300">Active Farms</p>
+                <p className="text-2xl font-bold text-white">{farmingStats.userFarms}</p>
+                <p className="text-xs text-green-400">Farming positions</p>
+              </div>
+              <Leaf className="h-8 w-8 text-green-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="group overflow-hidden bg-gradient-to-br from-red-900 via-red-800 to-red-900 border-red-700 transition-all duration-500">
+          <CardContent className="p-6 relative">
+            <div className="flex items-center justify-between relative z-10">
+              <div>
+                <p className="text-sm font-medium text-red-300">Your Stakes</p>
+                <p className="text-2xl font-bold text-white">{stakingStats.userStakes}</p>
+                <p className="text-xs text-red-400">Active positions</p>
+              </div>
+              <Target className="h-8 w-8 text-red-400" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <Card className="group overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-gray-700 transition-all duration-500">
+        <CardHeader className="relative">
+          <CardTitle className="text-white">Quick Actions</CardTitle>
+          <CardDescription className="text-gray-400">Access key features of the CarbonFi platform</CardDescription>
+        </CardHeader>
+        <CardContent className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {quickActions.map((action, index) => {
+              const Icon = action.icon
+              const colorClasses = {
+                blue: "from-blue-900 to-blue-800 border-blue-700",
+                green: "from-green-900 to-green-800 border-green-700",
+                emerald: "from-emerald-900 to-emerald-800 border-emerald-700",
+                purple: "from-purple-900 to-purple-800 border-purple-700",
+                orange: "from-orange-900 to-orange-800 border-orange-700",
+                red: "from-red-900 to-red-800 border-red-700",
+              }
+
+              return (
+                <Card
+                  key={index}
+                  className={`group/action overflow-hidden bg-gradient-to-br ${colorClasses[action.color as keyof typeof colorClasses]} transition-all duration-500 cursor-pointer ${
+                    !action.available ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                  onClick={() => action.available && (window.location.href = action.href)}
+                >
+                  <CardContent className="p-4 relative">
+                    <div className="flex items-center space-x-3 relative z-10">
+                      <div className="p-2 rounded-lg bg-white/10">
+                        <Icon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-white">{action.title}</h3>
+                        <p className="text-xs text-gray-300">{action.description}</p>
+                      </div>
+                    </div>
+                    {!action.available && (
+                      <Badge variant="secondary" className="absolute top-2 right-2 bg-gray-700 text-gray-300 text-xs">
+                        Unavailable
+                      </Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Transaction Status */}
+      {txStatus && (
+        <TransactionStatus
+          hash={txStatus.hash}
+          status={txStatus.status}
+          message={txStatus.message}
+          onClose={() => setTxStatus(null)}
+        />
+      )}
     </div>
   )
 }
