@@ -406,7 +406,7 @@ export default function StakingPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Staking Form */}
         <div className="lg:col-span-2">
-          <Card className="gradient-card card-hover border-emerald-200 dark:border-emerald-800 hover:shadow-xl hover:shadow-emerald-500/20 transition-shadow duration-300">
+          <Card className="gradient-card card-hover border-emerald-200 dark:border-emerald-800">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
                 <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg">
@@ -443,7 +443,7 @@ export default function StakingPage() {
                     {stakingPackages.map((pkg) => (
                       <div
                         key={pkg.id}
-                        className="flex items-center space-x-2 p-3 border rounded-lg border-slate-200 dark:border-slate-700 hover:shadow-md hover:shadow-emerald-500/10 transition-shadow duration-300"
+                        className="flex items-center space-x-2 p-3 border rounded-lg border-slate-200 dark:border-slate-700"
                       >
                         <RadioGroupItem value={pkg.id} id={`package-${pkg.id}`} />
                         <Label htmlFor={`package-${pkg.id}`} className="flex justify-between w-full cursor-pointer">
@@ -491,7 +491,7 @@ export default function StakingPage() {
 
         {/* Staking Information */}
         <div className="space-y-6">
-          <Card className="gradient-card card-hover border-emerald-200 dark:border-emerald-800 hover:shadow-xl hover:shadow-blue-500/20 transition-shadow duration-300">
+          <Card className="gradient-card card-hover border-emerald-200 dark:border-emerald-800">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
                 <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg">
@@ -527,7 +527,7 @@ export default function StakingPage() {
             </CardContent>
           </Card>
 
-          <Card className="gradient-card border-slate-200 dark:border-slate-700 hover:shadow-lg hover:shadow-gray-500/20 transition-shadow duration-300">
+          <Card className="gradient-card border-slate-200 dark:border-slate-700">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
                 <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
@@ -557,7 +557,7 @@ export default function StakingPage() {
 
       {/* User Stakes */}
       {userStakes.length > 0 && (
-        <Card className="gradient-card border-slate-200 dark:border-slate-700 hover:shadow-xl hover:shadow-purple-500/20 transition-shadow duration-300">
+        <Card className="gradient-card border-slate-200 dark:border-slate-700">
           <CardHeader>
             <CardTitle className="text-slate-900 dark:text-slate-50">Your Stakes</CardTitle>
             <CardDescription className="text-slate-600 dark:text-slate-400">
@@ -567,10 +567,7 @@ export default function StakingPage() {
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {userStakes.map((stake, index) => (
-                <Card
-                  key={index}
-                  className="border border-slate-200 dark:border-slate-700 hover:shadow-lg hover:shadow-indigo-500/20 transition-shadow duration-300"
-                >
+                <Card key={index} className="border border-slate-200 dark:border-slate-700">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">Stake #{index + 1}</CardTitle>
