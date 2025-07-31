@@ -388,13 +388,13 @@ export default function StakingPage() {
   return (
     <div className="container mx-auto max-w-6xl space-y-6 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-white">Token Staking</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-50">Token Staking</h1>
         <Button
           variant="outline"
           size="sm"
           onClick={handleRefreshData}
           disabled={isLoadingPoolData || isLoading}
-          className="flex items-center gap-1 border-gray-600 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-gray-500 transition-all duration-300"
+          className="flex items-center gap-1"
         >
           <RefreshCw className="h-4 w-4" />
           Refresh
@@ -406,28 +406,22 @@ export default function StakingPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Staking Form */}
         <div className="lg:col-span-2">
-          <Card className="group overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 border-emerald-700 hover:border-emerald-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-emerald-500/20 hover:-translate-y-2 hover:scale-[1.01]">
-            <CardHeader className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-green-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="flex items-center space-x-3 mb-2 relative z-10">
-                <div className="p-2 bg-emerald-500/20 rounded-lg group-hover:bg-emerald-500/30 transition-colors duration-300">
-                  <Landmark className="h-5 w-5 text-emerald-400 group-hover:text-emerald-300 group-hover:scale-110 transition-all duration-300" />
+          <Card className="gradient-card card-hover border-emerald-200 dark:border-emerald-800">
+            <CardHeader>
+              <div className="flex items-center space-x-3 mb-2">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg">
+                  <Landmark className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <CardTitle className="text-white group-hover:text-emerald-100 transition-colors duration-300">
-                  Stake {tokenSymbol} Tokens
-                </CardTitle>
+                <CardTitle className="text-slate-900 dark:text-slate-50">Stake {tokenSymbol} Tokens</CardTitle>
               </div>
-              <CardDescription className="text-emerald-300 group-hover:text-emerald-200 transition-colors duration-300 relative z-10">
+              <CardDescription className="text-slate-600 dark:text-slate-400">
                 Stake your tokens to earn rewards
               </CardDescription>
             </CardHeader>
-            <CardContent className="relative">
+            <CardContent>
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label
-                    htmlFor="amount"
-                    className="text-emerald-200 group-hover:text-white transition-colors duration-300"
-                  >
+                  <Label htmlFor="amount" className="text-slate-700 dark:text-slate-300">
                     Amount to Stake ({tokenSymbol})
                   </Label>
                   <Input
@@ -436,39 +430,30 @@ export default function StakingPage() {
                     placeholder="0.0"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="bg-emerald-800/50 border-emerald-600 text-white placeholder:text-emerald-300 focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-300"
+                    className="border-slate-200 dark:border-slate-700 focus:border-emerald-500 dark:focus:border-emerald-400"
                   />
-                  <p className="text-sm text-emerald-300 group-hover:text-emerald-200 transition-colors duration-300">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     Available: {balance} {tokenSymbol}
                   </p>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label className="text-emerald-200 group-hover:text-white transition-colors duration-300">
-                    Staking Package
-                  </Label>
+                  <Label className="text-slate-700 dark:text-slate-300">Staking Package</Label>
                   <RadioGroup value={packageId} onValueChange={setPackageId}>
                     {stakingPackages.map((pkg) => (
                       <div
                         key={pkg.id}
-                        className="flex items-center space-x-2 p-3 border rounded-lg border-emerald-600 bg-emerald-800/30 hover:bg-emerald-700/50 transition-colors duration-300"
+                        className="flex items-center space-x-2 p-3 border rounded-lg border-slate-200 dark:border-slate-700"
                       >
-                        <RadioGroupItem
-                          value={pkg.id}
-                          id={`package-${pkg.id}`}
-                          className="border-emerald-400 text-emerald-400"
-                        />
-                        <Label
-                          htmlFor={`package-${pkg.id}`}
-                          className="flex justify-between w-full cursor-pointer text-white"
-                        >
+                        <RadioGroupItem value={pkg.id} id={`package-${pkg.id}`} />
+                        <Label htmlFor={`package-${pkg.id}`} className="flex justify-between w-full cursor-pointer">
                           <div className="flex flex-col">
                             <span className="font-medium">{pkg.name}</span>
-                            <span className="text-sm text-emerald-300">{pkg.lockPeriod} days lock period</span>
+                            <span className="text-sm text-slate-500">{pkg.lockPeriod} days lock period</span>
                           </div>
                           <Badge
                             variant="secondary"
-                            className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                            className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
                           >
                             {pkg.apy} APY
                           </Badge>
@@ -479,16 +464,8 @@ export default function StakingPage() {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Switch
-                    id="auto-stake"
-                    checked={autoStake}
-                    onCheckedChange={setAutoStake}
-                    className="data-[state=checked]:bg-emerald-500"
-                  />
-                  <Label
-                    htmlFor="auto-stake"
-                    className="text-emerald-200 group-hover:text-white transition-colors duration-300"
-                  >
+                  <Switch id="auto-stake" checked={autoStake} onCheckedChange={setAutoStake} />
+                  <Label htmlFor="auto-stake" className="text-slate-700 dark:text-slate-300">
                     Enable Auto-Staking
                   </Label>
                 </div>
@@ -504,7 +481,7 @@ export default function StakingPage() {
                   Number.parseFloat(amount) > Number.parseFloat(balance) ||
                   isLoading
                 }
-                className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-medium shadow-lg hover:shadow-emerald-500/25 transform hover:scale-105 transition-all duration-300"
+                className="w-full btn-emerald"
               >
                 {isLoading ? "Processing..." : `Stake ${tokenSymbol} Tokens`}
               </Button>
@@ -514,40 +491,33 @@ export default function StakingPage() {
 
         {/* Staking Information */}
         <div className="space-y-6">
-          <Card className="group overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 border-blue-700 hover:border-blue-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-2 hover:scale-[1.02]">
-            <CardHeader className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="flex items-center space-x-3 mb-2 relative z-10">
-                <div className="p-2 bg-blue-500/20 rounded-lg group-hover:bg-blue-500/30 transition-colors duration-300">
-                  <TrendingUp className="h-5 w-5 text-blue-400 group-hover:text-blue-300 group-hover:scale-110 transition-all duration-300" />
+          <Card className="gradient-card card-hover border-emerald-200 dark:border-emerald-800">
+            <CardHeader>
+              <div className="flex items-center space-x-3 mb-2">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <CardTitle className="text-white group-hover:text-blue-100 transition-colors duration-300">
-                  Pool Information
-                </CardTitle>
+                <CardTitle className="text-slate-900 dark:text-slate-50">Pool Information</CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="relative">
+            <CardContent>
               <div className="space-y-4">
-                <div className="bg-blue-800/50 p-4 rounded-lg border border-blue-600 group-hover:bg-blue-700/50 group-hover:border-blue-500 transition-all duration-300">
-                  <div className="text-sm font-medium text-blue-300 group-hover:text-blue-200 mb-1 transition-colors duration-300">
-                    Reward Pool
-                  </div>
-                  <div className="text-xl md:text-2xl font-bold text-white group-hover:text-blue-100 transition-colors duration-300">
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Reward Pool</div>
+                  <div className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
                     {isLoadingPoolData ? (
-                      <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-blue-700 rounded"></div>
+                      <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
                     ) : (
                       `${rewardPool} ${tokenSymbol}`
                     )}
                   </div>
                 </div>
 
-                <div className="bg-blue-800/50 p-4 rounded-lg border border-blue-600 group-hover:bg-blue-700/50 group-hover:border-blue-500 transition-all duration-300">
-                  <div className="text-sm font-medium text-blue-300 group-hover:text-blue-200 mb-1 transition-colors duration-300">
-                    Total Staked
-                  </div>
-                  <div className="text-xl md:text-2xl font-bold text-white group-hover:text-blue-100 transition-colors duration-300">
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Total Staked</div>
+                  <div className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
                     {isLoadingPoolData ? (
-                      <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-blue-700 rounded"></div>
+                      <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
                     ) : (
                       `${totalStaked} ${tokenSymbol}`
                     )}
@@ -557,33 +527,26 @@ export default function StakingPage() {
             </CardContent>
           </Card>
 
-          <Card className="group overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-gray-700 hover:border-gray-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-500/20 hover:-translate-y-1 hover:scale-[1.01]">
-            <CardHeader className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-500/5 to-gray-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="flex items-center space-x-3 mb-2 relative z-10">
-                <div className="p-2 bg-gray-600/20 rounded-lg group-hover:bg-gray-600/30 transition-colors duration-300">
-                  <Settings className="h-5 w-5 text-gray-400 group-hover:text-gray-300 group-hover:scale-110 transition-all duration-300" />
+          <Card className="gradient-card border-slate-200 dark:border-slate-700">
+            <CardHeader>
+              <div className="flex items-center space-x-3 mb-2">
+                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                  <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400" />
                 </div>
-                <CardTitle className="text-white group-hover:text-gray-200 transition-colors duration-300">
-                  Contract Status
-                </CardTitle>
+                <CardTitle className="text-slate-900 dark:text-slate-50">Contract Status</CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="relative">
+            <CardContent>
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-300 group-hover:text-white transition-colors duration-300">
-                    Staking Contract:
-                  </span>
+                  <span>Staking Contract:</span>
                   <div className="flex items-center space-x-1">
                     {stakingContractExists ? (
-                      <CheckCircle2 className="h-3 w-3 text-emerald-500 group-hover:scale-110 transition-transform duration-300" />
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                     ) : (
-                      <XCircle className="h-3 w-3 text-red-500 group-hover:scale-110 transition-transform duration-300" />
+                      <XCircle className="h-3 w-3 text-red-500" />
                     )}
-                    <span className="font-mono text-xs text-gray-400 group-hover:text-gray-300 transition-colors duration-300">
-                      {STAKING_CONTRACT_ADDRESS.substring(0, 10)}...
-                    </span>
+                    <span className="font-mono text-xs">{STAKING_CONTRACT_ADDRESS.substring(0, 10)}...</span>
                   </div>
                 </div>
               </div>
@@ -594,85 +557,55 @@ export default function StakingPage() {
 
       {/* User Stakes */}
       {userStakes.length > 0 && (
-        <Card className="group overflow-hidden bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 border-purple-700 hover:border-purple-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-1 hover:scale-[1.01]">
-          <CardHeader className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <CardTitle className="text-white group-hover:text-purple-100 transition-colors duration-300 relative z-10">
-              Your Stakes
-            </CardTitle>
-            <CardDescription className="text-purple-300 group-hover:text-purple-200 transition-colors duration-300 relative z-10">
+        <Card className="gradient-card border-slate-200 dark:border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-slate-900 dark:text-slate-50">Your Stakes</CardTitle>
+            <CardDescription className="text-slate-600 dark:text-slate-400">
               Manage your active stakes and claim rewards
             </CardDescription>
           </CardHeader>
-          <CardContent className="relative">
+          <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {userStakes.map((stake, index) => (
-                <Card
-                  key={index}
-                  className="group/stake overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-slate-700 hover:border-slate-500/50 transition-all duration-500 hover:shadow-xl hover:shadow-slate-500/20 hover:-translate-y-1 hover:scale-[1.02]"
-                >
-                  <CardHeader className="pb-3 relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-slate-500/5 to-slate-400/5 opacity-0 group-hover/stake:opacity-100 transition-opacity duration-500" />
-                    <div className="flex items-center justify-between relative z-10">
-                      <CardTitle className="text-lg text-white group-hover/stake:text-slate-200 transition-colors duration-300">
-                        Stake #{index + 1}
-                      </CardTitle>
-                      <Badge
-                        variant={isStakeUnlocked(stake.unlockTime) ? "default" : "secondary"}
-                        className={
-                          isStakeUnlocked(stake.unlockTime)
-                            ? "bg-green-500/20 text-green-300 border-green-500/30"
-                            : "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
-                        }
-                      >
+                <Card key={index} className="border border-slate-200 dark:border-slate-700">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">Stake #{index + 1}</CardTitle>
+                      <Badge variant={isStakeUnlocked(stake.unlockTime) ? "default" : "secondary"}>
                         {isStakeUnlocked(stake.unlockTime) ? "Unlocked" : "Locked"}
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3 relative">
+                  <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-400 group-hover/stake:text-slate-300 transition-colors duration-300">
-                        Amount:
-                      </span>
-                      <span className="font-medium text-white group-hover/stake:text-slate-200 transition-colors duration-300">
+                      <span className="text-sm text-slate-600 dark:text-slate-400">Amount:</span>
+                      <span className="font-medium">
                         {Number.parseFloat(contractService.formatTokenAmount(stake.amount, tokenDecimals)).toFixed(4)}{" "}
                         {tokenSymbol}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-400 group-hover/stake:text-slate-300 transition-colors duration-300">
-                        Staked:
-                      </span>
-                      <span className="font-medium text-white group-hover/stake:text-slate-200 transition-colors duration-300">
-                        {formatTimestamp(stake.stakeTime)}
-                      </span>
+                      <span className="text-sm text-slate-600 dark:text-slate-400">Staked:</span>
+                      <span className="font-medium">{formatTimestamp(stake.stakeTime)}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-400 group-hover/stake:text-slate-300 transition-colors duration-300">
-                        Unlock:
-                      </span>
-                      <span className="font-medium text-white group-hover/stake:text-slate-200 transition-colors duration-300">
-                        {formatTimestamp(stake.unlockTime)}
-                      </span>
+                      <span className="text-sm text-slate-600 dark:text-slate-400">Unlock:</span>
+                      <span className="font-medium">{formatTimestamp(stake.unlockTime)}</span>
                     </div>
 
                     {stake.autoStaking && (
                       <div className="flex items-center space-x-2">
-                        <Zap className="h-4 w-4 text-yellow-500 group-hover/stake:scale-110 transition-transform duration-300" />
-                        <span className="text-sm text-yellow-400 group-hover/stake:text-yellow-300 transition-colors duration-300">
-                          Auto-staking enabled
-                        </span>
+                        <Zap className="h-4 w-4 text-yellow-500" />
+                        <span className="text-sm text-yellow-600 dark:text-yellow-400">Auto-staking enabled</span>
                       </div>
                     )}
 
                     {stake.compoundedAmount > 0n && (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-400 group-hover/stake:text-slate-300 transition-colors duration-300">
-                          Compounded:
-                        </span>
-                        <span className="font-medium text-emerald-400 group-hover/stake:text-emerald-300 transition-colors duration-300">
+                        <span className="text-sm text-slate-600 dark:text-slate-400">Compounded:</span>
+                        <span className="font-medium text-emerald-600">
                           {Number.parseFloat(
                             contractService.formatTokenAmount(stake.compoundedAmount, tokenDecimals),
                           ).toFixed(4)}{" "}
@@ -683,12 +616,7 @@ export default function StakingPage() {
 
                     <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 pt-2">
                       {isStakeUnlocked(stake.unlockTime) && !stake.claimed && (
-                        <Button
-                          size="sm"
-                          onClick={() => claimReward(index)}
-                          disabled={isLoading}
-                          className="flex-1 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 transition-all duration-300 hover:scale-105"
-                        >
+                        <Button size="sm" onClick={() => claimReward(index)} disabled={isLoading} className="flex-1">
                           <Coins className="h-4 w-4 mr-1" />
                           Claim
                         </Button>
@@ -700,7 +628,7 @@ export default function StakingPage() {
                           variant="outline"
                           onClick={() => compoundReward(index)}
                           disabled={isLoading}
-                          className="flex-1 border-slate-600 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white hover:border-slate-500 transition-all duration-300 hover:scale-105"
+                          className="flex-1"
                         >
                           <TrendingUp className="h-4 w-4 mr-1" />
                           Compound
@@ -714,6 +642,38 @@ export default function StakingPage() {
           </CardContent>
         </Card>
       )}
+
+      <style jsx global>{`
+        .gradient-card {
+          background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8));
+        }
+        .dark .gradient-card {
+          background: linear-gradient(to bottom right, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.8));
+        }
+        .card-hover {
+          transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        .dark .card-hover:hover {
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+        }
+        .btn-emerald {
+          background-color: #10b981;
+          color: white;
+        }
+        .btn-emerald:hover {
+          background-color: #059669;
+        }
+        .dark .btn-emerald {
+          background-color: #059669;
+        }
+        .dark .btn-emerald:hover {
+          background-color: #047857;
+        }
+      `}</style>
     </div>
   )
 }
