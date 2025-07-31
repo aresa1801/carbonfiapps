@@ -12,7 +12,7 @@ interface FaucetStatCardProps {
 
 export function FaucetStatCard({ title, value, isLoading, subtitle }: FaucetStatCardProps) {
   return (
-    <Card className="border-gray-800 bg-gray-800/50">
+    <Card className="border-gray-800 bg-gray-800/50 hover:shadow-lg hover:shadow-purple-500/20 transition-shadow duration-300">
       <CardContent className="p-6">
         <div className="text-sm font-medium text-gray-400">{title}</div>
         <div className="mt-2">

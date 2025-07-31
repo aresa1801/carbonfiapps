@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { contractService, type FarmPackage, type UserStake } from "@/lib/contract-utils"
@@ -309,9 +309,8 @@ export default function FarmingPage() {
   if (!isConnected) {
     return (
       <div className="container mx-auto p-6">
-        <Alert>
+        <Alert className="hover:shadow-lg hover:shadow-red-500/20 transition-shadow duration-300">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Not connected</AlertTitle>
           <AlertDescription>Please connect your wallet to access farming features.</AlertDescription>
         </Alert>
       </div>
@@ -321,9 +320,8 @@ export default function FarmingPage() {
   if (!farmingContractExists) {
     return (
       <div className="container mx-auto p-6">
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="hover:shadow-lg hover:shadow-red-500/20 transition-shadow duration-300">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Contract not found</AlertTitle>
           <AlertDescription>The farming contract is not available on this network.</AlertDescription>
         </Alert>
       </div>
@@ -364,7 +362,7 @@ export default function FarmingPage() {
         </TabsList>
 
         <TabsContent value="stake" className="space-y-6">
-          <Card>
+          <Card className="hover:shadow-xl hover:shadow-green-500/20 transition-shadow duration-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Coins className="h-5 w-5" />
@@ -384,7 +382,7 @@ export default function FarmingPage() {
                     {farmPackages.map((pkg, index) => (
                       <div
                         key={pkg.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                        className={`p-4 border rounded-lg cursor-pointer transition-all duration-300 hover:shadow-md hover:shadow-green-500/10 ${
                           selectedPackage === index ? "border-green-500 bg-green-50" : "hover:border-gray-300"
                         }`}
                         onClick={() => setSelectedPackage(index)}
@@ -403,7 +401,7 @@ export default function FarmingPage() {
                     ))}
                   </div>
                 ) : (
-                  <Alert>
+                  <Alert className="hover:shadow-md hover:shadow-yellow-500/20 transition-shadow duration-300">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>No farming packages available at the moment.</AlertDescription>
                   </Alert>
@@ -444,7 +442,7 @@ export default function FarmingPage() {
         </TabsContent>
 
         <TabsContent value="my-stakes" className="space-y-6">
-          <Card>
+          <Card className="hover:shadow-xl hover:shadow-blue-500/20 transition-shadow duration-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
@@ -470,7 +468,10 @@ export default function FarmingPage() {
                   {userStakes.map((stake, index) => {
                     const farmPackage = farmPackages.find((pkg) => Number(pkg.id) === Number(stake.packageId))
                     return (
-                      <Card key={index} className="border">
+                      <Card
+                        key={index}
+                        className="border hover:shadow-lg hover:shadow-indigo-500/20 transition-shadow duration-300"
+                      >
                         <CardHeader className="pb-3">
                           <div className="flex justify-between items-center">
                             <CardTitle className="text-lg">Stake #{index + 1}</CardTitle>

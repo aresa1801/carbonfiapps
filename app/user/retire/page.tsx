@@ -494,7 +494,7 @@ ${new Date().toISOString()}
   if (!isConnected) {
     return (
       <div className="container mx-auto p-6">
-        <Card>
+        <Card className="hover:shadow-lg hover:shadow-blue-500/20 transition-shadow duration-300">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Recycle className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
@@ -536,7 +536,7 @@ ${new Date().toISOString()}
 
       {/* Certificate Download Section */}
       {retirementCertificate && (
-        <Card className="border-green-500 bg-green-50 dark:bg-green-950">
+        <Card className="border-green-500 bg-green-50 dark:bg-green-950 hover:shadow-lg hover:shadow-green-500/20 transition-shadow duration-300">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-300">
               <CheckCircle className="h-5 w-5" />
@@ -566,7 +566,7 @@ ${new Date().toISOString()}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Your NFTs */}
-        <Card>
+        <Card className="hover:shadow-xl hover:shadow-blue-500/20 transition-shadow duration-300">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Leaf className="h-5 w-5" />
@@ -602,7 +602,7 @@ ${new Date().toISOString()}
                 {ownedNFTs.map((nft) => (
                   <div
                     key={nft.tokenId}
-                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    className={`p-4 border rounded-lg cursor-pointer transition-all duration-300 hover:shadow-md hover:shadow-green-500/20 ${
                       selectedNFT?.tokenId === nft.tokenId
                         ? "border-green-500 bg-green-50 dark:bg-green-950"
                         : "hover:border-gray-300"
@@ -669,7 +669,7 @@ ${new Date().toISOString()}
         </Card>
 
         {/* Retirement Form */}
-        <Card>
+        <Card className="hover:shadow-xl hover:shadow-purple-500/20 transition-shadow duration-300">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Recycle className="h-5 w-5" />
@@ -757,7 +757,7 @@ ${new Date().toISOString()}
                 </div>
 
                 {/* Warning */}
-                <Alert>
+                <Alert className="hover:shadow-md hover:shadow-orange-500/20 transition-shadow duration-300">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
                     <strong>Warning:</strong> Retiring carbon credits is permanent and cannot be undone. The NFTs will
@@ -801,7 +801,7 @@ ${new Date().toISOString()}
       </div>
 
       {/* Information Section */}
-      <Card>
+      <Card className="hover:shadow-xl hover:shadow-cyan-500/20 transition-shadow duration-300">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-green-600" />
