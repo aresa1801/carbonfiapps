@@ -307,125 +307,179 @@ export default function UserDashboard() {
 
       {/* Balance Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="group overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 border-blue-700 transition-all duration-500">
+        <Card className="group overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 border-blue-700 hover:border-blue-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-2 hover:scale-[1.02]">
           <CardContent className="p-6 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="flex items-center justify-between relative z-10">
-              <div className="text-sm font-medium text-blue-300">ETH Balance</div>
-              <Wallet className="h-5 w-5 text-blue-400" />
+              <div className="text-sm font-medium text-blue-300 group-hover:text-blue-200 transition-colors duration-300">
+                ETH Balance
+              </div>
+              <Wallet className="h-5 w-5 text-blue-400 group-hover:text-blue-300 group-hover:scale-110 transition-all duration-300" />
             </div>
             <div className="mt-2 flex items-center">
-              <div className="text-2xl font-bold text-white">{ethBalance} ETH</div>
+              <div className="text-2xl font-bold text-white group-hover:text-blue-100 transition-colors duration-300">
+                {ethBalance} ETH
+              </div>
             </div>
-            <div className="mt-1 text-xs text-blue-400">Network currency</div>
+            <div className="mt-1 text-xs text-blue-400 group-hover:text-blue-300 transition-colors duration-300">
+              Network currency
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="group overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 border-emerald-700 transition-all duration-500">
+        <Card className="group overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 border-emerald-700 hover:border-emerald-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-emerald-500/20 hover:-translate-y-2 hover:scale-[1.02]">
           <CardContent className="p-6 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-green-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="flex items-center justify-between relative z-10">
-              <div className="text-sm font-medium text-emerald-300">CAFI Balance</div>
-              <Coins className="h-5 w-5 text-emerald-400" />
+              <div className="text-sm font-medium text-emerald-300 group-hover:text-emerald-200 transition-colors duration-300">
+                CAFI Balance
+              </div>
+              <Coins className="h-5 w-5 text-emerald-400 group-hover:text-emerald-300 group-hover:scale-110 transition-all duration-300" />
             </div>
             <div className="mt-2 flex items-center">
-              <div className="text-2xl font-bold text-white">
+              <div className="text-2xl font-bold text-white group-hover:text-emerald-100 transition-colors duration-300">
                 {balance} {tokenSymbol}
               </div>
             </div>
-            <div className="mt-1 text-xs text-emerald-400">Platform token</div>
+            <div className="mt-1 text-xs text-emerald-400 group-hover:text-emerald-300 transition-colors duration-300">
+              Platform token
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="group overflow-hidden bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 border-purple-700 transition-all duration-500">
+        <Card className="group overflow-hidden bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 border-purple-700 hover:border-purple-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-2 hover:scale-[1.02]">
           <CardContent className="p-6 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-sm font-medium text-purple-300">Total Staked</p>
-                <p className="text-2xl font-bold text-white">{stakingStats.totalStaked}</p>
-                <p className="text-xs text-purple-400">{tokenSymbol} tokens</p>
+                <p className="text-sm font-medium text-purple-300 group-hover:text-purple-200 transition-colors duration-300">
+                  Total Staked
+                </p>
+                <p className="text-2xl font-bold text-white group-hover:text-purple-100 transition-colors duration-300">
+                  {stakingStats.totalStaked}
+                </p>
+                <p className="text-xs text-purple-400 group-hover:text-purple-300 transition-colors duration-300">
+                  {tokenSymbol} tokens
+                </p>
               </div>
-              <TrendingUp className="h-8 w-8 text-purple-400" />
+              <TrendingUp className="h-8 w-8 text-purple-400 group-hover:text-purple-300 group-hover:scale-110 transition-all duration-300" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="group overflow-hidden bg-gradient-to-br from-orange-900 via-orange-800 to-orange-900 border-orange-700 transition-all duration-500">
+        <Card className="group overflow-hidden bg-gradient-to-br from-orange-900 via-orange-800 to-orange-900 border-orange-700 hover:border-orange-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-orange-500/20 hover:-translate-y-2 hover:scale-[1.02]">
           <CardContent className="p-6 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-sm font-medium text-orange-300">Your NFTs</p>
-                <p className="text-2xl font-bold text-white">{nftStats.userNFTs}</p>
-                <p className="text-xs text-orange-400">Carbon credits</p>
+                <p className="text-sm font-medium text-orange-300 group-hover:text-orange-200 transition-colors duration-300">
+                  Your NFTs
+                </p>
+                <p className="text-2xl font-bold text-white group-hover:text-orange-100 transition-colors duration-300">
+                  {nftStats.userNFTs}
+                </p>
+                <p className="text-xs text-orange-400 group-hover:text-orange-300 transition-colors duration-300">
+                  Carbon credits
+                </p>
               </div>
-              <Award className="h-8 w-8 text-orange-400" />
+              <Award className="h-8 w-8 text-orange-400 group-hover:text-orange-300 group-hover:scale-110 transition-all duration-300" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="group overflow-hidden bg-gradient-to-br from-green-900 via-green-800 to-green-900 border-green-700 transition-all duration-500">
+        <Card className="group overflow-hidden bg-gradient-to-br from-green-900 via-green-800 to-green-900 border-green-700 hover:border-green-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-green-500/20 hover:-translate-y-2 hover:scale-[1.02]">
           <CardContent className="p-6 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-sm font-medium text-green-300">Active Farms</p>
-                <p className="text-2xl font-bold text-white">{farmingStats.userFarms}</p>
-                <p className="text-xs text-green-400">Farming positions</p>
+                <p className="text-sm font-medium text-green-300 group-hover:text-green-200 transition-colors duration-300">
+                  Active Farms
+                </p>
+                <p className="text-2xl font-bold text-white group-hover:text-green-100 transition-colors duration-300">
+                  {farmingStats.userFarms}
+                </p>
+                <p className="text-xs text-green-400 group-hover:text-green-300 transition-colors duration-300">
+                  Farming positions
+                </p>
               </div>
-              <Leaf className="h-8 w-8 text-green-400" />
+              <Leaf className="h-8 w-8 text-green-400 group-hover:text-green-300 group-hover:scale-110 transition-all duration-300" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="group overflow-hidden bg-gradient-to-br from-red-900 via-red-800 to-red-900 border-red-700 transition-all duration-500">
+        <Card className="group overflow-hidden bg-gradient-to-br from-red-900 via-red-800 to-red-900 border-red-700 hover:border-red-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-red-500/20 hover:-translate-y-2 hover:scale-[1.02]">
           <CardContent className="p-6 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-sm font-medium text-red-300">Your Stakes</p>
-                <p className="text-2xl font-bold text-white">{stakingStats.userStakes}</p>
-                <p className="text-xs text-red-400">Active positions</p>
+                <p className="text-sm font-medium text-red-300 group-hover:text-red-200 transition-colors duration-300">
+                  Your Stakes
+                </p>
+                <p className="text-2xl font-bold text-white group-hover:text-red-100 transition-colors duration-300">
+                  {stakingStats.userStakes}
+                </p>
+                <p className="text-xs text-red-400 group-hover:text-red-300 transition-colors duration-300">
+                  Active positions
+                </p>
               </div>
-              <Target className="h-8 w-8 text-red-400" />
+              <Target className="h-8 w-8 text-red-400 group-hover:text-red-300 group-hover:scale-110 transition-all duration-300" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Quick Actions */}
-      <Card className="group overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-gray-700 transition-all duration-500">
+      <Card className="group overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-gray-700 hover:border-gray-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-gray-500/20 hover:-translate-y-1 hover:scale-[1.01]">
         <CardHeader className="relative">
-          <CardTitle className="text-white">Quick Actions</CardTitle>
-          <CardDescription className="text-gray-400">Access key features of the CarbonFi platform</CardDescription>
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-500/5 to-gray-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardTitle className="text-white group-hover:text-gray-200 transition-colors duration-300 relative z-10">
+            Quick Actions
+          </CardTitle>
+          <CardDescription className="text-gray-400 group-hover:text-gray-300 transition-colors duration-300 relative z-10">
+            Access key features of the CarbonFi platform
+          </CardDescription>
         </CardHeader>
         <CardContent className="relative">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {quickActions.map((action, index) => {
               const Icon = action.icon
               const colorClasses = {
-                blue: "from-blue-900 to-blue-800 border-blue-700",
-                green: "from-green-900 to-green-800 border-green-700",
-                emerald: "from-emerald-900 to-emerald-800 border-emerald-700",
-                purple: "from-purple-900 to-purple-800 border-purple-700",
-                orange: "from-orange-900 to-orange-800 border-orange-700",
-                red: "from-red-900 to-red-800 border-red-700",
+                blue: "from-blue-900 to-blue-800 border-blue-700 hover:border-blue-500/50 hover:shadow-blue-500/20",
+                green:
+                  "from-green-900 to-green-800 border-green-700 hover:border-green-500/50 hover:shadow-green-500/20",
+                emerald:
+                  "from-emerald-900 to-emerald-800 border-emerald-700 hover:border-emerald-500/50 hover:shadow-emerald-500/20",
+                purple:
+                  "from-purple-900 to-purple-800 border-purple-700 hover:border-purple-500/50 hover:shadow-purple-500/20",
+                orange:
+                  "from-orange-900 to-orange-800 border-orange-700 hover:border-orange-500/50 hover:shadow-orange-500/20",
+                red: "from-red-900 to-red-800 border-red-700 hover:border-red-500/50 hover:shadow-red-500/20",
               }
 
               return (
                 <Card
                   key={index}
-                  className={`group/action overflow-hidden bg-gradient-to-br ${colorClasses[action.color as keyof typeof colorClasses]} transition-all duration-500 cursor-pointer ${
+                  className={`group/action overflow-hidden bg-gradient-to-br ${colorClasses[action.color as keyof typeof colorClasses]} transition-all duration-500 hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] cursor-pointer ${
                     !action.available ? "opacity-50 cursor-not-allowed" : ""
                   }`}
                   onClick={() => action.available && (window.location.href = action.href)}
                 >
                   <CardContent className="p-4 relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-white/10 opacity-0 group-hover/action:opacity-100 transition-opacity duration-500" />
                     <div className="flex items-center space-x-3 relative z-10">
-                      <div className="p-2 rounded-lg bg-white/10">
-                        <Icon className="h-5 w-5 text-white" />
+                      <div className="p-2 rounded-lg bg-white/10 group-hover/action:bg-white/20 transition-colors duration-300">
+                        <Icon className="h-5 w-5 text-white group-hover/action:scale-110 transition-transform duration-300" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-white">{action.title}</h3>
-                        <p className="text-xs text-gray-300">{action.description}</p>
+                        <h3 className="font-semibold text-white group-hover/action:text-gray-100 transition-colors duration-300">
+                          {action.title}
+                        </h3>
+                        <p className="text-xs text-gray-300 group-hover/action:text-gray-200 transition-colors duration-300">
+                          {action.description}
+                        </p>
                       </div>
                     </div>
                     {!action.available && (

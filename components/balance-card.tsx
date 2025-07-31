@@ -14,7 +14,7 @@ interface BalanceCardProps {
 
 export function BalanceCard({ type, balance, isLoading, symbol, subtitle }: BalanceCardProps) {
   return (
-    <Card className="border-gray-800 bg-gray-800/50 hover:shadow-lg hover:shadow-blue-500/20 transition-shadow duration-300">
+    <Card className="border-gray-800 bg-gray-800/50">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium text-gray-400">{type === "eth" ? "ETH Balance" : "CAFI Balance"}</div>
