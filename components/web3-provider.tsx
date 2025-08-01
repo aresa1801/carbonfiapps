@@ -7,7 +7,7 @@ import { toast } from "@/hooks/use-toast"
 
 // Import from contract-utils and constants
 import { contractService } from "@/lib/contract-utils"
-import { CONTRACT_ADDRESSES } from "@/lib/constants"
+import { CONTRACT_ADDRESSES, getContractAddresses, getNetworkByChainId, isSupportedNetwork } from "@/lib/constants"
 import { isMobileDevice, isInAppBrowser, getInAppBrowserType } from "@/lib/wallet-utils"
 
 interface Web3ContextType {
@@ -89,6 +89,9 @@ interface Web3ContextType {
   MARKETPLACE_CONTRACT_ADDRESS: string
   CARBON_RETIRE_CONTRACT_ADDRESS: string
   FARMING_CONTRACT_ADDRESS: string
+
+  supportedNetwork: boolean
+  currentNetworkContracts: typeof CONTRACT_ADDRESSES
 }
 
 // Create context with default values
@@ -166,6 +169,8 @@ const Web3Context = createContext<Web3ContextType>({
   MARKETPLACE_CONTRACT_ADDRESS: "",
   CARBON_RETIRE_CONTRACT_ADDRESS: "",
   FARMING_CONTRACT_ADDRESS: "",
+  supportedNetwork: true,
+  currentNetworkContracts: CONTRACT_ADDRESSES,
 })
 
 export const useWeb3 = () => useContext(Web3Context)
@@ -210,6 +215,9 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     todayTotal: "0",
     hasClaimedToday: false,
   })
+
+  const [currentNetworkContracts, setCurrentNetworkContracts] = useState(CONTRACT_ADDRESSES)
+  const [supportedNetwork, setSupportedNetwork] = useState(true)
 
   const router = useRouter()
 
@@ -315,44 +323,25 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         const chainIdNum = Number.parseInt(chainIdHex, 16)
         setChainId(chainIdNum)
 
+        // Update contract addresses based on network
+        const networkContracts = getContractAddresses(chainIdNum)
+        setCurrentNetworkContracts(networkContracts)
+
+        // Check if network is supported
+        const isSupported = isSupportedNetwork(chainIdNum)
+        setSupportedNetwork(isSupported)
+
         // Get network name
-        let network = "Unknown Network"
-        switch (chainIdNum) {
-          case 1:
-            network = "Ethereum Mainnet"
-            break
-          case 5:
-            network = "Goerli Testnet"
-            break
-          case 11155111:
-            network = "Sepolia Testnet"
-            break
-          case 137:
-            network = "Polygon Mainnet"
-            break
-          case 80001:
-            network = "Mumbai Testnet"
-            break
-          case 56:
-            network = "BSC Mainnet"
-            break
-          case 97:
-            network = "BSC Testnet"
-            break
-          case 42161:
-            network = "Arbitrum One"
-            break
-          case 421613:
-            network = "Arbitrum Goerli"
-            break
-          case 7000:
-            network = "CarbonFi Testnet"
-            break
-          default:
-            network = `Chain ID: ${chainIdNum}`
+        const network = getNetworkByChainId(chainIdNum)
+        const networkName = network?.name || `Chain ID: ${chainIdNum}`
+        setNetworkName(networkName)
+
+        console.log(`Connected to ${networkName} (Chain ID: ${chainIdNum})`)
+        console.log(`Using contracts:`, networkContracts)
+
+        if (!isSupported) {
+          console.warn(`Network ${networkName} is not officially supported`)
         }
-        setNetworkName(network)
-        console.log(`Connected to ${network} (Chain ID: ${chainIdNum})`)
       }
     } catch (error) {
       console.error("Error getting network info:", error)
@@ -362,7 +351,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
   // Check contracts existence with real addresses
   const checkContractsExistence = async () => {
     try {
-      console.log("Checking contract existence with real addresses...")
+      console.log("Checking contract existence with current network addresses...")
 
       // Initialize contract service with the provider if not already done
       const walletInfo = detectWallet()
@@ -372,13 +361,17 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
 
       // Check contracts one by one with error handling
       const contractChecks = [
-        { name: "CAFI Token", address: CONTRACT_ADDRESSES.CAFI_TOKEN, setter: setCafiTokenExists },
-        { name: "Faucet", address: CONTRACT_ADDRESSES.FAUCET, setter: setFaucetContractExists },
-        { name: "Staking", address: CONTRACT_ADDRESSES.STAKING, setter: setStakingContractExists },
-        { name: "NFT", address: CONTRACT_ADDRESSES.NFT, setter: setNftContractExists },
-        { name: "Marketplace", address: CONTRACT_ADDRESSES.MARKETPLACE, setter: setMarketplaceContractExists },
-        { name: "Carbon Retire", address: CONTRACT_ADDRESSES.CARBON_RETIRE, setter: setCarbonRetireContractExists },
-        { name: "Farming", address: CONTRACT_ADDRESSES.FARMING, setter: setFarmingContractExists },
+        { name: "CAFI Token", address: currentNetworkContracts.CAFI_TOKEN, setter: setCafiTokenExists },
+        { name: "Faucet", address: currentNetworkContracts.FAUCET, setter: setFaucetContractExists },
+        { name: "Staking", address: currentNetworkContracts.STAKING, setter: setStakingContractExists },
+        { name: "NFT", address: currentNetworkContracts.NFT, setter: setNftContractExists },
+        { name: "Marketplace", address: currentNetworkContracts.MARKETPLACE, setter: setMarketplaceContractExists },
+        {
+          name: "Carbon Retire",
+          address: currentNetworkContracts.CARBON_RETIRE,
+          setter: setCarbonRetireContractExists,
+        },
+        { name: "Farming", address: currentNetworkContracts.FARMING, setter: setFarmingContractExists },
       ]
 
       for (const { name, address, setter } of contractChecks) {
@@ -399,8 +392,8 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
 
   const fetchTokenInfo = async () => {
     try {
-      if (cafiTokenExists && CONTRACT_ADDRESSES.CAFI_TOKEN) {
-        const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN)
+      if (cafiTokenExists && currentNetworkContracts.CAFI_TOKEN) {
+        const tokenContract = await contractService.getTokenContract(currentNetworkContracts.CAFI_TOKEN)
         try {
           const [symbol, decimals] = await Promise.all([tokenContract.symbol(), tokenContract.decimals()])
           setTokenSymbol(symbol)
@@ -456,9 +449,9 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       // CAFI Balance Promise
       const cafiBalancePromise = (async () => {
         try {
-          if (CONTRACT_ADDRESSES.CAFI_TOKEN && cafiTokenExists) {
-            console.log("Attempting to fetch CAFI balance from:", CONTRACT_ADDRESSES.CAFI_TOKEN)
-            const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN)
+          if (currentNetworkContracts.CAFI_TOKEN && cafiTokenExists) {
+            console.log("Attempting to fetch CAFI balance from:", currentNetworkContracts.CAFI_TOKEN)
+            const tokenContract = await contractService.getTokenContract(currentNetworkContracts.CAFI_TOKEN)
             const tokenBalance = await tokenContract.balanceOf(address)
             const tokenBalanceFormatted = ethers.formatUnits(tokenBalance, tokenDecimals)
             console.log("✅ CAFI Balance fetched:", tokenBalanceFormatted)
@@ -509,7 +502,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       setIsLoadingFaucetData(true)
       console.log("Loading faucet data for account:", address)
 
-      if (!faucetContractExists || !CONTRACT_ADDRESSES.FAUCET) {
+      if (!faucetContractExists || !currentNetworkContracts.FAUCET) {
         console.log("Faucet contract not available")
         return
       }
@@ -1204,13 +1197,16 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
 
     // Contract addresses
     ADMIN_ADDRESS: "0x732eBd7B8c50A8e31EAb04aF774F4160C8c22Dd6",
-    CAFI_TOKEN_ADDRESS: CONTRACT_ADDRESSES.CAFI_TOKEN,
-    STAKING_CONTRACT_ADDRESS: CONTRACT_ADDRESSES.STAKING,
-    NFT_CONTRACT_ADDRESS: CONTRACT_ADDRESSES.NFT,
-    FAUCET_CONTRACT_ADDRESS: CONTRACT_ADDRESSES.FAUCET,
-    MARKETPLACE_CONTRACT_ADDRESS: CONTRACT_ADDRESSES.MARKETPLACE,
-    CARBON_RETIRE_CONTRACT_ADDRESS: CONTRACT_ADDRESSES.CARBON_RETIRE,
-    FARMING_CONTRACT_ADDRESS: CONTRACT_ADDRESSES.FARMING,
+    CAFI_TOKEN_ADDRESS: currentNetworkContracts.CAFI_TOKEN,
+    STAKING_CONTRACT_ADDRESS: currentNetworkContracts.STAKING,
+    NFT_CONTRACT_ADDRESS: currentNetworkContracts.NFT,
+    FAUCET_CONTRACT_ADDRESS: currentNetworkContracts.FAUCET,
+    MARKETPLACE_CONTRACT_ADDRESS: currentNetworkContracts.MARKETPLACE,
+    CARBON_RETIRE_CONTRACT_ADDRESS: currentNetworkContracts.CARBON_RETIRE,
+    FARMING_CONTRACT_ADDRESS: currentNetworkContracts.FARMING,
+
+    supportedNetwork,
+    currentNetworkContracts,
   }
 
   return <Web3Context.Provider value={contextValue}>{children}</Web3Context.Provider>
