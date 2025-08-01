@@ -102,6 +102,9 @@ export default function UserDashboardPage() {
       return
     }
 
+    // Determine the currency name for the native token (ETH or HBAR)
+    const nativeCurrencyName = networkName === "Hedera Testnet" ? "HBAR" : "ETH"
+
     try {
       setIsClaimingTokens(true)
       setTxStatus("none")
@@ -134,7 +137,8 @@ export default function UserDashboardPage() {
       if (error.message?.includes("Already claimed")) {
         errorMessage = "You have already claimed CAFI tokens today"
       } else if (error.message?.includes("Insufficient ETH")) {
-        errorMessage = "Insufficient ETH balance for gas fees"
+        // Dynamically update the error message for gas fees
+        errorMessage = `Insufficient ${nativeCurrencyName} balance for gas fees`
       } else if (error.message?.includes("user rejected")) {
         errorMessage = "Transaction was rejected by user"
       }
@@ -148,7 +152,15 @@ export default function UserDashboardPage() {
     } finally {
       setIsClaimingTokens(false)
     }
-  }, [isConnected, faucetStats.hasClaimedToday, tokenSymbol, triggerRefresh, toast, currentNetworkContracts.FAUCET])
+  }, [
+    isConnected,
+    faucetStats.hasClaimedToday,
+    tokenSymbol,
+    triggerRefresh,
+    toast,
+    currentNetworkContracts.FAUCET,
+    networkName,
+  ])
 
   // Show loading state while client is initializing
   if (!isClient) {

@@ -319,7 +319,7 @@ export default function MintNFTPage() {
       setIsLoading(true)
 
       // Get the NFT contract with signer
-      const nftContract = await contractService.getNftContract(true)
+      const nftContract = await contractService.getNftContract(CONTRACT_ADDRESSES.NFT, true)
 
       // Calculate mint fee
       const carbonTons = ethers.parseUnits(carbonReduction, 0)

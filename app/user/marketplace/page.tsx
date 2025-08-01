@@ -94,7 +94,7 @@ export default function MarketplacePage() {
     tokenSymbol,
     refreshBalances,
     tokenDecimals,
-    MARKETPLACE_CONTRACT_ADDRESS,
+    currentNetworkContracts, // Access current network contracts
   } = useWeb3()
   const { toast } = useToast()
 
@@ -133,14 +133,14 @@ export default function MarketplacePage() {
 
   // Load user NFTs from CarbonFi contract
   const loadUserNFTs = useCallback(async () => {
-    if (!isConnected || !account || !nftContractExists) return
+    if (!isConnected || !account || !nftContractExists || !currentNetworkContracts.NFT) return
 
     try {
       setIsLoading(true)
       console.log("🔄 Loading user NFTs for account:", account)
 
       const nfts: CarbonProject[] = []
-      const nftContract = await contractService.getNftContract()
+      const nftContract = await contractService.getNftContract(currentNetworkContracts.NFT)
 
       // Get current token ID to know the range
       let maxTokenId = 1
@@ -269,19 +269,25 @@ export default function MarketplacePage() {
     } finally {
       setIsLoading(false)
     }
-  }, [isConnected, account, nftContractExists, toast])
+  }, [isConnected, account, nftContractExists, toast, currentNetworkContracts.NFT])
 
   // Load marketplace listings with project data
   const loadMarketplaceListings = useCallback(async () => {
-    if (!marketplaceContractExists || !nftContractExists) return
+    if (
+      !marketplaceContractExists ||
+      !nftContractExists ||
+      !currentNetworkContracts.MARKETPLACE ||
+      !currentNetworkContracts.NFT
+    )
+      return
 
     try {
       console.log("🔄 Loading marketplace listings...")
       setIsLoading(true)
 
       const listings: MarketplaceListing[] = []
-      const marketplaceContract = await contractService.getMarketplaceContract()
-      const nftContract = await contractService.getNftContract()
+      const marketplaceContract = await contractService.getMarketplaceContract(currentNetworkContracts.MARKETPLACE)
+      const nftContract = await contractService.getNftContract(currentNetworkContracts.NFT)
 
       // Get all listing events to find active listings
       try {
@@ -378,13 +384,20 @@ export default function MarketplacePage() {
     } finally {
       setIsLoading(false)
     }
-  }, [marketplaceContractExists, nftContractExists, tokenDecimals, account])
+  }, [
+    marketplaceContractExists,
+    nftContractExists,
+    tokenDecimals,
+    account,
+    currentNetworkContracts.MARKETPLACE,
+    currentNetworkContracts.NFT,
+  ])
 
   const loadMarketplaceInfo = useCallback(async () => {
-    if (!marketplaceContractExists) return
+    if (!marketplaceContractExists || !currentNetworkContracts.MARKETPLACE) return
 
     try {
-      const marketplaceContract = await contractService.getMarketplaceContract()
+      const marketplaceContract = await contractService.getMarketplaceContract(currentNetworkContracts.MARKETPLACE)
 
       // Get marketplace constants and fee wallet
       const [feePercentValue, feeDenominatorValue, minAmountValue, minPriceValue, feeWalletValue] = await Promise.all([
@@ -417,21 +430,21 @@ export default function MarketplacePage() {
     } catch (error) {
       console.error("❌ Error loading marketplace info:", error)
     }
-  }, [marketplaceContractExists, tokenDecimals])
+  }, [marketplaceContractExists, tokenDecimals, currentNetworkContracts.MARKETPLACE])
 
   // Load data on mount and when dependencies change
   useEffect(() => {
-    if (isConnected && account && nftContractExists) {
+    if (isConnected && account && nftContractExists && currentNetworkContracts.NFT) {
       loadUserNFTs()
     }
-  }, [isConnected, account, nftContractExists, loadUserNFTs])
+  }, [isConnected, account, nftContractExists, loadUserNFTs, currentNetworkContracts.NFT])
 
   useEffect(() => {
-    if (marketplaceContractExists) {
+    if (marketplaceContractExists && currentNetworkContracts.MARKETPLACE) {
       loadMarketplaceInfo()
       loadMarketplaceListings()
     }
-  }, [marketplaceContractExists, loadMarketplaceInfo, loadMarketplaceListings])
+  }, [marketplaceContractExists, loadMarketplaceInfo, loadMarketplaceListings, currentNetworkContracts.MARKETPLACE])
 
   const calculateListingFee = (amount: string, pricePerItem: string) => {
     try {
@@ -495,6 +508,15 @@ export default function MarketplacePage() {
       return
     }
 
+    if (!currentNetworkContracts.CAFI_TOKEN || !currentNetworkContracts.MARKETPLACE) {
+      toast({
+        title: "Error",
+        description: "Contract addresses not available for current network.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setIsLoading(true)
       setTxStatus({
@@ -508,7 +530,7 @@ export default function MarketplacePage() {
       const totalPrice = pricePerItem * BigInt(purchaseAmount)
 
       // Get CAFI token contract and approve the marketplace
-      const cafiContract = await contractService.getCAFITokenContract(true)
+      const cafiContract = await contractService.getCAFITokenContract(currentNetworkContracts.CAFI_TOKEN, true)
 
       // Check user's CAFI balance
       const userBalance = await cafiContract.balanceOf(account)
@@ -528,7 +550,7 @@ export default function MarketplacePage() {
       })
 
       // Approve CAFI tokens for the marketplace
-      const approveTx = await cafiContract.approve(MARKETPLACE_CONTRACT_ADDRESS, totalPrice)
+      const approveTx = await cafiContract.approve(currentNetworkContracts.MARKETPLACE, totalPrice)
       console.log(`📝 CAFI Approval transaction:`, approveTx.hash)
 
       setTxStatus({
@@ -547,7 +569,10 @@ export default function MarketplacePage() {
       })
 
       // Now purchase the NFT
-      const marketplaceContract = await contractService.getMarketplaceContract(true)
+      const marketplaceContract = await contractService.getMarketplaceContract(
+        currentNetworkContracts.MARKETPLACE,
+        true,
+      )
       const purchaseTx = await marketplaceContract.buyItem(listing.seller, listing.tokenId, purchaseAmount)
 
       console.log(`📝 Purchase transaction:`, purchaseTx.hash)
@@ -683,6 +708,15 @@ export default function MarketplacePage() {
       return
     }
 
+    if (!currentNetworkContracts.NFT || !currentNetworkContracts.CAFI_TOKEN || !currentNetworkContracts.MARKETPLACE) {
+      toast({
+        title: "Error",
+        description: "Contract addresses not available for current network.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setIsLoading(true)
       setTxStatus({
@@ -695,10 +729,13 @@ export default function MarketplacePage() {
       const listingFee = calculateListingFee(listingForm.amount, listingForm.pricePerItem)
 
       // Get contracts
-      const nftContract = await contractService.getNftContract()
-      const nftContractWithSigner = await contractService.getNftContract(true)
-      const cafiContract = await contractService.getCAFITokenContract(true)
-      const marketplaceContract = await contractService.getMarketplaceContract(true)
+      const nftContract = await contractService.getNftContract(currentNetworkContracts.NFT) // Read-only
+      const nftContractWithSigner = await contractService.getNftContract(currentNetworkContracts.NFT, true) // With signer
+      const cafiContract = await contractService.getCAFITokenContract(currentNetworkContracts.CAFI_TOKEN, true) // With signer
+      const marketplaceContract = await contractService.getMarketplaceContract(
+        currentNetworkContracts.MARKETPLACE,
+        true,
+      ) // With signer
 
       // Check CAFI balance for listing fee
       const cafiBalance = await cafiContract.balanceOf(account)
@@ -712,7 +749,7 @@ export default function MarketplacePage() {
       }
 
       // Check if marketplace is already approved for NFTs
-      const isApprovedForAll = await nftContract.isApprovedForAll(account, MARKETPLACE_CONTRACT_ADDRESS)
+      const isApprovedForAll = await nftContract.isApprovedForAll(account, currentNetworkContracts.MARKETPLACE)
       console.log(`🔍 Is approved for all (NFT):`, isApprovedForAll)
 
       if (!isApprovedForAll) {
@@ -722,7 +759,7 @@ export default function MarketplacePage() {
           message: "Approving NFT for marketplace...",
         })
 
-        const approveTx = await nftContractWithSigner.setApprovalForAll(MARKETPLACE_CONTRACT_ADDRESS, true)
+        const approveTx = await nftContractWithSigner.setApprovalForAll(currentNetworkContracts.MARKETPLACE, true)
         console.log(`📝 NFT Approval transaction:`, approveTx.hash)
 
         setTxStatus({
@@ -739,7 +776,7 @@ export default function MarketplacePage() {
       }
 
       // Check if marketplace is approved for CAFI tokens (for listing fee)
-      const cafiAllowance = await cafiContract.allowance(account, MARKETPLACE_CONTRACT_ADDRESS)
+      const cafiAllowance = await cafiContract.allowance(account, currentNetworkContracts.MARKETPLACE)
       console.log(`🔍 CAFI allowance:`, contractService.formatTokenAmount(cafiAllowance, tokenDecimals))
 
       if (cafiAllowance < listingFee) {
@@ -749,7 +786,7 @@ export default function MarketplacePage() {
           message: "Approving CAFI tokens for listing fee...",
         })
 
-        const cafiApproveTx = await cafiContract.approve(MARKETPLACE_CONTRACT_ADDRESS, listingFee)
+        const cafiApproveTx = await cafiContract.approve(currentNetworkContracts.MARKETPLACE, listingFee)
         console.log(`📝 CAFI Approval transaction:`, cafiApproveTx.hash)
 
         setTxStatus({

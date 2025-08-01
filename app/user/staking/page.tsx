@@ -238,7 +238,8 @@ export default function StakingPage() {
       setTxMessage(`Staking ${amount} ${tokenSymbol} tokens...`)
 
       // Get the staking contract using contractService
-      const stakingContract = await contractService.getStakingContract(true)
+      // Corrected: Pass STAKING_CONTRACT_ADDRESS as the first argument
+      const stakingContract = await contractService.getStakingContract(STAKING_CONTRACT_ADDRESS, true)
 
       // Check allowance first using contractService
       const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN, true)
@@ -297,7 +298,8 @@ export default function StakingPage() {
       setTxMessage("Claiming rewards...")
 
       // Get the staking contract using contractService
-      const stakingContract = await contractService.getStakingContract(true)
+      // Corrected: Pass STAKING_CONTRACT_ADDRESS as the first argument
+      const stakingContract = await contractService.getStakingContract(STAKING_CONTRACT_ADDRESS, true)
 
       console.log(`Claiming reward for stake index ${stakeIndex}`)
       const tx = await stakingContract.claimReward(stakeIndex)
@@ -335,7 +337,8 @@ export default function StakingPage() {
       setTxMessage("Compounding rewards...")
 
       // Get the staking contract using contractService
-      const stakingContract = await contractService.getStakingContract(true)
+      // Corrected: Pass STAKING_CONTRACT_ADDRESS as the first argument
+      const stakingContract = await contractService.getStakingContract(STAKING_CONTRACT_ADDRESS, true)
 
       console.log(`Compounding reward for stake index ${stakeIndex}`)
       const tx = await stakingContract.compoundReward(stakeIndex)
