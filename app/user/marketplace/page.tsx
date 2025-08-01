@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useWeb3 } from "@/components/web3-provider"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -31,6 +31,7 @@ import {
   Store,
   Plus,
   Minus,
+  List,
 } from "lucide-react"
 import { contractService } from "@/lib/contract-utils"
 import { ethers } from "ethers"
@@ -303,12 +304,6 @@ export default function MarketplacePage() {
             const { seller, tokenId, amount, pricePerItem } = event.args || {}
 
             if (seller && tokenId && amount && pricePerItem) {
-              // Skip listings from the current user
-              if (seller.toLowerCase() === account?.toLowerCase()) {
-                console.log(`⏭️ Skipping own listing: Token ${tokenId} by ${seller}`)
-                continue
-              }
-
               // Check if listing is still active
               const listing = await marketplaceContract.listings(tokenId, seller)
 
@@ -539,7 +534,10 @@ export default function MarketplacePage() {
           `Insufficient CAFI balance. Required: ${contractService.formatTokenAmount(
             totalPrice,
             tokenDecimals,
-          )} ${tokenSymbol}, Available: ${contractService.formatTokenAmount(userBalance, tokenDecimals)} ${tokenSymbol}`,
+          )} ${tokenSymbol}, Available: ${contractService.formatTokenAmount(
+            userBalance,
+            tokenDecimals,
+          )} ${tokenSymbol}`,
         )
       }
 
@@ -606,10 +604,9 @@ export default function MarketplacePage() {
 
         toast({
           title: "Success",
-          description: `Successfully purchased ${purchaseAmount} ${listing.project.projectName} NFT(s) for ${contractService.formatTokenAmount(
-            totalPrice,
-            tokenDecimals,
-          )} ${tokenSymbol}!`,
+          description: `Successfully purchased ${purchaseAmount} ${
+            listing.project.projectName
+          } NFT(s) for ${contractService.formatTokenAmount(totalPrice, tokenDecimals)} ${tokenSymbol}!`,
         })
       } else {
         throw new Error("Transaction failed")
@@ -744,7 +741,10 @@ export default function MarketplacePage() {
           `Insufficient CAFI balance for listing fee. Required: ${contractService.formatTokenAmount(
             listingFee,
             tokenDecimals,
-          )} ${tokenSymbol}, Available: ${contractService.formatTokenAmount(cafiBalance, tokenDecimals)} ${tokenSymbol}`,
+          )} ${tokenSymbol}, Available: ${contractService.formatTokenAmount(
+            cafiBalance,
+            tokenDecimals,
+          )} ${tokenSymbol}`,
         )
       }
 
@@ -849,7 +849,9 @@ export default function MarketplacePage() {
 
         toast({
           title: "Success",
-          description: `Successfully listed ${listingAmount} NFT(s) for ${listingForm.pricePerItem} ${tokenSymbol} each! Listing fee: ${contractService.formatTokenAmount(
+          description: `Successfully listed ${listingAmount} NFT(s) for ${
+            listingForm.pricePerItem
+          } ${tokenSymbol} each! Listing fee: ${contractService.formatTokenAmount(
             listingFee,
             tokenDecimals,
           )} ${tokenSymbol}`,
@@ -868,7 +870,89 @@ export default function MarketplacePage() {
       } else if (error.message?.includes("user rejected")) {
         errorMessage = "Transaction was rejected by user."
       } else if (error.message?.includes("execution reverted")) {
-        errorMessage = `Transaction failed. This might be due to insufficient listing fee, invalid parameters, or contract restrictions. Please check your CAFI balance and try again.`
+        errorMessage =
+          "Transaction failed. This might be due to insufficient listing fee, invalid parameters, or contract restrictions. Please check your CAFI balance and try again."
+      }
+
+      setTxStatus({
+        hash: "",
+        status: "error",
+        message: errorMessage,
+      })
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleUnlistItem = async (tokenId: number, seller: string) => {
+    if (!currentNetworkContracts.MARKETPLACE) {
+      toast({
+        title: "Error",
+        description: "Marketplace contract address not available for current network.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      setTxStatus({
+        hash: "",
+        status: "pending",
+        message: "Preparing to unlist NFT...",
+      })
+
+      const marketplaceContract = await contractService.getMarketplaceContract(
+        currentNetworkContracts.MARKETPLACE,
+        true,
+      )
+
+      const tx = await marketplaceContract.cancelListing(tokenId, seller)
+
+      console.log(`📝 Unlist transaction:`, tx.hash)
+
+      setTxStatus({
+        hash: tx.hash,
+        status: "pending",
+        message: "Unlist transaction submitted. Waiting for confirmation...",
+      })
+
+      const receipt = await tx.wait()
+
+      if (receipt?.status === 1) {
+        console.log(`✅ Unlist confirmed:`, receipt.hash)
+
+        setTxStatus({
+          hash: tx.hash,
+          status: "success",
+          message: "NFT unlisted successfully!",
+        })
+
+        // Refresh data
+        await Promise.all([loadUserNFTs(), loadMarketplaceListings(), refreshBalances()])
+
+        toast({
+          title: "Success",
+          description: `Successfully unlisted Token #${tokenId} from the marketplace!`,
+        })
+      } else {
+        throw new Error("Transaction failed")
+      }
+    } catch (error: any) {
+      console.error("❌ Error unlisting NFT:", error)
+
+      let errorMessage = error.message || "Failed to unlist NFT"
+
+      if (error.message?.includes("user rejected")) {
+        errorMessage = "Transaction was rejected by user."
+      } else if (error.message?.includes("execution reverted")) {
+        errorMessage = "Transaction failed. You might not be the seller or the listing no longer exists."
       }
 
       setTxStatus({
@@ -909,6 +993,11 @@ export default function MarketplacePage() {
     return hash
   }
 
+  // Filter marketplace listings to show only current user's active listings
+  const myActiveListings = marketplaceListings.filter(
+    (listing) => listing.seller.toLowerCase() === account?.toLowerCase(),
+  )
+
   // Calculate estimated listing fee for display
   const estimatedListingFee = calculateListingFee(listingForm.amount, listingForm.pricePerItem)
 
@@ -942,10 +1031,15 @@ export default function MarketplacePage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Carbon NFT Marketplace</h1>
+          <h1 className="text-3xl font-bold text-gray-50">Carbon NFT Marketplace</h1>
           <p className="text-muted-foreground">Buy and sell Carbon Credit NFTs from CarbonFi</p>
         </div>
-        <Button onClick={refreshData} disabled={isRefreshing} variant="outline">
+        <Button
+          onClick={refreshData}
+          disabled={isRefreshing}
+          variant="outline"
+          className="text-gray-50 border-gray-700 bg-gray-800 hover:bg-gray-700"
+        >
           <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
           Refresh
         </Button>
@@ -996,9 +1090,9 @@ export default function MarketplacePage() {
       )}
 
       {/* Marketplace Info */}
-      <Card>
+      <Card className="bg-gray-950 text-gray-50 border-gray-800 hover:shadow-md transition-shadow">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-gray-50">
             <Info className="h-5 w-5" />
             Marketplace Information
           </CardTitle>
@@ -1006,57 +1100,66 @@ export default function MarketplacePage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label className="text-sm font-medium">Trading Fee</Label>
-              <p className="text-lg">{marketplaceConstants.actualFeePercent.toFixed(2)}%</p>
+              <Label className="text-sm font-medium text-gray-300">Trading Fee</Label>
+              <p className="text-lg text-gray-50">{marketplaceConstants.actualFeePercent.toFixed(2)}%</p>
             </div>
             <div>
-              <Label className="text-sm font-medium">Minimum Amount</Label>
-              <p className="text-lg">{marketplaceConstants.minAmount} NFTs</p>
+              <Label className="text-sm font-medium text-gray-300">Minimum Amount</Label>
+              <p className="text-lg text-gray-50">{marketplaceConstants.minAmount} NFTs</p>
             </div>
             <div>
-              <Label className="text-sm font-medium">Minimum Price</Label>
-              <p className="text-lg">
+              <Label className="text-sm font-medium text-gray-300">Minimum Price</Label>
+              <p className="text-lg text-gray-50">
                 {marketplaceConstants.minPriceFormatted} {tokenSymbol}
               </p>
             </div>
             <div className="md:col-span-3">
-              <Label className="text-sm font-medium">Fee Wallet</Label>
-              <p className="text-sm font-mono break-all">{feeWallet || "Not set"}</p>
+              <Label className="text-sm font-medium text-gray-300">Fee Wallet</Label>
+              <p className="text-sm font-mono break-all text-gray-50">{feeWallet || "Not set"}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
       <Tabs defaultValue="marketplace" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="marketplace" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-3 bg-gray-800 border-gray-700">
+          <TabsTrigger
+            value="marketplace"
+            className="flex items-center gap-2 text-gray-50 data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+          >
             <Store className="h-4 w-4" />
             Marketplace
           </TabsTrigger>
-          <TabsTrigger value="my-nfts" className="flex items-center gap-2">
+          <TabsTrigger
+            value="my-nfts"
+            className="flex items-center gap-2 text-gray-50 data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+          >
             <Leaf className="h-4 w-4" />
             My NFTs
           </TabsTrigger>
-          <TabsTrigger value="list" className="flex items-center gap-2">
+          <TabsTrigger
+            value="my-listings" // Renamed from "list"
+            className="flex items-center gap-2 text-gray-50 data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+          >
             <Tag className="h-4 w-4" />
-            List NFT
+            My Listings
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="marketplace" className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold mb-4">Available Carbon Credit NFTs</h2>
+            <h2 className="text-2xl font-bold mb-4 text-gray-50">Available Carbon Credit NFTs</h2>
             {isLoading && marketplaceListings.length === 0 ? (
               <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <span className="ml-2">Loading marketplace listings...</span>
+                <Loader2 className="h-8 w-8 animate-spin text-gray-50" />
+                <span className="ml-2 text-gray-50">Loading marketplace listings...</span>
               </div>
             ) : marketplaceListings.length === 0 ? (
-              <Alert>
+              <Alert className="bg-gray-800 border-gray-700 text-gray-50">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   No NFTs from other users are currently listed for sale. Only NFTs from other wallets are shown here -
-                  your own listings are managed in the "My NFTs" tab.
+                  your own listings are managed in the "My Listings" tab.
                 </AlertDescription>
               </Alert>
             ) : (
@@ -1068,7 +1171,7 @@ export default function MarketplacePage() {
                   return (
                     <Card
                       key={`${listing.seller}-${listing.tokenId}-${index}`}
-                      className="group overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-gray-700 hover:border-green-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-green-500/20 hover:-translate-y-2 hover:scale-[1.02] cursor-pointer"
+                      className="group overflow-hidden bg-gray-900 border-gray-700 hover:shadow-md transition-shadow"
                     >
                       <CardHeader className="pb-3 relative">
                         <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -1111,7 +1214,7 @@ export default function MarketplacePage() {
 
                       <CardContent className="space-y-3 relative">
                         <div>
-                          <CardTitle className="text-lg text-white group-hover:text-green-300 transition-colors duration-300">
+                          <CardTitle className="text-lg text-gray-50 group-hover:text-green-300 transition-colors duration-300">
                             {listing.project?.projectName || `Token #${listing.tokenId}`}
                           </CardTitle>
                           <CardDescription className="text-gray-400 group-hover:text-gray-300 transition-colors duration-300">
@@ -1224,20 +1327,20 @@ export default function MarketplacePage() {
 
         <TabsContent value="my-nfts" className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold mb-4">Your Carbon Credit NFTs</h2>
+            <h2 className="text-2xl font-bold mb-4 text-gray-50">Your Carbon Credit NFTs</h2>
             {isLoading && userNFTs.length === 0 ? (
               <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <span className="ml-2">Loading your NFTs...</span>
+                <Loader2 className="h-8 w-8 animate-spin text-gray-50" />
+                <span className="ml-2 text-gray-50">Loading your NFTs...</span>
               </div>
             ) : userNFTs.length === 0 ? (
-              <Alert>
+              <Alert className="bg-gray-800 border-gray-700 text-gray-50">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   You don't have any Carbon Credit NFTs yet.
                   <Button
                     variant="link"
-                    className="p-0 h-auto ml-1"
+                    className="p-0 h-auto ml-1 text-gray-50"
                     onClick={() => (window.location.href = "/user/mint-nft")}
                   >
                     Mint some NFTs first!
@@ -1249,13 +1352,13 @@ export default function MarketplacePage() {
                 {userNFTs.map((nft) => (
                   <Card
                     key={nft.tokenId}
-                    className="group overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-slate-700 hover:border-blue-500/50 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-1 hover:scale-[1.01]"
+                    className="group overflow-hidden bg-gray-900 border-gray-700 hover:shadow-md transition-shadow"
                   >
                     <CardHeader className="pb-3 relative">
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                       <div className="flex items-start justify-between relative z-10">
                         <div>
-                          <CardTitle className="text-lg flex items-center gap-2 text-white group-hover:text-blue-300 transition-colors duration-300">
+                          <CardTitle className="text-lg flex items-center gap-2 text-gray-50 group-hover:text-blue-300 transition-colors duration-300">
                             <Hash className="h-4 w-4" />
                             Token #{nft.tokenId}
                           </CardTitle>
@@ -1349,8 +1452,13 @@ export default function MarketplacePage() {
                             amount: Math.min(1, Number.parseInt(nft.balance)).toString(),
                           }))
                           // Switch to list tab
-                          const listTab = document.querySelector('[value="list"]') as HTMLElement
+                          const listTab = document.querySelector('[value="my-listings"]') as HTMLElement
                           if (listTab) listTab.click()
+                          // Switch to create new listing sub-tab
+                          const createNewListingSubTab = document.querySelector(
+                            '[value="create-new-listing"]',
+                          ) as HTMLElement
+                          if (createNewListingSubTab) createNewListingSubTab.click()
                         }}
                       >
                         <Tag className="h-4 w-4 mr-2 group-hover:animate-pulse" />
@@ -1364,123 +1472,550 @@ export default function MarketplacePage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="list" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>List Your NFT for Sale</CardTitle>
-              <CardDescription>List your Carbon Credit NFTs on the marketplace</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="list-tokenId">Token ID</Label>
-                  <Input
-                    id="list-tokenId"
-                    type="number"
-                    placeholder="Enter token ID"
-                    value={listingForm.tokenId}
-                    onChange={(e) => {
-                      setListingForm((prev) => ({ ...prev, tokenId: e.target.value, amount: "" }))
-                      setDebugInfo(null)
-                    }}
-                  />
-                  {listingForm.tokenId && !userNFTs.find((nft) => nft.tokenId.toString() === listingForm.tokenId) && (
-                    <p className="text-xs text-red-500 mt-1">You don't own this token ID</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="list-amount">Amount</Label>
-                  <Input
-                    id="list-amount"
-                    type="number"
-                    placeholder="Enter amount"
-                    value={listingForm.amount}
-                    onChange={(e) => {
-                      setListingForm((prev) => ({ ...prev, amount: e.target.value }))
-                      setDebugInfo(null)
-                    }}
-                  />
-                  {listingForm.tokenId && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Available: {userNFTs.find((nft) => nft.tokenId.toString() === listingForm.tokenId)?.balance || 0}{" "}
-                      NFTs (Min: {marketplaceConstants.minAmount})
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="list-price">Price per Item ({tokenSymbol})</Label>
-                  <Input
-                    id="list-price"
-                    type="number"
-                    step="0.01"
-                    placeholder="Enter price"
-                    value={listingForm.pricePerItem}
-                    onChange={(e) => setListingForm((prev) => ({ ...prev, pricePerItem: e.target.value }))}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Min: {marketplaceConstants.minPriceFormatted} {tokenSymbol}
-                  </p>
-                </div>
-              </div>
+        <TabsContent value="my-listings" className="space-y-6">
+          <Tabs defaultValue="active-listings" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2 bg-gray-800 border-gray-700">
+              <TabsTrigger
+                value="active-listings"
+                className="flex items-center gap-2 text-gray-50 data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+              >
+                <List className="h-4 w-4" />
+                Your Active Listings
+              </TabsTrigger>
+              <TabsTrigger
+                value="create-new-listing"
+                className="flex items-center gap-2 text-gray-50 data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+              >
+                <Plus className="h-4 w-4" />
+                Create New Listing
+              </TabsTrigger>
+            </TabsList>
 
-              {/* Total Revenue and Fee Information */}
-              {listingForm.amount && listingForm.pricePerItem && (
-                <div className="space-y-3">
-                  <Alert>
-                    <DollarSign className="h-4 w-4" />
-                    <AlertDescription>
-                      <div className="space-y-2">
-                        <p className="font-medium">Listing Summary:</p>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+            <TabsContent value="active-listings" className="space-y-6">
+              <h2 className="text-2xl font-bold mb-4 text-gray-50">Your Listed Carbon Credit NFTs</h2>
+              {isLoading && myActiveListings.length === 0 ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-50" />
+                  <span className="ml-2 text-gray-50">Loading your active listings...</span>
+                </div>
+              ) : myActiveListings.length === 0 ? (
+                <Alert className="bg-gray-800 border-gray-700 text-gray-50">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    You currently have no NFTs listed for sale on the marketplace.
+                    <Button
+                      variant="link"
+                      className="p-0 h-auto ml-1 text-green-400 hover:text-green-300"
+                      onClick={() => {
+                        const createNewListingSubTab = document.querySelector(
+                          '[value="create-new-listing"]',
+                        ) as HTMLElement
+                        if (createNewListingSubTab) createNewListingSubTab.click()
+                      }}
+                    >
+                      List one now!
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {myActiveListings.map((listing) => (
+                    <Card
+                      key={`${listing.seller}-${listing.tokenId}`}
+                      className="group overflow-hidden bg-gray-900 border-gray-700 hover:shadow-md transition-shadow"
+                    >
+                      <CardHeader className="pb-3 relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                        <div className="flex items-start justify-between relative z-10">
                           <div>
-                            <p className="text-muted-foreground">Credits to List:</p>
-                            <p className="font-medium">{listingForm.amount} NFTs</p>
+                            <CardTitle className="text-lg flex items-center gap-2 text-gray-50 group-hover:text-green-300 transition-colors duration-300">
+                              <Hash className="h-4 w-4" />
+                              Token #{listing.tokenId}
+                            </CardTitle>
+                            <CardDescription className="font-medium text-green-400 group-hover:text-green-300 transition-colors duration-300">
+                              {listing.project?.projectName || "Carbon Credit NFT"}
+                            </CardDescription>
                           </div>
+                          <Badge variant="default" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+                            Listed
+                          </Badge>
+                        </div>
+
+                        {/* Project Image */}
+                        <div className="w-full h-32 bg-gray-800 rounded-md flex items-center justify-center relative overflow-hidden group-hover:bg-gray-700 transition-colors duration-300">
+                          {listing.project?.imageCID ? (
+                            <img
+                              src={formatIPFSUrl(listing.project.imageCID) || "/placeholder.svg"}
+                              alt={listing.project.projectName}
+                              className="w-full h-full object-cover rounded-md group-hover:scale-110 transition-transform duration-500"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none"
+                              }}
+                            />
+                          ) : (
+                            <div className="text-gray-500 text-center group-hover:text-gray-400 transition-colors duration-300">
+                              <FileText className="h-8 w-8 mx-auto mb-2" />
+                              <p className="text-xs">No Image</p>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        </div>
+                      </CardHeader>
+
+                      <CardContent className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
-                            <p className="text-muted-foreground">Price per Credit:</p>
-                            <p className="font-medium">
-                              {listingForm.pricePerItem} {tokenSymbol}
+                            <Label className="text-xs font-medium text-gray-400 group-hover:text-gray-300 transition-colors duration-300">
+                              Project Type
+                            </Label>
+                            <p className="font-medium text-gray-200 group-hover:text-white transition-colors duration-300">
+                              {listing.project?.projectType || "N/A"}
                             </p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground">Total Revenue:</p>
-                            <p className="font-bold text-green-600">
-                              {(Number(listingForm.amount) * Number(listingForm.pricePerItem)).toFixed(2)} {tokenSymbol}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Listing Fee:</p>
-                            <p className="font-medium text-orange-600">
-                              {contractService.formatTokenAmount(estimatedListingFee, tokenDecimals)} {tokenSymbol}
+                            <Label className="text-xs font-medium text-gray-400 group-hover:text-gray-300 transition-colors duration-300">
+                              Listed Amount
+                            </Label>
+                            <p className="font-bold text-green-400 group-hover:text-green-300 transition-colors duration-300">
+                              {listing.amount} NFTs
                             </p>
                           </div>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Listing fee ({marketplaceConstants.actualFeePercent.toFixed(2)}%) will be deducted from your
-                          CAFI balance.
-                        </p>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
+
+                        <div className="space-y-2">
+                          {listing.project?.location && (
+                            <div className="flex items-center gap-2 text-sm text-gray-400 group-hover:text-gray-300 transition-colors duration-300">
+                              <MapPin className="h-3 w-3 text-blue-400" />
+                              <span>{listing.project.location}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-sm text-green-400 group-hover:text-green-300 transition-colors duration-300">
+                            <Leaf className="h-3 w-3" />
+                            <span>{listing.project?.carbonReduction || "N/A"} tons CO₂</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-400 group-hover:text-gray-300 transition-colors duration-300">
+                            <FileText className="h-3 w-3" />
+                            <span>{listing.project?.methodology || "N/A"}</span>
+                          </div>
+                          {listing.project?.startDate > 0 && (
+                            <div className="flex items-center gap-2 text-sm text-gray-400 group-hover:text-gray-300 transition-colors duration-300">
+                              <Calendar className="h-3 w-3" />
+                              <span>
+                                {formatDate(listing.project.startDate)} - {formatDate(listing.project.endDate)}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-sm text-gray-400 group-hover:text-gray-300 transition-colors duration-300">
+                            <User className="h-3 w-3" />
+                            <span className="font-mono text-xs">
+                              {listing.seller.substring(0, 6)}...{listing.seller.substring(38)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-green-400 group-hover:text-green-300 transition-colors duration-300">
+                              {listing.priceFormatted} {tokenSymbol}
+                            </p>
+                            <p className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors duration-300">
+                              per credit
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+
+                      <CardFooter className="pt-3">
+                        <Button
+                          className="w-full bg-red-600 hover:bg-red-700 text-white font-medium shadow-lg hover:shadow-red-500/25 transform hover:scale-105 transition-all duration-300 group-hover:shadow-xl"
+                          onClick={() => handleUnlistItem(listing.tokenId, listing.seller)}
+                          disabled={isLoading}
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Unlisting...
+                            </>
+                          ) : (
+                            <>
+                              <Tag className="h-4 w-4 mr-2" />
+                              Unlist NFT
+                            </>
+                          )}
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
                 </div>
               )}
-            </CardContent>
-            <CardFooter>
-              <Button onClick={handleListItem} disabled={isLoading} className="w-full">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Listing...
-                  </>
+            </TabsContent>
+
+            <TabsContent value="create-new-listing" className="space-y-6">
+              <h2 className="text-2xl font-bold mb-4 text-gray-50">Select NFT to List</h2>
+
+              {/* NFT Selection Cards */}
+              <div className="mb-6">
+                {userNFTs.length === 0 ? (
+                  <Alert className="bg-gray-800 border-gray-700 text-gray-50">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      You don't have any Carbon Credit NFTs to list.
+                      <Button
+                        variant="link"
+                        className="p-0 h-auto ml-1 text-green-400 hover:text-green-300"
+                        onClick={() => (window.location.href = "/user/mint-nft")}
+                      >
+                        Mint some NFTs first!
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
                 ) : (
-                  <>
-                    <Tag className="h-4 w-4 mr-2" />
-                    List NFT
-                  </>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {userNFTs.map((nft) => {
+                      const isSelected = listingForm.tokenId === nft.tokenId.toString()
+                      return (
+                        <Card
+                          key={nft.tokenId}
+                          className={`group overflow-hidden cursor-pointer transition-all duration-300 ${
+                            isSelected
+                              ? "bg-gray-800 border-green-500 shadow-lg shadow-green-500/20"
+                              : "bg-gray-900 border-gray-700 hover:border-green-400 hover:shadow-md"
+                          }`}
+                          onClick={() => {
+                            setListingForm((prev) => ({
+                              ...prev,
+                              tokenId: nft.tokenId.toString(),
+                              amount: Math.min(1, Number.parseInt(nft.balance)).toString(),
+                            }))
+                            setDebugInfo(null)
+                          }}
+                        >
+                          <CardHeader className="pb-3 relative">
+                            <div
+                              className={`absolute inset-0 transition-opacity duration-500 ${
+                                isSelected
+                                  ? "bg-gradient-to-br from-green-500/20 to-emerald-500/20 opacity-100"
+                                  : "bg-gradient-to-br from-green-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100"
+                              }`}
+                            />
+                            <div className="flex items-start justify-between relative z-10">
+                              <div>
+                                <CardTitle
+                                  className={`text-lg flex items-center gap-2 transition-colors duration-300 ${
+                                    isSelected ? "text-green-300" : "text-gray-50 group-hover:text-green-300"
+                                  }`}
+                                >
+                                  <Hash className="h-4 w-4" />
+                                  Token #{nft.tokenId}
+                                </CardTitle>
+                                <CardDescription
+                                  className={`font-medium transition-colors duration-300 ${
+                                    isSelected ? "text-green-400" : "text-blue-400 group-hover:text-green-300"
+                                  }`}
+                                >
+                                  {nft.projectName}
+                                </CardDescription>
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <Badge
+                                  variant={nft.isApproved ? "default" : "secondary"}
+                                  className={
+                                    nft.isApproved
+                                      ? "bg-green-500/20 text-green-300 border-green-500/30"
+                                      : "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+                                  }
+                                >
+                                  {nft.isApproved ? "Approved" : "Pending"}
+                                </Badge>
+                                {isSelected && (
+                                  <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+                                    Selected
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Project Image */}
+                            {nft.imageCID && (
+                              <div className="mt-3 w-full h-32 bg-gray-800 rounded-md flex items-center justify-center relative overflow-hidden">
+                                <img
+                                  src={formatIPFSUrl(nft.imageCID) || "/placeholder.svg"}
+                                  alt={nft.projectName}
+                                  className={`w-full h-full object-cover rounded-md transition-transform duration-500 ${
+                                    isSelected ? "scale-105" : "group-hover:scale-105"
+                                  }`}
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none"
+                                  }}
+                                />
+                                <div
+                                  className={`absolute inset-0 bg-gradient-to-t from-black/20 to-transparent transition-opacity duration-300 ${
+                                    isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                                  }`}
+                                />
+                              </div>
+                            )}
+                          </CardHeader>
+
+                          <CardContent className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <Label
+                                  className={`text-xs font-medium transition-colors duration-300 ${
+                                    isSelected ? "text-gray-200" : "text-gray-400 group-hover:text-gray-300"
+                                  }`}
+                                >
+                                  Project Type
+                                </Label>
+                                <p
+                                  className={`font-medium transition-colors duration-300 ${
+                                    isSelected ? "text-gray-50" : "text-gray-200 group-hover:text-white"
+                                  }`}
+                                >
+                                  {nft.projectType}
+                                </p>
+                              </div>
+                              <div>
+                                <Label
+                                  className={`text-xs font-medium transition-colors duration-300 ${
+                                    isSelected ? "text-gray-200" : "text-gray-400 group-hover:text-gray-300"
+                                  }`}
+                                >
+                                  Available Balance
+                                </Label>
+                                <p
+                                  className={`font-bold transition-colors duration-300 ${
+                                    isSelected ? "text-green-300" : "text-green-400 group-hover:text-green-300"
+                                  }`}
+                                >
+                                  {nft.balance} NFTs
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div
+                                className={`flex items-center gap-2 text-sm transition-colors duration-300 ${
+                                  isSelected ? "text-gray-200" : "text-gray-400 group-hover:text-gray-300"
+                                }`}
+                              >
+                                <MapPin className="h-3 w-3 text-blue-400" />
+                                <span>{nft.location}</span>
+                              </div>
+                              <div
+                                className={`flex items-center gap-2 text-sm transition-colors duration-300 ${
+                                  isSelected ? "text-green-300" : "text-green-400 group-hover:text-green-300"
+                                }`}
+                              >
+                                <Leaf className="h-3 w-3" />
+                                <span>{nft.carbonReduction} tons CO₂</span>
+                              </div>
+                              <div
+                                className={`flex items-center gap-2 text-sm transition-colors duration-300 ${
+                                  isSelected ? "text-gray-200" : "text-gray-400 group-hover:text-gray-300"
+                                }`}
+                              >
+                                <FileText className="h-3 w-3" />
+                                <span>{nft.methodology}</span>
+                              </div>
+                              {nft.startDate > 0 && (
+                                <div
+                                  className={`flex items-center gap-2 text-sm transition-colors duration-300 ${
+                                    isSelected ? "text-gray-200" : "text-gray-400 group-hover:text-gray-300"
+                                  }`}
+                                >
+                                  <Calendar className="h-3 w-3" />
+                                  <span>
+                                    {formatDate(nft.startDate)} - {formatDate(nft.endDate)}
+                                  </span>
+                                </div>
+                              )}
+                              <div
+                                className={`flex items-center gap-2 text-sm transition-colors duration-300 ${
+                                  isSelected ? "text-gray-200" : "text-gray-400 group-hover:text-gray-300"
+                                }`}
+                              >
+                                <User className="h-3 w-3" />
+                                <span className="font-mono text-xs">
+                                  {nft.creator.substring(0, 6)}...{nft.creator.substring(38)}
+                                </span>
+                              </div>
+                            </div>
+                          </CardContent>
+
+                          <CardFooter className="pt-3">
+                            <Button
+                              variant={isSelected ? "default" : "outline"}
+                              size="sm"
+                              className={`w-full transition-all duration-300 ${
+                                isSelected
+                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg"
+                                  : "border-gray-600 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-gray-500"
+                              }`}
+                            >
+                              {isSelected ? (
+                                <>
+                                  <Tag className="h-4 w-4 mr-2" />
+                                  Selected for Listing
+                                </>
+                              ) : (
+                                <>
+                                  <Tag className="h-4 w-4 mr-2 group-hover:animate-pulse" />
+                                  Select to List
+                                </>
+                              )}
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      )
+                    })}
+                  </div>
                 )}
-              </Button>
-            </CardFooter>
-          </Card>
+              </div>
+
+              {/* Listing Form - Only show if NFT is selected */}
+              {listingForm.tokenId && (
+                <Card className="bg-gray-950 text-gray-50 border-gray-800 hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="text-gray-50 flex items-center gap-2">
+                      <Tag className="h-5 w-5 text-green-400" />
+                      Configure Listing Details
+                    </CardTitle>
+                    <CardDescription className="text-gray-300">
+                      Set the amount and price for your selected NFT
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Selected NFT Summary */}
+                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                      <h4 className="font-medium text-gray-50 mb-2">Selected NFT</h4>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-gray-700 rounded-md flex items-center justify-center">
+                          <Hash className="h-6 w-6 text-green-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-50">
+                            Token #{listingForm.tokenId} -{" "}
+                            {userNFTs.find((nft) => nft.tokenId.toString() === listingForm.tokenId)?.projectName}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            Available: {userNFTs.find((nft) => nft.tokenId.toString() === listingForm.tokenId)?.balance}{" "}
+                            NFTs
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="list-amount" className="text-gray-300">
+                          Amount to List
+                        </Label>
+                        <Input
+                          id="list-amount"
+                          type="number"
+                          placeholder="Enter amount"
+                          value={listingForm.amount}
+                          onChange={(e) => {
+                            setListingForm((prev) => ({ ...prev, amount: e.target.value }))
+                            setDebugInfo(null)
+                          }}
+                          className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
+                        />
+                        {listingForm.tokenId && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Available:{" "}
+                            {userNFTs.find((nft) => nft.tokenId.toString() === listingForm.tokenId)?.balance || 0}
+                            NFTs (Min: {marketplaceConstants.minAmount})
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="list-price" className="text-gray-300">
+                          Price per Item ({tokenSymbol})
+                        </Label>
+                        <Input
+                          id="list-price"
+                          type="number"
+                          step="0.01"
+                          placeholder="Enter price"
+                          value={listingForm.pricePerItem}
+                          onChange={(e) => setListingForm((prev) => ({ ...prev, pricePerItem: e.target.value }))}
+                          className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Min: {marketplaceConstants.minPriceFormatted} {tokenSymbol}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Total Revenue and Fee Information */}
+                    {listingForm.amount && listingForm.pricePerItem && (
+                      <div className="space-y-3">
+                        <Alert className="bg-gray-800 border-gray-700 text-gray-50">
+                          <DollarSign className="h-4 w-4" />
+                          <AlertDescription>
+                            <div className="space-y-2">
+                              <p className="font-medium">Listing Summary:</p>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Credits to List:</p>
+                                  <p className="font-medium">{listingForm.amount} NFTs</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Price per Credit:</p>
+                                  <p className="font-medium">
+                                    {listingForm.pricePerItem} {tokenSymbol}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Total Revenue:</p>
+                                  <p className="font-bold text-green-600">
+                                    {(Number(listingForm.amount) * Number(listingForm.pricePerItem)).toFixed(2)}{" "}
+                                    {tokenSymbol}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Listing Fee:</p>
+                                  <p className="font-medium text-orange-600">
+                                    {contractService.formatTokenAmount(estimatedListingFee, tokenDecimals)}{" "}
+                                    {tokenSymbol}
+                                  </p>
+                                </div>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Listing fee ({marketplaceConstants.actualFeePercent.toFixed(2)}%) will be deducted from
+                                your CAFI balance.
+                              </p>
+                            </div>
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    )}
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      onClick={handleListItem}
+                      disabled={isLoading}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Listing...
+                        </>
+                      ) : (
+                        <>
+                          <Tag className="h-4 w-4 mr-2" />
+                          List NFT for Sale
+                        </>
+                      )}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
 

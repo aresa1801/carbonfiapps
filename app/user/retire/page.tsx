@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useWeb3 } from "@/components/web3-provider"
 import { contractService, type CarbonProject } from "@/lib/contract-utils"
-import { CONTRACT_ADDRESSES } from "@/lib/constants"
 import { TransactionStatus } from "@/components/transaction-status"
 import {
   Recycle,
@@ -53,7 +52,7 @@ interface RetirementCertificate {
 }
 
 export default function RetirePage() {
-  const { account, isConnected } = useWeb3()
+  const { account, isConnected, currentNetworkContracts, networkName } = useWeb3()
   const [ownedNFTs, setOwnedNFTs] = useState<NFTData[]>([])
   const [selectedNFT, setSelectedNFT] = useState<NFTData | null>(null)
   const [retireAmount, setRetireAmount] = useState("")
@@ -73,23 +72,23 @@ export default function RetirePage() {
       console.log("Loading owned NFTs for account:", account)
 
       // Get contracts
-      const nftContract = await contractService.getNftContract()
+      const nftContract = await contractService.getNftContract(currentNetworkContracts.NFT)
 
       // Check if carbon retire contract exists
       if (
-        !CONTRACT_ADDRESSES.CARBON_RETIRE ||
-        CONTRACT_ADDRESSES.CARBON_RETIRE === "0x0000000000000000000000000000000000000000"
+        !currentNetworkContracts.CARBON_RETIRE ||
+        currentNetworkContracts.CARBON_RETIRE === "0x0000000000000000000000000000000000000000"
       ) {
-        console.error("Carbon retire contract address not configured")
+        console.error("Carbon retire contract address not configured for current network")
         toast({
           title: "Configuration Error",
-          description: "Carbon retire contract is not properly configured",
+          description: "Carbon retire contract is not properly configured for this network",
           variant: "destructive",
         })
         return
       }
 
-      const retireContract = await contractService.getCarbonRetireContract()
+      const retireContract = await contractService.getCarbonRetireContract(currentNetworkContracts.CARBON_RETIRE)
 
       // Get retire fee
       try {
@@ -260,7 +259,7 @@ export default function RetirePage() {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }, [account])
+  }, [account, currentNetworkContracts.NFT, currentNetworkContracts.CARBON_RETIRE])
 
   const generatePDFCertificate = async (certificate: RetirementCertificate) => {
     try {
@@ -337,28 +336,28 @@ ${new Date().toISOString()}
       setTxStatus("pending")
 
       console.log("Starting retirement process...")
-      console.log("Contract addresses:", CONTRACT_ADDRESSES)
+      console.log("Contract addresses:", currentNetworkContracts)
 
       // Validate contract addresses
-      if (!CONTRACT_ADDRESSES.CARBON_RETIRE) {
+      if (!currentNetworkContracts.CARBON_RETIRE) {
         throw new Error("Carbon retire contract address not configured")
       }
 
-      if (!CONTRACT_ADDRESSES.CAFI_TOKEN) {
+      if (!currentNetworkContracts.CAFI_TOKEN) {
         throw new Error("CAFI token contract address not configured")
       }
 
-      if (!CONTRACT_ADDRESSES.NFT) {
+      if (!currentNetworkContracts.NFT) {
         throw new Error("NFT contract address not configured")
       }
 
       // Get the carbon retire contract directly
-      const retireContract = await contractService.getCarbonRetireContract(true)
+      const retireContract = await contractService.getCarbonRetireContract(currentNetworkContracts.CARBON_RETIRE, true)
       console.log("Got retire contract")
 
       // First approve the NFT contract to spend tokens
-      const nftContract = await contractService.getNftContract(true)
-      const isApproved = await nftContract.isApprovedForAll(account, CONTRACT_ADDRESSES.CARBON_RETIRE)
+      const nftContract = await contractService.getNftContract(currentNetworkContracts.NFT, true)
+      const isApproved = await nftContract.isApprovedForAll(account, currentNetworkContracts.CARBON_RETIRE)
 
       if (!isApproved) {
         toast({
@@ -366,7 +365,7 @@ ${new Date().toISOString()}
           description: "Please confirm the approval transaction in your wallet",
         })
 
-        const approveTx = await nftContract.setApprovalForAll(CONTRACT_ADDRESSES.CARBON_RETIRE, true)
+        const approveTx = await nftContract.setApprovalForAll(currentNetworkContracts.CARBON_RETIRE, true)
         await approveTx.wait()
 
         toast({
@@ -376,9 +375,9 @@ ${new Date().toISOString()}
       }
 
       // Now approve CAFI tokens for the fee
-      const cafiContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN, true)
+      const cafiContract = await contractService.getTokenContract(currentNetworkContracts.CAFI_TOKEN, true)
       const feeAmount = await retireContract.retireFee()
-      const allowance = await cafiContract.allowance(account, CONTRACT_ADDRESSES.CARBON_RETIRE)
+      const allowance = await cafiContract.allowance(account, currentNetworkContracts.CARBON_RETIRE)
 
       if (allowance < feeAmount) {
         toast({
@@ -386,7 +385,7 @@ ${new Date().toISOString()}
           description: "Please confirm the token approval transaction in your wallet",
         })
 
-        const tokenApproveTx = await cafiContract.approve(CONTRACT_ADDRESSES.CARBON_RETIRE, feeAmount)
+        const tokenApproveTx = await cafiContract.approve(currentNetworkContracts.CARBON_RETIRE, feeAmount)
         await tokenApproveTx.wait()
 
         toast({
@@ -494,11 +493,11 @@ ${new Date().toISOString()}
   if (!isConnected) {
     return (
       <div className="container mx-auto p-6">
-        <Card>
+        <Card className="bg-gray-950 text-gray-50 border-gray-800 hover:shadow-md transition-shadow">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Recycle className="h-12 w-12 text-muted-foreground mb-4" />
+            <Recycle className="h-12 w-12 text-green-400 mb-4" />
             <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
-            <p className="text-muted-foreground text-center">Please connect your wallet to retire carbon credits</p>
+            <p className="text-gray-400 text-center">Please connect your wallet to retire carbon credits</p>
           </CardContent>
         </Card>
       </div>
@@ -509,15 +508,19 @@ ${new Date().toISOString()}
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Recycle className="h-8 w-8 text-green-600" />
+          <Recycle className="h-8 w-8 text-green-400" />
           <div>
-            <h1 className="text-3xl font-bold">Retire Carbon Credits</h1>
-            <p className="text-muted-foreground">
-              Permanently retire your carbon credit NFTs to offset your carbon footprint
-            </p>
+            <h1 className="text-3xl font-bold text-gray-50">Retire Carbon Credits</h1>
+            <p className="text-gray-400">Permanently retire your carbon credit NFTs to offset your carbon footprint</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing || isLoading}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isRefreshing || isLoading}
+          className="bg-gray-800 text-green-400 border-green-600 hover:bg-gray-700 hover:text-green-300"
+        >
           <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
           Refresh
         </Button>
@@ -536,25 +539,29 @@ ${new Date().toISOString()}
 
       {/* Certificate Download Section */}
       {retirementCertificate && (
-        <Card className="border-green-500 bg-green-50 dark:bg-green-950">
+        <Card className="border-green-500 bg-gray-900 dark:bg-gray-900 text-gray-50 hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-300">
+            <CardTitle className="flex items-center gap-2 text-green-400">
               <CheckCircle className="h-5 w-5" />
               Retirement Certificate Ready
             </CardTitle>
-            <CardDescription>Your carbon credit retirement certificate has been generated</CardDescription>
+            <CardDescription className="text-gray-400">
+              Your carbon credit retirement certificate has been generated
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">Certificate ID: {retirementCertificate.certificateId}</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="font-medium">
+                  Certificate ID: <span className="text-green-300">{retirementCertificate.certificateId}</span>
+                </p>
+                <p className="text-sm text-gray-400">
                   {retirementCertificate.amount} credits retired from {retirementCertificate.projectName}
                 </p>
               </div>
               <Button
                 onClick={() => generatePDFCertificate(retirementCertificate)}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 text-white"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Download Certificate
@@ -566,82 +573,84 @@ ${new Date().toISOString()}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Your NFTs */}
-        <Card>
+        <Card className="bg-gray-950 text-gray-50 border-gray-800 hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-green-400">
               <Leaf className="h-5 w-5" />
               Your Carbon Credit NFTs
             </CardTitle>
-            <CardDescription>Select an NFT to retire permanently</CardDescription>
+            <CardDescription className="text-gray-400">Select an NFT to retire permanently</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="p-4 border rounded-lg">
-                    <Skeleton className="h-4 w-3/4 mb-2" />
-                    <Skeleton className="h-3 w-1/2 mb-2" />
-                    <Skeleton className="h-3 w-1/4" />
+                  <div key={i} className="p-4 border border-gray-700 rounded-lg bg-gray-900">
+                    <Skeleton className="h-4 w-3/4 mb-2 bg-gray-700" />
+                    <Skeleton className="h-3 w-1/2 mb-2 bg-gray-700" />
+                    <Skeleton className="h-3 w-1/4 bg-gray-700" />
                   </div>
                 ))}
               </div>
             ) : ownedNFTs.length === 0 ? (
               <div className="text-center py-8">
-                <Leaf className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground mb-2">You don't own any carbon credit NFTs yet</p>
-                <p className="text-sm text-muted-foreground">
+                <Leaf className="h-12 w-12 text-green-400 mx-auto mb-4" />
+                <p className="text-gray-400 mb-2">You don't own any carbon credit NFTs yet</p>
+                <p className="text-sm text-gray-500">
                   Visit the{" "}
-                  <a href="/user/mint-nft" className="text-blue-600 hover:underline">
+                  <a href="/user/mint-nft" className="text-green-400 hover:underline">
                     Mint NFT
                   </a>{" "}
                   page to create your first carbon credit
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                 {ownedNFTs.map((nft) => (
                   <div
                     key={nft.tokenId}
-                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors bg-gray-900 ${
                       selectedNFT?.tokenId === nft.tokenId
-                        ? "border-green-500 bg-green-50 dark:bg-green-950"
-                        : "hover:border-gray-300"
+                        ? "border-green-500 bg-green-950"
+                        : "border-gray-700 hover:border-green-500"
                     }`}
                     onClick={() => setSelectedNFT(nft)}
                   >
                     <div className="flex justify-between items-start mb-3">
-                      <h3 className="font-semibold text-lg">{nft.project.projectName}</h3>
+                      <h3 className="font-semibold text-lg text-gray-50">{nft.project.projectName}</h3>
                       <div className="flex gap-2">
-                        <Badge variant="secondary">#{nft.tokenId}</Badge>
+                        <Badge variant="secondary" className="bg-gray-800 text-gray-300 border-gray-700">
+                          #{nft.tokenId}
+                        </Badge>
                         {nft.project.isApproved && (
-                          <Badge variant="default" className="bg-green-600">
+                          <Badge variant="default" className="bg-green-600 text-white">
                             Approved
                           </Badge>
                         )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                    <div className="grid grid-cols-2 gap-3 text-sm mb-3 text-gray-300">
                       <div className="flex items-center gap-2">
-                        <Factory className="h-4 w-4 text-blue-600" />
+                        <Factory className="h-4 w-4 text-blue-400" />
                         <span>{nft.project.projectType}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-red-600" />
+                        <MapPin className="h-4 w-4 text-red-400" />
                         <span>{nft.project.location}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Leaf className="h-4 w-4 text-green-600" />
+                        <Leaf className="h-4 w-4 text-green-400" />
                         <span>{nft.balance} tCO₂</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-purple-600" />
+                        <FileText className="h-4 w-4 text-purple-400" />
                         <span>{nft.project.methodology}</span>
                       </div>
                     </div>
 
                     {(nft.project.startDate || nft.project.endDate) && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
                         <Calendar className="h-4 w-4" />
                         <span>
                           {nft.project.startDate && nft.project.endDate
@@ -652,11 +661,11 @@ ${new Date().toISOString()}
                     )}
 
                     <div className="flex justify-between items-center">
-                      <span className="text-sm">
-                        Available: <span className="font-medium text-green-600">{nft.balance}</span> credits
+                      <span className="text-sm text-gray-400">
+                        Available: <span className="font-medium text-green-400">{nft.balance}</span> credits
                       </span>
                       {selectedNFT?.tokenId === nft.tokenId && (
-                        <Badge variant="outline" className="text-green-600 border-green-600">
+                        <Badge variant="outline" className="text-green-400 border-green-400 bg-green-950">
                           Selected
                         </Badge>
                       )}
@@ -669,27 +678,29 @@ ${new Date().toISOString()}
         </Card>
 
         {/* Retirement Form */}
-        <Card>
+        <Card className="bg-gray-950 text-gray-50 border-gray-800 hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-green-400">
               <Recycle className="h-5 w-5" />
               Retire Carbon Credits
             </CardTitle>
-            <CardDescription>Permanently retire your carbon credits to offset emissions</CardDescription>
+            <CardDescription className="text-gray-400">
+              Permanently retire your carbon credits to offset emissions
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {selectedNFT ? (
               <>
                 {/* Selected NFT Details */}
-                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3">
+                <div className="p-4 bg-gray-900 rounded-lg space-y-3 border border-gray-700">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">{selectedNFT.project.projectName}</h3>
-                    <Badge>#{selectedNFT.tokenId}</Badge>
+                    <h3 className="font-semibold text-gray-50">{selectedNFT.project.projectName}</h3>
+                    <Badge className="bg-gray-800 text-gray-300 border-gray-700">#{selectedNFT.tokenId}</Badge>
                   </div>
 
                   {/* NFT Image */}
                   {selectedNFT.project.imageHash && (
-                    <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                    <div className="w-full h-32 bg-gray-800 rounded-lg overflow-hidden">
                       <img
                         src={formatIPFSUrl(selectedNFT.project.imageHash) || "/placeholder.svg"}
                         alt={selectedNFT.project.projectName}
@@ -701,33 +712,35 @@ ${new Date().toISOString()}
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-4 text-sm text-gray-300">
                     <div className="flex items-center gap-2">
-                      <Factory className="h-4 w-4 text-blue-600" />
+                      <Factory className="h-4 w-4 text-blue-400" />
                       <span>{selectedNFT.project.projectType}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-red-600" />
+                      <MapPin className="h-4 w-4 text-red-400" />
                       <span>{selectedNFT.project.location}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Leaf className="h-4 w-4 text-green-600" />
+                      <Leaf className="h-4 w-4 text-green-400" />
                       <span>{selectedNFT.balance} tCO₂</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-purple-600" />
+                      <FileText className="h-4 w-4 text-purple-400" />
                       <span>{selectedNFT.project.methodology}</span>
                     </div>
                   </div>
 
-                  <p className="text-sm text-muted-foreground">
-                    Available: <span className="font-medium text-green-600">{selectedNFT.balance}</span> credits
+                  <p className="text-sm text-gray-400">
+                    Available: <span className="font-medium text-green-400">{selectedNFT.balance}</span> credits
                   </p>
                 </div>
 
                 {/* Retirement Amount */}
                 <div className="space-y-2">
-                  <Label htmlFor="retireAmount">Amount to Retire</Label>
+                  <Label htmlFor="retireAmount" className="text-gray-50">
+                    Amount to Retire
+                  </Label>
                   <Input
                     id="retireAmount"
                     type="number"
@@ -736,29 +749,30 @@ ${new Date().toISOString()}
                     onChange={(e) => setRetireAmount(e.target.value)}
                     min="1"
                     max={selectedNFT.balance}
+                    className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-500 focus:border-green-500"
                   />
-                  <p className="text-xs text-muted-foreground">Maximum: {selectedNFT.balance} credits</p>
+                  <p className="text-xs text-gray-400">Maximum: {selectedNFT.balance} credits</p>
                 </div>
 
                 {/* Cost Breakdown */}
-                <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <h4 className="font-medium">Cost Breakdown</h4>
-                  <div className="space-y-2 text-sm">
+                <div className="space-y-3 p-4 bg-gray-900 rounded-lg border border-gray-700">
+                  <h4 className="font-medium text-gray-50">Cost Breakdown</h4>
+                  <div className="space-y-2 text-sm text-gray-300">
                     <div className="flex justify-between">
                       <span>Retirement Fee:</span>
-                      <span>{retireFee} CAFI</span>
+                      <span className="text-green-400">{retireFee} CAFI</span>
                     </div>
-                    <Separator />
-                    <div className="flex justify-between font-medium">
+                    <Separator className="bg-gray-700" />
+                    <div className="flex justify-between font-medium text-gray-50">
                       <span>Total Cost:</span>
-                      <span>{getTotalCost()} CAFI</span>
+                      <span className="text-green-400">{getTotalCost()} CAFI</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Warning */}
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
+                <Alert className="bg-gray-900 border-yellow-500 text-yellow-300">
+                  <AlertCircle className="h-4 w-4 text-yellow-400" />
                   <AlertDescription>
                     <strong>Warning:</strong> Retiring carbon credits is permanent and cannot be undone. The NFTs will
                     be burned and removed from circulation forever.
@@ -774,7 +788,7 @@ ${new Date().toISOString()}
                     Number.parseInt(retireAmount) > selectedNFT.balance ||
                     isRetiring
                   }
-                  className="w-full"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
                   size="lg"
                 >
                   {isRetiring ? (
@@ -792,8 +806,8 @@ ${new Date().toISOString()}
               </>
             ) : (
               <div className="text-center py-8">
-                <Recycle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Select an NFT from the left to start the retirement process</p>
+                <Recycle className="h-12 w-12 text-green-400 mx-auto mb-4" />
+                <p className="text-gray-400">Select an NFT from the left to start the retirement process</p>
               </div>
             )}
           </CardContent>
@@ -801,39 +815,39 @@ ${new Date().toISOString()}
       </div>
 
       {/* Information Section */}
-      <Card>
+      <Card className="bg-gray-950 text-gray-50 border-gray-800 hover:shadow-md transition-shadow">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
+          <CardTitle className="flex items-center gap-2 text-green-400">
+            <CheckCircle className="h-5 w-5" />
             About Carbon Credit Retirement
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Recycle className="h-6 w-6 text-green-600" />
+              <div className="w-12 h-12 bg-green-900 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Recycle className="h-6 w-6 text-green-400" />
               </div>
-              <h3 className="font-semibold mb-2">Permanent Retirement</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold mb-2 text-gray-50">Permanent Retirement</h3>
+              <p className="text-sm text-gray-400">
                 Retired credits are permanently removed from circulation and cannot be traded
               </p>
             </div>
             <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                <FileText className="h-6 w-6 text-blue-600" />
+              <div className="w-12 h-12 bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-3">
+                <FileText className="h-6 w-6 text-blue-400" />
               </div>
-              <h3 className="font-semibold mb-2">Certificate Issued</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold mb-2 text-gray-50">Certificate Issued</h3>
+              <p className="text-sm text-gray-400">
                 You'll receive a retirement certificate as proof of your environmental impact
               </p>
             </div>
             <div className="text-center">
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Leaf className="h-6 w-6 text-purple-600" />
+              <div className="w-12 h-12 bg-purple-900 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Leaf className="h-6 w-6 text-purple-400" />
               </div>
-              <h3 className="font-semibold mb-2">Carbon Offset</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold mb-2 text-gray-50">Carbon Offset</h3>
+              <p className="text-sm text-gray-400">
                 Retired credits represent real carbon reduction that offsets your emissions
               </p>
             </div>

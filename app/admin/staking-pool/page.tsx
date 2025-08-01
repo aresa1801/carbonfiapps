@@ -42,7 +42,7 @@ export default function StakingPoolPage() {
       const intervalId = setInterval(() => {
         loadStakingData()
         checkAllowance()
-      }, 30000) // Refresh every 30 seconds
+      }, 30000)
 
       return () => clearInterval(intervalId)
     }
@@ -435,7 +435,7 @@ export default function StakingPoolPage() {
               size="sm"
               onClick={handleRefreshData}
               disabled={isLoadingPoolData || isLoading}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 bg-transparent"
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
@@ -513,7 +513,7 @@ export default function StakingPoolPage() {
                     onClick={approveTokens}
                     disabled={!isConnected || isLoading}
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 bg-transparent"
                   >
                     {isLoading ? "Approving..." : `Approve ${tokenSymbol}`}
                   </Button>

@@ -10,7 +10,7 @@ import { useWeb3 } from "@/components/web3-provider"
 import { TransactionStatus } from "@/components/transaction-status"
 import { useToast } from "@/components/ui/use-toast"
 import { AdminGuard } from "@/components/admin-guard"
-import { ImageIcon, Settings, RefreshCw, Plus, Edit, AlertCircle, CheckCircle2, XCircle } from "lucide-react"
+import { ImageIcon, Settings, RefreshCw, Plus, AlertCircle } from "lucide-react"
 import { contractService, CONTRACT_ADDRESSES, type Verifier } from "@/lib/contract-utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -435,7 +435,7 @@ export default function NFTSettingsPage() {
               size="sm"
               onClick={handleRefreshData}
               disabled={isLoadingData || isLoading}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 bg-transparent"
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
@@ -482,30 +482,29 @@ export default function NFTSettingsPage() {
               <CardContent>
                 <div className="grid gap-4">
                   <div className="grid gap-2">
-                    <Label className="text-slate-700 dark:text-slate-300">
-                      Current Mint Fee: {Number.parseFloat(mintFee).toFixed(4)} {tokenSymbol} per ton
+                    <Label htmlFor="rewardAmount" className="text-slate-700 dark:text-slate-300">
+                      Amount to Add ({tokenSymbol})
                     </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        placeholder="New mint fee"
-                        value={newMintFee}
-                        onChange={(e) => setNewMintFee(e.target.value)}
-                        className="border-slate-200 dark:border-slate-700"
-                        step="0.0001"
-                        min="0"
-                      />
-                      <Button
-                        onClick={updateMintFee}
-                        disabled={!newMintFee || isLoading || contractPaused}
-                        className="btn-purple"
-                      >
-                        Update Fee
-                      </Button>
-                    </div>
+                    <Input
+                      id="rewardAmount"
+                      type="number"
+                      placeholder="0.0"
+                      value={newMintFee}
+                      className="border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400"
+                    />
                   </div>
                 </div>
               </CardContent>
+              <CardFooter className="flex gap-2">
+                <Button
+                  onClick={updateMintFee}
+                  disabled={!isConnected || isLoading}
+                  variant="outline"
+                  className="flex-1 bg-transparent"
+                >
+                  Update Mint Fee
+                </Button>
+              </CardFooter>
             </Card>
 
             {/* Auto Approve Settings */}
@@ -525,11 +524,7 @@ export default function NFTSettingsPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Switch
-                      checked={autoApproveEnabled}
-                      onCheckedChange={toggleAutoApprove}
-                      disabled={isLoading || contractPaused}
-                    />
+                    <Switch checked={autoApproveEnabled} onCheckedChange={toggleAutoApprove} disabled={isLoading} />
                     <Badge variant={autoApproveEnabled ? "default" : "secondary"}>
                       {autoApproveEnabled ? "Enabled" : "Disabled"}
                     </Badge>
@@ -559,35 +554,25 @@ export default function NFTSettingsPage() {
                     </Label>
                     <Input
                       id="verifierName"
-                      value={newVerifier.name}
-                      onChange={(e) => setNewVerifier({ ...newVerifier, name: e.target.value })}
-                      className="border-slate-200 dark:border-slate-700"
-                      placeholder="Enter verifier name"
-                      maxLength={50}
+                      placeholder="Enter name"
+                      className="border-slate-200 dark:border-slate-700 focus:border-green-500 dark:focus:border-green-400"
                     />
                   </div>
-
                   <div className="grid gap-2">
                     <Label htmlFor="verifierWallet" className="text-slate-700 dark:text-slate-300">
                       Wallet Address
                     </Label>
                     <Input
                       id="verifierWallet"
-                      value={newVerifier.wallet}
-                      onChange={(e) => setNewVerifier({ ...newVerifier, wallet: e.target.value })}
-                      className="border-slate-200 dark:border-slate-700"
                       placeholder="0x..."
+                      className="border-slate-200 dark:border-slate-700 focus:border-green-500 dark:focus:border-green-400"
                     />
                   </div>
                 </div>
               </CardContent>
               <CardFooter>
-                <Button
-                  onClick={addVerifier}
-                  disabled={!newVerifier.name || !newVerifier.wallet || isLoading || contractPaused}
-                  className="w-full btn-purple"
-                >
-                  {isLoading ? "Adding..." : "Add Verifier"}
+                <Button onClick={() => {}} disabled={!isConnected} className="w-full btn-purple">
+                  Add Verifier
                 </Button>
               </CardFooter>
             </Card>
@@ -605,138 +590,20 @@ export default function NFTSettingsPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Current Token ID</div>
-                    <div className="text-xl font-bold text-slate-900 dark:text-slate-50">
-                      {isLoadingData ? (
-                        <div className="animate-pulse h-6 w-16 bg-slate-200 dark:bg-slate-700 rounded"></div>
-                      ) : (
-                        `#${currentTokenId}`
-                      )}
-                    </div>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span>Staking Contract:</span>
+                    <span className="font-mono text-xs">0x...{account?.substring(38)}</span>
                   </div>
-
-                  <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Contract Status</div>
-                    <div className={`text-lg font-bold ${contractPaused ? "text-red-600" : "text-green-600"}`}>
-                      {contractPaused ? "Paused" : "Active"}
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Auto Approve</div>
-                    <div className={`text-lg font-bold ${autoApproveEnabled ? "text-green-600" : "text-orange-600"}`}>
-                      {autoApproveEnabled ? "Enabled" : "Disabled"}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Tax Wallet</div>
-                    <div className="text-xs font-mono bg-slate-100 dark:bg-slate-800 p-2 rounded border">
-                      {taxWallet}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Management Wallet</div>
-                    <div className="text-xs font-mono bg-slate-100 dark:bg-slate-800 p-2 rounded border">
-                      {managementWallet}
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <span>Token Contract:</span>
+                    <span className="font-mono text-xs">0x...{account?.substring(38)}</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
-
-        {/* Existing Verifiers */}
-        <Card className="gradient-card border-slate-200 dark:border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-slate-900 dark:text-slate-50">Existing Verifiers</CardTitle>
-            <CardDescription className="text-slate-600 dark:text-slate-400">
-              Manage existing verifiers and their permissions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingData ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="h-32 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
-                  </div>
-                ))}
-              </div>
-            ) : verifiers.length === 0 ? (
-              <div className="text-center py-8 text-slate-500 dark:text-slate-400">
-                No verifiers found. Add your first verifier above.
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {verifiers.map((verifier) => (
-                  <Card key={verifier.index} className="border border-slate-200 dark:border-slate-700">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">#{verifier.index}</CardTitle>
-                        <Badge variant={verifier.isActive ? "default" : "secondary"}>
-                          {verifier.isActive ? (
-                            <>
-                              <CheckCircle2 className="h-3 w-3 mr-1" /> Active
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-3 w-3 mr-1" /> Inactive
-                            </>
-                          )}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="space-y-2">
-                        <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Name</div>
-                        <div className="font-medium">{verifier.name}</div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Wallet</div>
-                        <div className="text-xs font-mono bg-slate-100 dark:bg-slate-800 p-2 rounded border break-all">
-                          {verifier.wallet}
-                        </div>
-                      </div>
-
-                      <div className="pt-2 space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input placeholder="New name" className="text-sm" id={`name-${verifier.index}`} />
-                          <Input placeholder="New wallet" className="text-sm" id={`wallet-${verifier.index}`} />
-                        </div>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            const nameInput = document.getElementById(`name-${verifier.index}`) as HTMLInputElement
-                            const walletInput = document.getElementById(`wallet-${verifier.index}`) as HTMLInputElement
-
-                            if (nameInput?.value && walletInput?.value) {
-                              updateVerifier(verifier.index, nameInput.value, walletInput.value)
-                              nameInput.value = ""
-                              walletInput.value = ""
-                            }
-                          }}
-                          disabled={isLoading || contractPaused}
-                          className="w-full"
-                        >
-                          <Edit className="h-3 w-3 mr-1" />
-                          Update
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         <style jsx global>{`
           .gradient-card {

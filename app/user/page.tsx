@@ -193,7 +193,7 @@ export default function UserDashboardPage() {
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-white mb-2">Welcome to CAFI Dashboard</h1>
+                <h1 className="text-3xl font-bold text-gray-50 mb-2">Welcome to CAFI Dashboard</h1>
                 <p className="text-gray-400">Manage your carbon credits and earn rewards with CAFI tokens</p>
               </div>
               <div className="flex items-center space-x-4">
@@ -213,7 +213,7 @@ export default function UserDashboardPage() {
                   disabled={isRefreshing}
                   variant="outline"
                   size="sm"
-                  className="flex items-center space-x-2 bg-transparent"
+                  className="flex items-center space-x-2 bg-transparent text-gray-50 border-gray-700 hover:bg-gray-700"
                 >
                   <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
                   <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
@@ -231,7 +231,7 @@ export default function UserDashboardPage() {
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <Link href="/user/mint-nft">
-              <Card className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors cursor-pointer">
+              <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
                 <CardContent className="p-4 flex items-center space-x-3">
                   <div className="p-2 bg-emerald-500/10 rounded-lg">
                     <Coins className="h-6 w-6 text-emerald-500" />
@@ -245,7 +245,7 @@ export default function UserDashboardPage() {
             </Link>
 
             <Link href="/user/staking">
-              <Card className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors cursor-pointer">
+              <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
                 <CardContent className="p-4 flex items-center space-x-3">
                   <div className="p-2 bg-blue-500/10 rounded-lg">
                     <TrendingUp className="h-6 w-6 text-blue-500" />
@@ -259,7 +259,7 @@ export default function UserDashboardPage() {
             </Link>
 
             <Link href="/user/marketplace">
-              <Card className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors cursor-pointer">
+              <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
                 <CardContent className="p-4 flex items-center space-x-3">
                   <div className="p-2 bg-purple-500/10 rounded-lg">
                     <ShoppingCart className="h-6 w-6 text-purple-500" />
@@ -273,7 +273,7 @@ export default function UserDashboardPage() {
             </Link>
 
             <Link href="/user/retire">
-              <Card className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors cursor-pointer">
+              <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
                 <CardContent className="p-4 flex items-center space-x-3">
                   <div className="p-2 bg-green-500/10 rounded-lg">
                     <Leaf className="h-6 w-6 text-green-500" />
@@ -293,7 +293,7 @@ export default function UserDashboardPage() {
                 <div className="flex items-center gap-3">
                   <Droplets className="h-6 w-6 text-emerald-500" />
                   <div>
-                    <h2 className="text-xl font-bold text-white">CAFI Token Faucet</h2>
+                    <h2 className="text-xl font-bold text-gray-50">CAFI Token Faucet</h2>
                     <p className="text-sm text-gray-400">
                       Claim free CAFI tokens for testing purposes on CarbonFi Testnet
                     </p>
@@ -370,7 +370,7 @@ export default function UserDashboardPage() {
               <div className="mb-6 flex items-center gap-3">
                 <TrendingUp className="h-6 w-6 text-emerald-500" />
                 <div>
-                  <h2 className="text-xl font-bold text-white">Faucet Statistics</h2>
+                  <h2 className="text-xl font-bold text-gray-50">Faucet Statistics</h2>
                   <p className="text-sm text-gray-400">Current faucet status and daily metrics</p>
                 </div>
               </div>
