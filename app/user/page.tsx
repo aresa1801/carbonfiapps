@@ -43,6 +43,7 @@ export default function UserDashboardPage() {
     },
     isLoadingFaucetData = false,
     fetchFaucetData = async () => {},
+    currentNetworkContracts, // Destructure currentNetworkContracts
   } = useWeb3()
 
   // Initialize client-side rendering
@@ -105,7 +106,8 @@ export default function UserDashboardPage() {
       setIsClaimingTokens(true)
       setTxStatus("none")
 
-      const faucetContract = await contractService.getFaucetContract(true)
+      // Corrected: Pass the actual faucet contract address and then true for withSigner
+      const faucetContract = await contractService.getFaucetContract(currentNetworkContracts.FAUCET, true)
       const tx = await faucetContract.claimTokens()
 
       const receipt = await tx.wait()
@@ -146,7 +148,7 @@ export default function UserDashboardPage() {
     } finally {
       setIsClaimingTokens(false)
     }
-  }, [isConnected, faucetStats.hasClaimedToday, tokenSymbol, triggerRefresh, toast])
+  }, [isConnected, faucetStats.hasClaimedToday, tokenSymbol, triggerRefresh, toast, currentNetworkContracts.FAUCET])
 
   // Show loading state while client is initializing
   if (!isClient) {
@@ -166,6 +168,9 @@ export default function UserDashboardPage() {
     Number(faucetStats.dailyLimit) > 0
       ? ((Number(faucetStats.remainingQuota) / Number(faucetStats.dailyLimit)) * 100).toFixed(0)
       : "0"
+
+  // Determine the currency name for the native token (ETH or HBAR)
+  const nativeCurrencyName = networkName === "Hedera Testnet" ? "HBAR" : "ETH"
 
   return (
     <div className="flex h-screen bg-gray-950">
@@ -196,7 +201,7 @@ export default function UserDashboardPage() {
                   disabled={isRefreshing}
                   variant="outline"
                   size="sm"
-                  className="flex items-center space-x-2"
+                  className="flex items-center space-x-2 bg-transparent"
                 >
                   <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
                   <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
@@ -296,15 +301,17 @@ export default function UserDashboardPage() {
               <div className="grid gap-6 md:grid-cols-2">
                 <StableBalanceCard
                   type="eth"
+                  currencyName={nativeCurrencyName} // Pass the dynamic currency name
                   balance={ethBalance}
                   isLoading={isLoadingBalance}
-                  symbol="ETH"
+                  symbol={nativeCurrencyName} // Also update symbol for consistency
                   subtitle="✓ Available for gas"
                   isRefreshing={isRefreshing}
                 />
 
                 <StableBalanceCard
                   type="cafi"
+                  currencyName={tokenSymbol} // CAFI remains CAFI
                   balance={balance}
                   isLoading={isLoadingBalance}
                   symbol={tokenSymbol}

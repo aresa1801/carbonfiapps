@@ -6,7 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect } from "react"
 
 interface StableBalanceCardProps {
-  type: "eth" | "cafi"
+  type: "eth" | "cafi" // Keep for icon logic
+  currencyName: string // New prop for display name (e.g., "ETH", "HBAR", "CAFI")
   balance: string
   isLoading: boolean
   symbol: string
@@ -16,6 +17,7 @@ interface StableBalanceCardProps {
 
 export function StableBalanceCard({
   type,
+  currencyName, // Use this for display
   balance,
   isLoading,
   symbol,
@@ -51,10 +53,11 @@ export function StableBalanceCard({
     <Card className="border-gray-800 bg-gray-800/50 relative">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium text-gray-400">{type === "eth" ? "ETH Balance" : "CAFI Balance"}</div>
+          {/* Use currencyName for the displayed text */}
+          <div className="text-sm font-medium text-gray-400">{`${currencyName} Balance`}</div>
           <div className="flex items-center space-x-2">
             {(isRefreshing || isUpdating) && <RefreshCw className="h-3 w-3 text-gray-500 animate-spin" />}
-            {type === "eth" ? (
+            {type === "eth" ? ( // Keep type for icon selection
               <Wallet className="h-5 w-5 text-blue-400" />
             ) : (
               <Coins className="h-5 w-5 text-emerald-400" />
