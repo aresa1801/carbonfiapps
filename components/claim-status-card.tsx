@@ -14,10 +14,10 @@ export function ClaimStatusCard({ isLoading, hasClaimedToday, remainingQuota }: 
   const canClaim = !hasClaimedToday && Number(remainingQuota) > 0
 
   return (
-    <Card className="border-gray-800 bg-gray-800/50">
+    <Card className="border-gray-700 bg-gray-900 hover:shadow-md transition-shadow">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium text-gray-400">Claim Status</div>
+          <div className="text-sm font-medium text-gray-300">Claim Status</div>
           <Clock className="h-5 w-5 text-gray-400" />
         </div>
         <div className="mt-2">

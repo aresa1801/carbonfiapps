@@ -388,13 +388,13 @@ export default function StakingPage() {
   return (
     <div className="container mx-auto max-w-6xl space-y-6 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-50">Token Staking</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-50">Token Staking</h1>
         <Button
           variant="outline"
           size="sm"
           onClick={handleRefreshData}
           disabled={isLoadingPoolData || isLoading}
-          className="flex items-center gap-1"
+          className="flex items-center gap-1 bg-gray-800 border-gray-700 text-gray-50 hover:bg-gray-700"
         >
           <RefreshCw className="h-4 w-4" />
           Refresh
@@ -406,22 +406,20 @@ export default function StakingPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Staking Form */}
         <div className="lg:col-span-2">
-          <Card className="gradient-card card-hover border-emerald-200 dark:border-emerald-800">
+          <Card className="bg-gray-950 text-gray-50 border-emerald-800 hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
-                <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg">
-                  <Landmark className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <div className="p-2 bg-emerald-900 rounded-lg">
+                  <Landmark className="h-5 w-5 text-emerald-400" />
                 </div>
-                <CardTitle className="text-slate-900 dark:text-slate-50">Stake {tokenSymbol} Tokens</CardTitle>
+                <CardTitle className="text-gray-50">Stake {tokenSymbol} Tokens</CardTitle>
               </div>
-              <CardDescription className="text-slate-600 dark:text-slate-400">
-                Stake your tokens to earn rewards
-              </CardDescription>
+              <CardDescription className="text-gray-300">Stake your tokens to earn rewards</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="amount" className="text-slate-700 dark:text-slate-300">
+                  <Label htmlFor="amount" className="text-gray-300">
                     Amount to Stake ({tokenSymbol})
                   </Label>
                   <Input
@@ -430,31 +428,31 @@ export default function StakingPage() {
                     placeholder="0.0"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="border-slate-200 dark:border-slate-700 focus:border-emerald-500 dark:focus:border-emerald-400"
+                    className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
                   />
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                  <p className="text-sm text-gray-400">
                     Available: {balance} {tokenSymbol}
                   </p>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label className="text-slate-700 dark:text-slate-300">Staking Package</Label>
+                  <Label className="text-gray-300">Staking Package</Label>
                   <RadioGroup value={packageId} onValueChange={setPackageId}>
                     {stakingPackages.map((pkg) => (
                       <div
                         key={pkg.id}
-                        className="flex items-center space-x-2 p-3 border rounded-lg border-slate-200 dark:border-slate-700"
+                        className="flex items-center space-x-2 p-3 border rounded-lg border-gray-700 bg-gray-800"
                       >
-                        <RadioGroupItem value={pkg.id} id={`package-${pkg.id}`} />
-                        <Label htmlFor={`package-${pkg.id}`} className="flex justify-between w-full cursor-pointer">
+                        <RadioGroupItem value={pkg.id} id={`package-${pkg.id}`} className="text-emerald-500" />
+                        <Label
+                          htmlFor={`package-${pkg.id}`}
+                          className="flex justify-between w-full cursor-pointer text-gray-50"
+                        >
                           <div className="flex flex-col">
                             <span className="font-medium">{pkg.name}</span>
-                            <span className="text-sm text-slate-500">{pkg.lockPeriod} days lock period</span>
+                            <span className="text-sm text-gray-400">{pkg.lockPeriod} days lock period</span>
                           </div>
-                          <Badge
-                            variant="secondary"
-                            className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
-                          >
+                          <Badge variant="secondary" className="bg-emerald-900 text-emerald-200">
                             {pkg.apy} APY
                           </Badge>
                         </Label>
@@ -464,8 +462,13 @@ export default function StakingPage() {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Switch id="auto-stake" checked={autoStake} onCheckedChange={setAutoStake} />
-                  <Label htmlFor="auto-stake" className="text-slate-700 dark:text-slate-300">
+                  <Switch
+                    id="auto-stake"
+                    checked={autoStake}
+                    onCheckedChange={setAutoStake}
+                    className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-gray-700"
+                  />
+                  <Label htmlFor="auto-stake" className="text-gray-300">
                     Enable Auto-Staking
                   </Label>
                 </div>
@@ -481,7 +484,7 @@ export default function StakingPage() {
                   Number.parseFloat(amount) > Number.parseFloat(balance) ||
                   isLoading
                 }
-                className="w-full btn-emerald"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 {isLoading ? "Processing..." : `Stake ${tokenSymbol} Tokens`}
               </Button>
@@ -491,33 +494,33 @@ export default function StakingPage() {
 
         {/* Staking Information */}
         <div className="space-y-6">
-          <Card className="gradient-card card-hover border-emerald-200 dark:border-emerald-800">
+          <Card className="bg-gray-950 text-gray-50 border-emerald-800 hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
-                <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg">
-                  <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <div className="p-2 bg-emerald-900 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-emerald-400" />
                 </div>
-                <CardTitle className="text-slate-900 dark:text-slate-50">Pool Information</CardTitle>
+                <CardTitle className="text-gray-50">Pool Information</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Reward Pool</div>
-                  <div className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
+                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                  <div className="text-sm font-medium text-gray-400 mb-1">Reward Pool</div>
+                  <div className="text-xl md:text-2xl font-bold text-gray-50">
                     {isLoadingPoolData ? (
-                      <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                      <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-gray-700 rounded"></div>
                     ) : (
                       `${rewardPool} ${tokenSymbol}`
                     )}
                   </div>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Total Staked</div>
-                  <div className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
+                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                  <div className="text-sm font-medium text-gray-400 mb-1">Total Staked</div>
+                  <div className="text-xl md:text-2xl font-bold text-gray-50">
                     {isLoadingPoolData ? (
-                      <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                      <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-gray-700 rounded"></div>
                     ) : (
                       `${totalStaked} ${tokenSymbol}`
                     )}
@@ -527,26 +530,28 @@ export default function StakingPage() {
             </CardContent>
           </Card>
 
-          <Card className="gradient-card border-slate-200 dark:border-slate-700">
+          <Card className="bg-gray-950 text-gray-50 border-gray-800 hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-2">
-                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                  <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                <div className="p-2 bg-gray-800 rounded-lg">
+                  <Settings className="h-5 w-5 text-gray-400" />
                 </div>
-                <CardTitle className="text-slate-900 dark:text-slate-50">Contract Status</CardTitle>
+                <CardTitle className="text-gray-50">Contract Status</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span>Staking Contract:</span>
+                  <span className="text-gray-300">Staking Contract:</span>
                   <div className="flex items-center space-x-1">
                     {stakingContractExists ? (
                       <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                     ) : (
                       <XCircle className="h-3 w-3 text-red-500" />
                     )}
-                    <span className="font-mono text-xs">{STAKING_CONTRACT_ADDRESS.substring(0, 10)}...</span>
+                    <span className="font-mono text-xs text-gray-400">
+                      {STAKING_CONTRACT_ADDRESS.substring(0, 10)}...
+                    </span>
                   </div>
                 </div>
               </div>
@@ -557,28 +562,31 @@ export default function StakingPage() {
 
       {/* User Stakes */}
       {userStakes.length > 0 && (
-        <Card className="gradient-card border-slate-200 dark:border-slate-700">
+        <Card className="bg-gray-950 text-gray-50 border-gray-800 hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="text-slate-900 dark:text-slate-50">Your Stakes</CardTitle>
-            <CardDescription className="text-slate-600 dark:text-slate-400">
-              Manage your active stakes and claim rewards
-            </CardDescription>
+            <CardTitle className="text-gray-50">Your Stakes</CardTitle>
+            <CardDescription className="text-gray-300">Manage your active stakes and claim rewards</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {userStakes.map((stake, index) => (
-                <Card key={index} className="border border-slate-200 dark:border-slate-700">
+                <Card key={index} className="bg-gray-900 border-gray-700 hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">Stake #{index + 1}</CardTitle>
-                      <Badge variant={isStakeUnlocked(stake.unlockTime) ? "default" : "secondary"}>
+                      <CardTitle className="text-lg text-gray-50">Stake #{index + 1}</CardTitle>
+                      <Badge
+                        variant={isStakeUnlocked(stake.unlockTime) ? "default" : "secondary"}
+                        className={
+                          isStakeUnlocked(stake.unlockTime) ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-300"
+                        }
+                      >
                         {isStakeUnlocked(stake.unlockTime) ? "Unlocked" : "Locked"}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600 dark:text-slate-400">Amount:</span>
+                      <span className="text-sm text-gray-400">Amount:</span>
                       <span className="font-medium">
                         {Number.parseFloat(contractService.formatTokenAmount(stake.amount, tokenDecimals)).toFixed(4)}{" "}
                         {tokenSymbol}
@@ -586,26 +594,26 @@ export default function StakingPage() {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600 dark:text-slate-400">Staked:</span>
+                      <span className="text-sm text-gray-400">Staked:</span>
                       <span className="font-medium">{formatTimestamp(stake.stakeTime)}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600 dark:text-slate-400">Unlock:</span>
+                      <span className="text-sm text-gray-400">Unlock:</span>
                       <span className="font-medium">{formatTimestamp(stake.unlockTime)}</span>
                     </div>
 
                     {stake.autoStaking && (
                       <div className="flex items-center space-x-2">
                         <Zap className="h-4 w-4 text-yellow-500" />
-                        <span className="text-sm text-yellow-600 dark:text-yellow-400">Auto-staking enabled</span>
+                        <span className="text-sm text-yellow-400">Auto-staking enabled</span>
                       </div>
                     )}
 
                     {stake.compoundedAmount > 0n && (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-600 dark:text-slate-400">Compounded:</span>
-                        <span className="font-medium text-emerald-600">
+                        <span className="text-sm text-gray-400">Compounded:</span>
+                        <span className="font-medium text-emerald-400">
                           {Number.parseFloat(
                             contractService.formatTokenAmount(stake.compoundedAmount, tokenDecimals),
                           ).toFixed(4)}{" "}
@@ -616,7 +624,12 @@ export default function StakingPage() {
 
                     <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 pt-2">
                       {isStakeUnlocked(stake.unlockTime) && !stake.claimed && (
-                        <Button size="sm" onClick={() => claimReward(index)} disabled={isLoading} className="flex-1">
+                        <Button
+                          size="sm"
+                          onClick={() => claimReward(index)}
+                          disabled={isLoading}
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
                           <Coins className="h-4 w-4 mr-1" />
                           Claim
                         </Button>
@@ -628,7 +641,7 @@ export default function StakingPage() {
                           variant="outline"
                           onClick={() => compoundReward(index)}
                           disabled={isLoading}
-                          className="flex-1"
+                          className="flex-1 bg-gray-800 border-gray-700 text-gray-50 hover:bg-gray-700"
                         >
                           <TrendingUp className="h-4 w-4 mr-1" />
                           Compound
@@ -644,11 +657,12 @@ export default function StakingPage() {
       )}
 
       <style jsx global>{`
+        /* Remove old gradient styles if they conflict */
         .gradient-card {
-          background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8));
+          background: none !important;
         }
         .dark .gradient-card {
-          background: linear-gradient(to bottom right, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.8));
+          background: none !important;
         }
         .card-hover {
           transition: all 0.3s ease;

@@ -487,7 +487,7 @@ export default function MintNFTPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Mint Carbon NFT</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-50">Mint Carbon NFT</h1>
 
       {!isConnected ? (
         <Alert variant="destructive" className="mb-6">
@@ -498,44 +498,46 @@ export default function MintNFTPage() {
       ) : (
         <>
           {autoApproveEnabled && (
-            <Alert className="mb-6 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900">
-              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <AlertTitle>Auto-Approval Enabled</AlertTitle>
-              <AlertDescription>Your NFT will be automatically approved after minting.</AlertDescription>
+            <Alert className="mb-6 bg-black text-white border-green-700">
+              <CheckCircle2 className="h-4 w-4 text-green-400" />
+              <AlertTitle className="text-green-400">Auto-Approval Enabled</AlertTitle>
+              <AlertDescription className="text-gray-300">
+                Your NFT will be automatically approved after minting.
+              </AlertDescription>
             </Alert>
           )}
 
           {isSubmitted && tokenId !== null ? (
-            <Card className="mb-6">
+            <Card className="mb-6 bg-gray-950 text-gray-50 border-gray-800 hover:shadow-md transition-shadow">
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Leaf className="mr-2 h-5 w-5 text-green-600" />
+                <CardTitle className="flex items-center text-green-400">
+                  <Leaf className="mr-2 h-5 w-5" />
                   NFT Minted Successfully
                 </CardTitle>
-                <CardDescription>Your carbon offset NFT has been created</CardDescription>
+                <CardDescription className="text-gray-300">Your carbon offset NFT has been created</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div>
-                    <p className="font-medium">Project Name:</p>
+                    <p className="font-medium text-gray-300">Project Name:</p>
                     <p>{projectName}</p>
                   </div>
                   <div>
-                    <p className="font-medium">Token ID:</p>
+                    <p className="font-medium text-gray-300">Token ID:</p>
                     <p>{tokenId}</p>
                   </div>
                   <div>
-                    <p className="font-medium">Carbon Reduction:</p>
+                    <p className="font-medium text-gray-300">Carbon Reduction:</p>
                     <p>{carbonReduction} tons</p>
                   </div>
                   <div>
-                    <p className="font-medium">Duration:</p>
+                    <p className="font-medium text-gray-300">Duration:</p>
                     <p>
                       {durationDays} days ({formatDate(startDate)} - {formatDate(endDate)})
                     </p>
                   </div>
                   <div>
-                    <p className="font-medium">Transaction:</p>
+                    <p className="font-medium text-gray-300">Transaction:</p>
                     <p className="text-sm font-mono break-all">{txHash}</p>
                   </div>
                   <VerifierApprovalStatus
@@ -546,35 +548,44 @@ export default function MintNFTPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={resetForm}>Mint Another NFT</Button>
+                <Button onClick={resetForm} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  Mint Another NFT
+                </Button>
               </CardFooter>
             </Card>
           ) : (
-            <Card>
+            <Card className="bg-gray-950 text-gray-50 border-gray-800 hover:shadow-md transition-shadow">
               <CardHeader>
-                <CardTitle>Mint a New Carbon NFT</CardTitle>
-                <CardDescription>Create a new carbon offset NFT with verifiable data</CardDescription>
+                <CardTitle className="text-gray-50">Mint a New Carbon NFT</CardTitle>
+                <CardDescription className="text-gray-300">
+                  Create a new carbon offset NFT with verifiable data
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="projectName">Project Name *</Label>
+                      <Label htmlFor="projectName" className="text-gray-300">
+                        Project Name *
+                      </Label>
                       <Input
                         id="projectName"
                         value={projectName}
                         onChange={(e) => setProjectName(e.target.value)}
                         placeholder="Enter project name"
                         required
+                        className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="projectType">Project Type *</Label>
+                      <Label htmlFor="projectType" className="text-gray-300">
+                        Project Type *
+                      </Label>
                       <Select value={projectType} onValueChange={setProjectType}>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-50 focus:border-emerald-500">
                           <SelectValue placeholder="Select project type" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-gray-800 border-gray-700 text-gray-50">
                           {CARBON_PROJECT_TYPES.map((type) => (
                             <SelectItem key={type} value={type}>
                               {type}
@@ -587,17 +598,22 @@ export default function MintNFTPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="location">Location *</Label>
+                      <Label htmlFor="location" className="text-gray-300">
+                        Location *
+                      </Label>
                       <Input
                         id="location"
                         value={location}
                         onChange={(e) => setLocation(e.target.value)}
                         placeholder="Project location"
                         required
+                        className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="carbonReduction">Carbon Reduction (tons) *</Label>
+                      <Label htmlFor="carbonReduction" className="text-gray-300">
+                        Carbon Reduction (tons) *
+                      </Label>
                       <Input
                         id="carbonReduction"
                         type="number"
@@ -605,28 +621,32 @@ export default function MintNFTPage() {
                         onChange={(e) => setCarbonReduction(e.target.value)}
                         placeholder="Amount in tons"
                         required
+                        className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="methodology">Methodology *</Label>
+                    <Label htmlFor="methodology" className="text-gray-300">
+                      Methodology *
+                    </Label>
                     <Input
                       id="methodology"
                       value={methodology}
                       onChange={(e) => setMethodology(e.target.value)}
                       placeholder="Verification methodology"
                       required
+                      className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
                     />
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="durationDays" className="flex items-center">
-                        <Calendar className="mr-2 h-4 w-4" />
+                      <Label htmlFor="durationDays" className="flex items-center text-gray-300">
+                        <Calendar className="mr-2 h-4 w-4 text-gray-400" />
                         Project Duration: {durationDays} days
                       </Label>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-gray-400">
                         {formatDate(startDate)} - {formatDate(endDate)}
                       </div>
                     </div>
@@ -639,7 +659,7 @@ export default function MintNFTPage() {
                       onValueChange={(value) => setDurationDays(value[0])}
                       className="py-4"
                     />
-                    <div className="flex justify-between text-xs text-muted-foreground">
+                    <div className="flex justify-between text-xs text-gray-400">
                       <span>30 days</span>
                       <span>1 year</span>
                       <span>10 years</span>
@@ -648,7 +668,9 @@ export default function MintNFTPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="documentUpload">Project Documentation</Label>
+                      <Label htmlFor="documentUpload" className="text-gray-300">
+                        Project Documentation
+                      </Label>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <Button
@@ -656,7 +678,7 @@ export default function MintNFTPage() {
                             variant="outline"
                             onClick={() => document.getElementById("documentUpload")?.click()}
                             disabled={uploadingDocument}
-                            className="w-full"
+                            className="w-full bg-gray-800 border-gray-700 text-gray-50 hover:bg-gray-700"
                           >
                             <Upload className="mr-2 h-4 w-4" />
                             {uploadingDocument ? "Processing..." : "Upload Document"}
@@ -670,25 +692,33 @@ export default function MintNFTPage() {
                           />
                         </div>
                         {documentFile && (
-                          <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+                          <div className="flex items-center justify-between p-2 bg-gray-800 rounded-md text-gray-50">
                             <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4" />
+                              <FileText className="h-4 w-4 text-gray-400" />
                               <span className="text-sm truncate">{documentPreview}</span>
                             </div>
-                            <Button type="button" variant="ghost" size="sm" onClick={removeDocument}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={removeDocument}
+                              className="text-gray-400 hover:text-gray-50"
+                            >
                               <X className="h-4 w-4" />
                             </Button>
                           </div>
                         )}
                         {documentHash && (
-                          <div className="text-xs text-muted-foreground">Hash: {documentHash.substring(0, 20)}...</div>
+                          <div className="text-xs text-gray-400">Hash: {documentHash.substring(0, 20)}...</div>
                         )}
-                        <div className="text-xs text-muted-foreground">Max 2MB • PDF, DOC, DOCX, TXT</div>
+                        <div className="text-xs text-gray-400">Max 2MB • PDF, DOC, DOCX, TXT</div>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="imageUpload">Project Image</Label>
+                      <Label htmlFor="imageUpload" className="text-gray-300">
+                        Project Image
+                      </Label>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <Button
@@ -696,7 +726,7 @@ export default function MintNFTPage() {
                             variant="outline"
                             onClick={() => document.getElementById("imageUpload")?.click()}
                             disabled={uploadingImage}
-                            className="w-full"
+                            className="w-full bg-gray-800 border-gray-700 text-gray-50 hover:bg-gray-700"
                           >
                             <ImageIcon className="mr-2 h-4 w-4" />
                             {uploadingImage ? "Processing..." : "Upload Image"}
@@ -711,17 +741,23 @@ export default function MintNFTPage() {
                         </div>
                         {imageFile && (
                           <div className="space-y-2">
-                            <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+                            <div className="flex items-center justify-between p-2 bg-gray-800 rounded-md text-gray-50">
                               <div className="flex items-center gap-2">
-                                <ImageIcon className="h-4 w-4" />
+                                <ImageIcon className="h-4 w-4 text-gray-400" />
                                 <span className="text-sm truncate">{imageFile.name}</span>
                               </div>
-                              <Button type="button" variant="ghost" size="sm" onClick={removeImage}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={removeImage}
+                                className="text-gray-400 hover:text-gray-50"
+                              >
                                 <X className="h-4 w-4" />
                               </Button>
                             </div>
                             {imagePreview && (
-                              <div className="relative w-full h-32 bg-muted rounded-md overflow-hidden">
+                              <div className="relative w-full h-32 bg-gray-800 rounded-md overflow-hidden">
                                 <img
                                   src={imagePreview || "/placeholder.svg"}
                                   alt="Project preview"
@@ -732,20 +768,22 @@ export default function MintNFTPage() {
                           </div>
                         )}
                         {imageHash && (
-                          <div className="text-xs text-muted-foreground">Hash: {imageHash.substring(0, 20)}...</div>
+                          <div className="text-xs text-gray-400">Hash: {imageHash.substring(0, 20)}...</div>
                         )}
-                        <div className="text-xs text-muted-foreground">Max 2MB • JPEG, PNG, GIF, WebP</div>
+                        <div className="text-xs text-gray-400">Max 2MB • JPEG, PNG, GIF, WebP</div>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="verifier">Verifier *</Label>
+                    <Label htmlFor="verifier" className="text-gray-300">
+                      Verifier *
+                    </Label>
                     <Select value={verifierIndex} onValueChange={setVerifierIndex}>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-50 focus:border-emerald-500">
                         <SelectValue placeholder="Select a verifier" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-gray-800 border-gray-700 text-gray-50">
                         {verifiers.length > 0 ? (
                           verifiers.map((verifier, index) => (
                             <SelectItem key={index} value={index.toString()} disabled={!verifier.isActive}>
@@ -762,10 +800,10 @@ export default function MintNFTPage() {
                   </div>
 
                   <div className="pt-2">
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Mint Fee</AlertTitle>
-                      <AlertDescription>
+                    <Alert className="bg-gray-800 text-gray-50 border-gray-700">
+                      <AlertCircle className="h-4 w-4 text-gray-400" />
+                      <AlertTitle className="text-gray-50">Mint Fee</AlertTitle>
+                      <AlertDescription className="text-gray-300">
                         Fee per ton: {mintFeePerTon} CAFI
                         <br />
                         Total fee: {totalFee} CAFI ({carbonReduction || 0} tons × {mintFeePerTon} CAFI)
@@ -778,7 +816,7 @@ export default function MintNFTPage() {
                 <Button
                   onClick={handleMint}
                   disabled={isLoading || verifiers.length === 0}
-                  className="w-full md:w-auto"
+                  className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   {isLoading ? "Minting..." : "Mint Carbon NFT"}
                 </Button>

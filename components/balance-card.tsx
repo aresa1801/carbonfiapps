@@ -14,10 +14,10 @@ interface BalanceCardProps {
 
 export function BalanceCard({ type, balance, isLoading, symbol, subtitle }: BalanceCardProps) {
   return (
-    <Card className="border-gray-800 bg-gray-800/50">
+    <Card className="border-gray-700 bg-gray-900 hover:shadow-md transition-shadow">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium text-gray-400">{type === "eth" ? "ETH Balance" : "CAFI Balance"}</div>
+          <div className="text-sm font-medium text-gray-300">{type === "eth" ? "ETH Balance" : "CAFI Balance"}</div>
           {type === "eth" ? (
             <Wallet className="h-5 w-5 text-blue-400" />
           ) : (

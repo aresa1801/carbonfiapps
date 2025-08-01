@@ -50,11 +50,11 @@ export function StableBalanceCard({
   }, [balance, displayBalance, isLoading])
 
   return (
-    <Card className="border-gray-800 bg-gray-800/50 relative">
+    <Card className="border-gray-700 bg-gray-900 relative hover:shadow-md transition-shadow">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           {/* Use currencyName for the displayed text */}
-          <div className="text-sm font-medium text-gray-400">{`${currencyName} Balance`}</div>
+          <div className="text-sm font-medium text-gray-300">{`${currencyName} Balance`}</div>
           <div className="flex items-center space-x-2">
             {(isRefreshing || isUpdating) && <RefreshCw className="h-3 w-3 text-gray-500 animate-spin" />}
             {type === "eth" ? ( // Keep type for icon selection
