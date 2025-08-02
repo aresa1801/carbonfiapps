@@ -7,7 +7,7 @@ import { StableBalanceCard } from "@/components/stable-balance-card"
 import { FaucetStatCard } from "@/components/faucet-stat-card"
 import { ClaimStatusCard } from "@/components/claim-status-card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Droplets, TrendingUp, Coins, ShoppingCart, Leaf, RefreshCw, Clock } from "lucide-react"
 import { useWeb3 } from "@/components/web3-provider"
@@ -15,9 +15,6 @@ import { useToast } from "@/hooks/use-toast"
 import { useEventRefresh } from "@/hooks/use-event-refresh"
 import { contractService } from "@/lib/contract-utils"
 import Link from "next/link"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Terminal } from "lucide-react"
-import { formatBigIntToEther } from "@/lib/wallet-utils"
 
 export default function UserDashboardPage() {
   const [isClient, setIsClient] = useState(false)
@@ -29,11 +26,8 @@ export default function UserDashboardPage() {
 
   // Get Web3 context
   const {
-    isConnected,
-    address = "",
-    nativeBalance = BigInt(0),
-    cafiBalance = BigInt(0),
-    isLoading = false,
+    account = "",
+    isConnected = false,
     balance = "0",
     ethBalance = "0",
     refreshBalances = async () => {},
@@ -59,18 +53,18 @@ export default function UserDashboardPage() {
 
   // Event-based refresh (no time-based auto refresh)
   const handleRefresh = useCallback(async () => {
-    if (!isConnected || !address) return
+    if (!isConnected || !account) return
 
     try {
-      await Promise.all([refreshBalances(), fetchFaucetData(address)])
+      await Promise.all([refreshBalances(), fetchFaucetData(account)])
     } catch (error) {
       console.error("Refresh error:", error)
     }
-  }, [isConnected, address, refreshBalances, fetchFaucetData])
+  }, [isConnected, account, refreshBalances, fetchFaucetData])
 
   const { refreshCount, isRefreshing, lastRefresh, manualRefresh, triggerRefresh } = useEventRefresh({
     onRefresh: handleRefresh,
-    enabled: isClient && isConnected && !!address,
+    enabled: isClient && isConnected && !!account,
   })
 
   const handleManualRefresh = useCallback(async () => {
@@ -176,16 +170,6 @@ export default function UserDashboardPage() {
     return null
   }
 
-  if (!isConnected) {
-    return (
-      <Alert variant="destructive">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Wallet Not Connected</AlertTitle>
-        <AlertDescription>Please connect your wallet to view your dashboard.</AlertDescription>
-      </Alert>
-    )
-  }
-
   const formatLastRefresh = (date: Date | null) => {
     if (!date) return "Never"
     const now = new Date()
@@ -239,251 +223,187 @@ export default function UserDashboardPage() {
                 </Button>
               </div>
             </div>
+          </div>
 
-            {txStatus !== "none" && (
-              <div className="mb-6">
-                <TransactionAlert status={txStatus} message={txMessage} />
-              </div>
-            )}
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-              <Link href="/user/mint-nft">
-                <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 flex items-center space-x-3">
-                    <div className="p-2 bg-emerald-500/10 rounded-lg">
-                      <Coins className="h-6 w-6 text-emerald-500" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">Mint NFT</p>
-                      <p className="text-gray-400 text-sm">Create carbon credits</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-
-              <Link href="/user/staking">
-                <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 flex items-center space-x-3">
-                    <div className="p-2 bg-blue-500/10 rounded-lg">
-                      <TrendingUp className="h-6 w-6 text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">Staking</p>
-                      <p className="text-gray-400 text-sm">Earn rewards</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-
-              <Link href="/user/marketplace">
-                <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 flex items-center space-x-3">
-                    <div className="p-2 bg-purple-500/10 rounded-lg">
-                      <ShoppingCart className="h-6 w-6 text-purple-500" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">Marketplace</p>
-                      <p className="text-gray-400 text-sm">Trade NFTs</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-
-              <Link href="/user/retire">
-                <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 flex items-center space-x-3">
-                    <div className="p-2 bg-green-500/10 rounded-lg">
-                      <Leaf className="h-6 w-6 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">Retire</p>
-                      <p className="text-gray-400 text-sm">Offset carbon</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+          {txStatus !== "none" && (
+            <div className="mb-6">
+              <TransactionAlert status={txStatus} message={txMessage} />
             </div>
+          )}
 
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <div className="mb-6 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Droplets className="h-6 w-6 text-emerald-500" />
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-50">CAFI Token Faucet</h2>
-                      <p className="text-sm text-gray-400">
-                        Claim free CAFI tokens for testing purposes on CarbonFi Testnet
-                      </p>
-                    </div>
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <Link href="/user/mint-nft">
+              <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
+                <CardContent className="p-4 flex items-center space-x-3">
+                  <div className="p-2 bg-emerald-500/10 rounded-lg">
+                    <Coins className="h-6 w-6 text-emerald-500" />
                   </div>
-                  <Button
-                    onClick={handleManualRefresh}
-                    disabled={isRefreshing}
-                    variant="ghost"
-                    size="sm"
-                    className="text-gray-400 hover:text-white"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                  </Button>
-                </div>
-
-                <div className="grid gap-6 md:grid-cols-2">
-                  <StableBalanceCard
-                    type="eth"
-                    currencyName={nativeCurrencyName} // Pass the dynamic currency name
-                    balance={formatBigIntToEther(nativeBalance)}
-                    isLoading={isLoadingBalance}
-                    symbol={nativeCurrencyName} // Also update symbol for consistency
-                    subtitle="✓ Available for gas"
-                    isRefreshing={isRefreshing}
-                  />
-
-                  <StableBalanceCard
-                    type="cafi"
-                    currencyName={tokenSymbol} // CAFI remains CAFI
-                    balance={cafiBalance}
-                    isLoading={isLoadingBalance}
-                    symbol={tokenSymbol}
-                    subtitle="Ready for staking & minting"
-                    isRefreshing={isRefreshing}
-                  />
-                </div>
-
-                <div className="mt-6">
-                  <ClaimStatusCard
-                    isLoading={isLoadingFaucetData}
-                    hasClaimedToday={faucetStats.hasClaimedToday}
-                    remainingQuota={faucetStats.remainingQuota}
-                  />
-                </div>
-
-                <div className="mt-6">
-                  <Button
-                    onClick={handleClaimTokens}
-                    disabled={
-                      !isConnected ||
-                      !faucetContractExists ||
-                      isClaimingTokens ||
-                      faucetStats.hasClaimedToday ||
-                      Number(faucetStats.remainingQuota) <= 0 ||
-                      isLoadingFaucetData
-                    }
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                    size="lg"
-                  >
-                    {isClaimingTokens ? (
-                      <div className="flex items-center">
-                        <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Claiming...
-                      </div>
-                    ) : (
-                      `Claim CAFI Tokens`
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-6 flex items-center gap-3">
-                  <TrendingUp className="h-6 w-6 text-emerald-500" />
                   <div>
-                    <h2 className="text-xl font-bold text-gray-50">Faucet Statistics</h2>
-                    <p className="text-sm text-gray-400">Current faucet status and daily metrics</p>
+                    <p className="text-white font-medium">Mint NFT</p>
+                    <p className="text-gray-400 text-sm">Create carbon credits</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/user/staking">
+              <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
+                <CardContent className="p-4 flex items-center space-x-3">
+                  <div className="p-2 bg-blue-500/10 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">Staking</p>
+                    <p className="text-gray-400 text-sm">Earn rewards</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/user/marketplace">
+              <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
+                <CardContent className="p-4 flex items-center space-x-3">
+                  <div className="p-2 bg-purple-500/10 rounded-lg">
+                    <ShoppingCart className="h-6 w-6 text-purple-500" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">Marketplace</p>
+                    <p className="text-gray-400 text-sm">Trade NFTs</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/user/retire">
+              <Card className="bg-gray-900 border-gray-800 hover:shadow-md transition-shadow">
+                <CardContent className="p-4 flex items-center space-x-3">
+                  <div className="p-2 bg-green-500/10 rounded-lg">
+                    <Leaf className="h-6 w-6 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">Retire</p>
+                    <p className="text-gray-400 text-sm">Offset carbon</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <div className="mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Droplets className="h-6 w-6 text-emerald-500" />
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-50">CAFI Token Faucet</h2>
+                    <p className="text-sm text-gray-400">
+                      Claim free CAFI tokens for testing purposes on CarbonFi Testnet
+                    </p>
                   </div>
                 </div>
+                <Button
+                  onClick={handleManualRefresh}
+                  disabled={isRefreshing}
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-400 hover:text-white"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
 
-                <div className="grid gap-6">
-                  <FaucetStatCard
-                    title="Daily Limit"
-                    value={`${Number(faucetStats.dailyLimit).toLocaleString()} CAFI`}
-                    isLoading={isLoadingFaucetData}
-                  />
+              <div className="grid gap-6 md:grid-cols-2">
+                <StableBalanceCard
+                  type="eth"
+                  currencyName={nativeCurrencyName} // Pass the dynamic currency name
+                  balance={ethBalance}
+                  isLoading={isLoadingBalance}
+                  symbol={nativeCurrencyName} // Also update symbol for consistency
+                  subtitle="✓ Available for gas"
+                  isRefreshing={isRefreshing}
+                />
 
-                  <FaucetStatCard
-                    title="Remaining Today"
-                    value={`${Number(faucetStats.remainingQuota).toLocaleString()} CAFI`}
-                    isLoading={isLoadingFaucetData}
-                    subtitle={`${remainingPercentage}% remaining`}
-                  />
+                <StableBalanceCard
+                  type="cafi"
+                  currencyName={tokenSymbol} // CAFI remains CAFI
+                  balance={balance}
+                  isLoading={isLoadingBalance}
+                  symbol={tokenSymbol}
+                  subtitle="Ready for staking & minting"
+                  isRefreshing={isRefreshing}
+                />
+              </div>
 
-                  <FaucetStatCard
-                    title="Claimed Today"
-                    value={`${Number(faucetStats.todayTotal).toLocaleString()} CAFI`}
-                    isLoading={isLoadingFaucetData}
-                    subtitle={`${
-                      Number(faucetStats.dailyLimit) > 0
-                        ? ((Number(faucetStats.todayTotal) / Number(faucetStats.dailyLimit)) * 100).toFixed(0)
-                        : "0"
-                    }% of daily limit`}
-                  />
-                </div>
+              <div className="mt-6">
+                <ClaimStatusCard
+                  isLoading={isLoadingFaucetData}
+                  hasClaimedToday={faucetStats.hasClaimedToday}
+                  remainingQuota={faucetStats.remainingQuota}
+                />
+              </div>
+
+              <div className="mt-6">
+                <Button
+                  onClick={handleClaimTokens}
+                  disabled={
+                    !isConnected ||
+                    !faucetContractExists ||
+                    isClaimingTokens ||
+                    faucetStats.hasClaimedToday ||
+                    Number(faucetStats.remainingQuota) <= 0 ||
+                    isLoadingFaucetData
+                  }
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  size="lg"
+                >
+                  {isClaimingTokens ? (
+                    <div className="flex items-center">
+                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Claiming...
+                    </div>
+                  ) : (
+                    `Claim CAFI Tokens`
+                  )}
+                </Button>
               </div>
             </div>
 
-            {/* Wallet Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Your Wallet</CardTitle>
-                  <CardDescription>Connected Address</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-lg font-semibold break-all">{address}</p>
-                  <div className="mt-4 flex justify-between">
-                    <span>Native Balance:</span>
-                    <span>
-                      {formatBigIntToEther(nativeBalance)} {process.env.NEXT_PUBLIC_NETWORK_CURRENCY_SYMBOL || "ETH"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>CAFI Balance:</span>
-                    <span>{cafiBalance} CAFI</span>
-                  </div>
-                </CardContent>
-              </Card>
+            <div>
+              <div className="mb-6 flex items-center gap-3">
+                <TrendingUp className="h-6 w-6 text-emerald-500" />
+                <div>
+                  <h2 className="text-xl font-bold text-gray-50">Faucet Statistics</h2>
+                  <p className="text-sm text-gray-400">Current faucet status and daily metrics</p>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                  <CardDescription>Access key DApp features</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-2">
-                  <Link href="/user/faucet" passHref>
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Get CAFI from Faucet
-                    </Button>
-                  </Link>
-                  <Link href="/user/retire" passHref>
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Retire Carbon
-                    </Button>
-                  </Link>
-                  <Link href="/user/staking" passHref>
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Stake CAFI
-                    </Button>
-                  </Link>
-                  <Link href="/user/marketplace" passHref>
-                    <Button variant="outline" className="w-full bg-transparent">
-                      NFT Marketplace
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+              <div className="grid gap-6">
+                <FaucetStatCard
+                  title="Daily Limit"
+                  value={`${Number(faucetStats.dailyLimit).toLocaleString()} CAFI`}
+                  isLoading={isLoadingFaucetData}
+                />
+
+                <FaucetStatCard
+                  title="Remaining Today"
+                  value={`${Number(faucetStats.remainingQuota).toLocaleString()} CAFI`}
+                  isLoading={isLoadingFaucetData}
+                  subtitle={`${remainingPercentage}% remaining`}
+                />
+
+                <FaucetStatCard
+                  title="Claimed Today"
+                  value={`${Number(faucetStats.todayTotal).toLocaleString()} CAFI`}
+                  isLoading={isLoadingFaucetData}
+                  subtitle={`${
+                    Number(faucetStats.dailyLimit) > 0
+                      ? ((Number(faucetStats.todayTotal) / Number(faucetStats.dailyLimit)) * 100).toFixed(0)
+                      : "0"
+                  }% of daily limit`}
+                />
+              </div>
             </div>
-
-            {/* Activity Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Activity</CardTitle>
-                <CardDescription>Recent interactions and balances</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">No recent activity to display.</p>
-                {/* Future: Display recent transactions, staking history, etc. */}
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

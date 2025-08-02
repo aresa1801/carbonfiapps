@@ -6,16 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/hooks/use-toast"
 import { ethers } from "ethers"
 import { contractService } from "@/lib/contract-utils"
 import { Droplets, Coins, TrendingUp, RefreshCw, AlertCircle, DollarSign, Activity } from "lucide-react"
-import { AdminDashboardChoice } from "@/components/admin-dashboard-choice"
-import { ContractStatus } from "@/components/contract-status"
-import { formatBigIntToEther } from "@/lib/wallet-utils"
-import { Terminal } from "lucide-react"
 
 interface FaucetStats {
   dailyLimit: string
@@ -24,17 +20,8 @@ interface FaucetStats {
   contractBalance: string
 }
 
-export default function AdminPage() {
-  const {
-    isConnected,
-    address,
-    nativeBalance,
-    cafiBalance,
-    isAdmin,
-    currentNetworkContracts,
-    faucetContractExists,
-    cafiTokenExists,
-  } = useWeb3()
+export default function AdminDashboardPage() {
+  const { isConnected, isAdmin, account, faucetContractExists, cafiTokenExists, currentNetworkContracts } = useWeb3()
 
   const [faucetStats, setFaucetStats] = useState<FaucetStats>({
     dailyLimit: "0",
@@ -205,274 +192,249 @@ export default function AdminPage() {
     }
   }, [isConnected, isAdmin, faucetContractExists])
 
-  if (!isConnected) {
+  if (!isConnected || !isAdmin) {
     return (
-      <Alert variant="destructive">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Wallet Not Connected</AlertTitle>
-        <AlertDescription>Please connect your wallet to access the admin dashboard.</AlertDescription>
-      </Alert>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-4">
+          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto" />
+          <div className="space-y-2">
+            <h3 className="text-lg font-medium text-white">Access Denied</h3>
+            <p className="text-gray-400">Admin access required to view this page.</p>
+          </div>
+        </div>
+      </div>
     )
   }
 
-  if (!isAdmin) {
+  if (!faucetContractExists) {
     return (
-      <Alert variant="destructive">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Unauthorized Access</AlertTitle>
-        <AlertDescription>You do not have admin privileges to access this page.</AlertDescription>
-      </Alert>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Faucet Management</h1>
+            <p className="text-gray-400">Manage the CAFI token faucet</p>
+          </div>
+        </div>
+
+        <Alert className="border-yellow-800 bg-yellow-900/20">
+          <AlertCircle className="h-4 w-4 text-yellow-400" />
+          <AlertDescription className="text-yellow-200">
+            Faucet contract not found on this network. Please ensure you're connected to the correct network.
+          </AlertDescription>
+        </Alert>
+      </div>
     )
   }
 
   return (
-    <div className="grid gap-6">
-      <h1 className="text-3xl font-bold">Admin Overview</h1>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Faucet Management</h1>
+          <p className="text-gray-400">Manage the CAFI token faucet</p>
+        </div>
+        <Button
+          onClick={fetchFaucetStats}
+          disabled={isRefreshing}
+          variant="outline"
+          className="border-gray-600 bg-gray-700/50 text-gray-200 hover:bg-gray-600"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Admin Wallet</CardTitle>
-            <CardDescription>Connected Admin Address</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-lg font-semibold break-all">{address}</p>
-            <div className="mt-4 flex justify-between">
-              <span>Native Balance:</span>
-              <span>
-                {formatBigIntToEther(nativeBalance)} {process.env.NEXT_PUBLIC_NETWORK_CURRENCY_SYMBOL || "ETH"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>CAFI Balance:</span>
-              <span>{cafiBalance} CAFI</span>
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="border-gray-700 bg-gray-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-300">Daily Limit</p>
+                <div className="mt-2">
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-24 bg-gray-700" />
+                  ) : (
+                    <p className="text-2xl font-bold text-white">
+                      {Number.parseFloat(faucetStats.dailyLimit).toFixed(0)} CAFI
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Droplets className="h-8 w-8 text-blue-400" />
             </div>
           </CardContent>
         </Card>
-        <ContractStatus />
-      </div>
 
-      {faucetContractExists ? (
-        <>
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Faucet Management</h1>
-              <p className="text-gray-400">Manage the CAFI token faucet</p>
-            </div>
-            <Button
-              onClick={fetchFaucetStats}
-              disabled={isRefreshing}
-              variant="outline"
-              className="border-gray-600 bg-gray-700/50 text-gray-200 hover:bg-gray-600"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-          </div>
-
-          {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="border-gray-700 bg-gray-900">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-300">Daily Limit</p>
-                    <div className="mt-2">
-                      {isLoading ? (
-                        <Skeleton className="h-8 w-24 bg-gray-700" />
-                      ) : (
-                        <p className="text-2xl font-bold text-white">
-                          {Number.parseFloat(faucetStats.dailyLimit).toFixed(0)} CAFI
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <Droplets className="h-8 w-8 text-blue-400" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-700 bg-gray-900">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-300">Remaining Today</p>
-                    <div className="mt-2">
-                      {isLoading ? (
-                        <Skeleton className="h-8 w-24 bg-gray-700" />
-                      ) : (
-                        <p className="text-2xl font-bold text-white">
-                          {Number.parseFloat(faucetStats.remainingQuota).toFixed(0)} CAFI
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <TrendingUp className="h-8 w-8 text-emerald-400" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-700 bg-gray-900">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-300">Distributed Today</p>
-                    <div className="mt-2">
-                      {isLoading ? (
-                        <Skeleton className="h-8 w-24 bg-gray-700" />
-                      ) : (
-                        <p className="text-2xl font-bold text-white">
-                          {Number.parseFloat(faucetStats.todayTotal).toFixed(0)} CAFI
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <Activity className="h-8 w-8 text-orange-400" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-700 bg-gray-900">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-300">Contract Balance</p>
-                    <div className="mt-2">
-                      {isLoading ? (
-                        <Skeleton className="h-8 w-24 bg-gray-700" />
-                      ) : (
-                        <p className="text-2xl font-bold text-white">
-                          {Number.parseFloat(faucetStats.contractBalance).toFixed(0)} CAFI
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <Coins className="h-8 w-8 text-yellow-400" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Management Actions */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Update Daily Limit */}
-            <Card className="border-gray-700 bg-gray-900">
-              <CardHeader>
-                <CardTitle className="text-white">Update Daily Limit</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Set the maximum amount of CAFI tokens that can be distributed per day
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="dailyLimit" className="text-gray-300">
-                    New Daily Limit (CAFI)
-                  </Label>
-                  <Input
-                    id="dailyLimit"
-                    type="number"
-                    placeholder="Enter amount"
-                    value={newDailyLimit}
-                    onChange={(e) => setNewDailyLimit(e.target.value)}
-                    className="bg-gray-800 border-gray-600 text-white placeholder-gray-400"
-                  />
-                </div>
-                <Button
-                  onClick={updateDailyLimit}
-                  disabled={!newDailyLimit || isUpdatingLimit}
-                  className="w-full bg-emerald-900/50 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-800 hover:text-emerald-100"
-                >
-                  {isUpdatingLimit ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Updating...
-                    </>
+        <Card className="border-gray-700 bg-gray-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-300">Remaining Today</p>
+                <div className="mt-2">
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-24 bg-gray-700" />
                   ) : (
-                    "Update Daily Limit"
+                    <p className="text-2xl font-bold text-white">
+                      {Number.parseFloat(faucetStats.remainingQuota).toFixed(0)} CAFI
+                    </p>
                   )}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Fund Faucet */}
-            <Card className="border-gray-700 bg-gray-900">
-              <CardHeader>
-                <CardTitle className="text-white">Fund Faucet</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Add CAFI tokens to the faucet contract for distribution
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fundAmount" className="text-gray-300">
-                    Amount to Fund (CAFI)
-                  </Label>
-                  <Input
-                    id="fundAmount"
-                    type="number"
-                    placeholder="Enter amount"
-                    value={fundAmount}
-                    onChange={(e) => setFundAmount(e.target.value)}
-                    className="bg-gray-800 border-gray-600 text-white placeholder-gray-400"
-                  />
-                </div>
-                <Button
-                  onClick={fundFaucet}
-                  disabled={!fundAmount || isFunding}
-                  className="w-full bg-blue-900/50 text-blue-400 border border-blue-700/50 hover:bg-blue-800 hover:text-blue-100"
-                >
-                  {isFunding ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Funding...
-                    </>
-                  ) : (
-                    <>
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      Fund Faucet
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Contract Information */}
-          <Card className="border-gray-700 bg-gray-900">
-            <CardHeader>
-              <CardTitle className="text-white">Contract Information</CardTitle>
-              <CardDescription className="text-gray-400">Faucet contract details and addresses</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-gray-300">Faucet Contract</Label>
-                  <p className="text-sm font-mono text-gray-400 bg-gray-800 p-2 rounded border border-gray-700">
-                    {currentNetworkContracts.FAUCET}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-gray-300">CAFI Token Contract</Label>
-                  <p className="text-sm font-mono text-gray-400 bg-gray-800 p-2 rounded border border-gray-700">
-                    {currentNetworkContracts.CAFI_TOKEN}
-                  </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </>
-      ) : (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Faucet Contract Not Found</AlertTitle>
-          <AlertDescription>
-            Faucet contract not found on this network. Please ensure you're connected to the correct network.
-          </AlertDescription>
-        </Alert>
-      )}
+              <TrendingUp className="h-8 w-8 text-emerald-400" />
+            </div>
+          </CardContent>
+        </Card>
 
-      <AdminDashboardChoice />
+        <Card className="border-gray-700 bg-gray-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-300">Distributed Today</p>
+                <div className="mt-2">
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-24 bg-gray-700" />
+                  ) : (
+                    <p className="text-2xl font-bold text-white">
+                      {Number.parseFloat(faucetStats.todayTotal).toFixed(0)} CAFI
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Activity className="h-8 w-8 text-orange-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-gray-700 bg-gray-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-300">Contract Balance</p>
+                <div className="mt-2">
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-24 bg-gray-700" />
+                  ) : (
+                    <p className="text-2xl font-bold text-white">
+                      {Number.parseFloat(faucetStats.contractBalance).toFixed(0)} CAFI
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Coins className="h-8 w-8 text-yellow-400" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Management Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Update Daily Limit */}
+        <Card className="border-gray-700 bg-gray-900">
+          <CardHeader>
+            <CardTitle className="text-white">Update Daily Limit</CardTitle>
+            <CardDescription className="text-gray-400">
+              Set the maximum amount of CAFI tokens that can be distributed per day
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="dailyLimit" className="text-gray-300">
+                New Daily Limit (CAFI)
+              </Label>
+              <Input
+                id="dailyLimit"
+                type="number"
+                placeholder="Enter amount"
+                value={newDailyLimit}
+                onChange={(e) => setNewDailyLimit(e.target.value)}
+                className="bg-gray-800 border-gray-600 text-white placeholder-gray-400"
+              />
+            </div>
+            <Button
+              onClick={updateDailyLimit}
+              disabled={!newDailyLimit || isUpdatingLimit}
+              className="w-full bg-emerald-900/50 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-800 hover:text-emerald-100"
+            >
+              {isUpdatingLimit ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Daily Limit"
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Fund Faucet */}
+        <Card className="border-gray-700 bg-gray-900">
+          <CardHeader>
+            <CardTitle className="text-white">Fund Faucet</CardTitle>
+            <CardDescription className="text-gray-400">
+              Add CAFI tokens to the faucet contract for distribution
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fundAmount" className="text-gray-300">
+                Amount to Fund (CAFI)
+              </Label>
+              <Input
+                id="fundAmount"
+                type="number"
+                placeholder="Enter amount"
+                value={fundAmount}
+                onChange={(e) => setFundAmount(e.target.value)}
+                className="bg-gray-800 border-gray-600 text-white placeholder-gray-400"
+              />
+            </div>
+            <Button
+              onClick={fundFaucet}
+              disabled={!fundAmount || isFunding}
+              className="w-full bg-blue-900/50 text-blue-400 border border-blue-700/50 hover:bg-blue-800 hover:text-blue-100"
+            >
+              {isFunding ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Funding...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Fund Faucet
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Contract Information */}
+      <Card className="border-gray-700 bg-gray-900">
+        <CardHeader>
+          <CardTitle className="text-white">Contract Information</CardTitle>
+          <CardDescription className="text-gray-400">Faucet contract details and addresses</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-gray-300">Faucet Contract</Label>
+              <p className="text-sm font-mono text-gray-400 bg-gray-800 p-2 rounded border border-gray-700">
+                {currentNetworkContracts.FAUCET}
+              </p>
+            </div>
+            <div>
+              <Label className="text-gray-300">CAFI Token Contract</Label>
+              <p className="text-sm font-mono text-gray-400 bg-gray-800 p-2 rounded border border-gray-700">
+                {currentNetworkContracts.CAFI_TOKEN}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

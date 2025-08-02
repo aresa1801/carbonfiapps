@@ -1,38 +1,28 @@
 "use client"
 
 import { AlertDescription } from "@/components/ui/alert"
+
 import { AlertTitle } from "@/components/ui/alert"
-import {
-  Alert,
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Slider,
-} from "@/components/ui"
+
+import { Alert } from "@/components/ui/alert"
+
 import type React from "react"
+
 import { useState, useEffect } from "react"
 import { ethers } from "ethers"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useWeb3 } from "@/components/web3-provider"
 import { TransactionStatus } from "@/components/transaction-status"
 import { VerifierApprovalStatus } from "@/components/verifier-approval-status"
 import { contractService } from "@/lib/contract-utils"
 import { CONTRACT_ADDRESSES } from "@/lib/constants"
-import { AlertCircle, CheckCircle2, Leaf, Calendar, Upload, FileText, ImageIcon, X, Terminal } from "lucide-react"
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
-import Image from "next/image"
-import { mintNFT, getNFTBalance, getNFTTokenURI } from "@/lib/contract-service"
+import { AlertCircle, CheckCircle2, Leaf, Calendar, Upload, FileText, ImageIcon, X } from "lucide-react"
+import { Slider } from "@/components/ui/slider"
 
 const CARBON_PROJECT_TYPES = [
   "Reforestation & Afforestation",
@@ -45,7 +35,7 @@ const CARBON_PROJECT_TYPES = [
 ]
 
 export default function MintNFTPage() {
-  const { nftContract, address, isConnected, refreshBalances, setTransactionStatus } = useWeb3()
+  const { account, isConnected } = useWeb3()
   const { toast } = useToast()
   const [projectName, setProjectName] = useState("")
   const [projectType, setProjectType] = useState("")
@@ -67,9 +57,6 @@ export default function MintNFTPage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [startDate, setStartDate] = useState<Date>(new Date())
   const [endDate, setEndDate] = useState<Date>(new Date())
-  const [tokenURI, setTokenURI] = useState("")
-  const [isMinting, setIsMinting] = useState(false)
-  const [userNFTs, setUserNFTs] = useState<number[]>([]) // Store token IDs
 
   const [documentFile, setDocumentFile] = useState<File | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -78,12 +65,6 @@ export default function MintNFTPage() {
   const [uploadingDocument, setUploadingDocument] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
 
-  const [mintRecipient, setMintRecipient] = useState("")
-  const [nftBalance, setNftBalance] = useState(0)
-  const [mintedTokenURI, setMintedTokenURI] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false) // Declare loading variable
-
   useEffect(() => {
     if (isConnected) {
       loadVerifiers()
@@ -91,60 +72,6 @@ export default function MintNFTPage() {
       loadAutoApproveStatus()
     }
   }, [isConnected])
-
-  useEffect(() => {
-    const fetchUserNFTs = async () => {
-      if (isConnected && nftContract && address) {
-        try {
-          const balance = await nftContract.balanceOf(address)
-          const nfts: number[] = []
-          // Note: ERC721 standard doesn't provide a direct way to get all token IDs of an owner
-          // This would typically require iterating through all possible token IDs or
-          // relying on off-chain indexing. For a simple DApp, we might assume a small range
-          // or rely on events. For this example, we'll simulate by just showing minted ones.
-          // In a real app, you'd fetch from a subgraph or similar.
-          // For now, we'll just show a placeholder or rely on the mint event.
-          // To actually display owned NFTs, you'd need to query the contract for each token ID
-          // or use an external API like OpenSea, Etherscan, etc.
-          // For simplicity, we'll just show a generic message if balance > 0.
-          if (Number(balance) > 0) {
-            // This part is illustrative and won't actually fetch token IDs without a specific method
-            // on the contract or an external indexer.
-            // For a real implementation, you'd need a contract method like `tokenOfOwnerByIndex`
-            // or an off-chain solution.
-            // For now, we'll just show a generic message if balance > 0.
-          }
-          setUserNFTs(nfts)
-        } catch (error) {
-          console.error("Error fetching user NFTs:", error)
-          toast({
-            title: "Error",
-            description: "Failed to fetch your NFTs.",
-            variant: "destructive",
-          })
-          setUserNFTs([])
-        }
-      } else {
-        setUserNFTs([])
-      }
-    }
-    fetchUserNFTs()
-  }, [isConnected, nftContract, address, refreshBalances])
-
-  useEffect(() => {
-    const fetchNftDetails = async () => {
-      if (nftContract && address) {
-        try {
-          const balance = await getNFTBalance(nftContract, address)
-          setNftBalance(balance)
-        } catch (err: any) {
-          console.error("Error fetching NFT balance:", err)
-          setError(`Failed to fetch NFT balance: ${err.message || "Unknown error"}`)
-        }
-      }
-    }
-    fetchNftDetails()
-  }, [nftContract, address, refreshBalances])
 
   useEffect(() => {
     // Calculate end date based on duration
@@ -407,7 +334,7 @@ export default function MintNFTPage() {
       // Check and approve tokens if needed
       if (totalFee > 0) {
         const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN, true)
-        const allowance = await tokenContract.allowance(address, CONTRACT_ADDRESSES.NFT)
+        const allowance = await tokenContract.allowance(account, CONTRACT_ADDRESSES.NFT)
 
         if (allowance < totalFee) {
           console.log("Approving tokens for mint fee...")
@@ -532,45 +459,6 @@ export default function MintNFTPage() {
     }
   }
 
-  const handleMintNFT = async () => {
-    if (!nftContract || !tokenURI || !address) {
-      toast({
-        title: "Error",
-        description: "Please connect wallet and enter a Token URI.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsMinting(true)
-    setTransactionStatus({ hash: null, status: "pending", message: "Minting NFT..." })
-    try {
-      const tx = await nftContract.mint(address, tokenURI)
-      await tx.wait()
-      setTransactionStatus({ hash: tx.hash, status: "success", message: "NFT minted successfully!" })
-      toast({
-        title: "Mint Successful",
-        description: `New NFT minted with URI: ${tokenURI}`,
-      })
-      setTokenURI("")
-      refreshBalances() // Trigger refresh to update NFT balance
-    } catch (error: any) {
-      console.error("Error minting NFT:", error)
-      setTransactionStatus({
-        hash: error.hash || null,
-        status: "failed",
-        message: `Minting failed: ${error.reason || error.message}`,
-      })
-      toast({
-        title: "Mint Failed",
-        description: `Failed to mint NFT: ${error.reason || error.message}`,
-        variant: "destructive",
-      })
-    } finally {
-      setIsMinting(false)
-    }
-  }
-
   const resetForm = () => {
     setProjectName("")
     setProjectType("")
@@ -600,53 +488,6 @@ export default function MintNFTPage() {
       month: "short",
       day: "numeric",
     })
-  }
-
-  const handleNewMint = async () => {
-    if (!nftContract || !address || !tokenId || !mintRecipient) {
-      toast({
-        title: "Error",
-        description: "Wallet not connected, token ID or recipient invalid.",
-        variant: "destructive",
-      })
-      return
-    }
-    setLoading(true)
-    setError(null)
-    setMintedTokenURI(null)
-    try {
-      const parsedTokenId = Number.parseInt(tokenId)
-      await mintNFT(nftContract, mintRecipient, parsedTokenId)
-      const uri = await getNFTTokenURI(nftContract, parsedTokenId)
-      setMintedTokenURI(uri)
-      toast({
-        title: "Mint Successful",
-        description: `NFT with ID ${tokenId} minted to ${mintRecipient.substring(0, 6)}...${mintRecipient.slice(-4)}.`,
-      })
-      setTokenId("")
-      setMintRecipient("")
-      refreshBalances()
-    } catch (err: any) {
-      console.error("Minting NFT error:", err)
-      setError(`Minting failed: ${err.message || err.reason || "Unknown error"}`)
-      toast({
-        title: "Mint Failed",
-        description: `Error: ${err.message?.substring(0, 100) || "Unknown error"}`,
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (!isConnected) {
-    return (
-      <Alert variant="destructive">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Wallet Not Connected</AlertTitle>
-        <AlertDescription>Please connect your wallet to mint NFTs.</AlertDescription>
-      </Alert>
-    )
   }
 
   return (
@@ -725,240 +566,255 @@ export default function MintNFTPage() {
                   Create a new carbon offset NFT with verifiable data
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-4">
-                <div>
-                  <Label htmlFor="projectName" className="text-gray-300">
-                    Project Name *
-                  </Label>
-                  <Input
-                    id="projectName"
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    placeholder="Enter project name"
-                    required
-                    className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="projectType" className="text-gray-300">
-                    Project Type *
-                  </Label>
-                  <Select value={projectType} onValueChange={setProjectType}>
-                    <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-50 focus:border-emerald-500">
-                      <SelectValue placeholder="Select project type" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-700 text-gray-50">
-                      {CARBON_PROJECT_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="location" className="text-gray-300">
-                    Location *
-                  </Label>
-                  <Input
-                    id="location"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="Project location"
-                    required
-                    className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="carbonReduction" className="text-gray-300">
-                    Carbon Reduction (tons) *
-                  </Label>
-                  <Input
-                    id="carbonReduction"
-                    type="number"
-                    value={carbonReduction}
-                    onChange={(e) => setCarbonReduction(e.target.value)}
-                    placeholder="Amount in tons"
-                    required
-                    className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="methodology" className="text-gray-300">
-                    Methodology *
-                  </Label>
-                  <Input
-                    id="methodology"
-                    value={methodology}
-                    onChange={(e) => setMethodology(e.target.value)}
-                    placeholder="Verification methodology"
-                    required
-                    className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="durationDays" className="flex items-center text-gray-300">
-                      <Calendar className="mr-2 h-4 w-4 text-gray-400" />
-                      Project Duration: {durationDays} days
-                    </Label>
-                    <div className="text-sm text-gray-400">
-                      {formatDate(startDate)} - {formatDate(endDate)}
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="projectName" className="text-gray-300">
+                        Project Name *
+                      </Label>
+                      <Input
+                        id="projectName"
+                        value={projectName}
+                        onChange={(e) => setProjectName(e.target.value)}
+                        placeholder="Enter project name"
+                        required
+                        className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="projectType" className="text-gray-300">
+                        Project Type *
+                      </Label>
+                      <Select value={projectType} onValueChange={setProjectType}>
+                        <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-50 focus:border-emerald-500">
+                          <SelectValue placeholder="Select project type" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-700 text-gray-50">
+                          {CARBON_PROJECT_TYPES.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                  <Slider
-                    id="durationDays"
-                    min={30}
-                    max={3650}
-                    step={30}
-                    value={[durationDays]}
-                    onValueChange={(value) => setDurationDays(value[0])}
-                    className="py-4"
-                  />
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>30 days</span>
-                    <span>1 year</span>
-                    <span>10 years</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="documentUpload" className="text-gray-300">
-                      Project Documentation
-                    </Label>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => document.getElementById("documentUpload")?.click()}
-                          disabled={uploadingDocument}
-                          className="w-full bg-gray-800 border-gray-700 text-gray-50 hover:bg-gray-700"
-                        >
-                          <Upload className="mr-2 h-4 w-4" />
-                          {uploadingDocument ? "Processing..." : "Upload Document"}
-                        </Button>
-                        <input
-                          id="documentUpload"
-                          type="file"
-                          accept=".pdf,.doc,.docx,.txt"
-                          onChange={handleDocumentUpload}
-                          className="hidden"
-                        />
+                      <Label htmlFor="location" className="text-gray-300">
+                        Location *
+                      </Label>
+                      <Input
+                        id="location"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder="Project location"
+                        required
+                        className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="carbonReduction" className="text-gray-300">
+                        Carbon Reduction (tons) *
+                      </Label>
+                      <Input
+                        id="carbonReduction"
+                        type="number"
+                        value={carbonReduction}
+                        onChange={(e) => setCarbonReduction(e.target.value)}
+                        placeholder="Amount in tons"
+                        required
+                        className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="methodology" className="text-gray-300">
+                      Methodology *
+                    </Label>
+                    <Input
+                      id="methodology"
+                      value={methodology}
+                      onChange={(e) => setMethodology(e.target.value)}
+                      placeholder="Verification methodology"
+                      required
+                      className="bg-gray-800 border-gray-700 text-gray-50 placeholder:text-gray-400 focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="durationDays" className="flex items-center text-gray-300">
+                        <Calendar className="mr-2 h-4 w-4 text-gray-400" />
+                        Project Duration: {durationDays} days
+                      </Label>
+                      <div className="text-sm text-gray-400">
+                        {formatDate(startDate)} - {formatDate(endDate)}
                       </div>
-                      {documentFile && (
-                        <div className="flex items-center justify-between p-2 bg-gray-800 rounded-md text-gray-50">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm truncate">{documentPreview}</span>
-                          </div>
+                    </div>
+                    <Slider
+                      id="durationDays"
+                      min={30}
+                      max={3650}
+                      step={30}
+                      value={[durationDays]}
+                      onValueChange={(value) => setDurationDays(value[0])}
+                      className="py-4"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>30 days</span>
+                      <span>1 year</span>
+                      <span>10 years</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="documentUpload" className="text-gray-300">
+                        Project Documentation
+                      </Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
                           <Button
                             type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={removeDocument}
-                            className="text-gray-400 hover:text-gray-50"
+                            variant="outline"
+                            onClick={() => document.getElementById("documentUpload")?.click()}
+                            disabled={uploadingDocument}
+                            className="w-full bg-gray-800 border-gray-700 text-gray-50 hover:bg-gray-700"
                           >
-                            <X className="h-4 w-4" />
+                            <Upload className="mr-2 h-4 w-4" />
+                            {uploadingDocument ? "Processing..." : "Upload Document"}
                           </Button>
+                          <input
+                            id="documentUpload"
+                            type="file"
+                            accept=".pdf,.doc,.docx,.txt"
+                            onChange={handleDocumentUpload}
+                            className="hidden"
+                          />
                         </div>
-                      )}
-                      {documentHash && (
-                        <div className="text-xs text-gray-400">Hash: {documentHash.substring(0, 20)}...</div>
-                      )}
-                      <div className="text-xs text-gray-400">Max 2MB • PDF, DOC, DOCX, TXT</div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="imageUpload" className="text-gray-300">
-                      Project Image
-                    </Label>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => document.getElementById("imageUpload")?.click()}
-                          disabled={uploadingImage}
-                          className="w-full bg-gray-800 border-gray-700 text-gray-50 hover:bg-gray-700"
-                        >
-                          <ImageIcon className="mr-2 h-4 w-4" />
-                          {uploadingImage ? "Processing..." : "Upload Image"}
-                        </Button>
-                        <input
-                          id="imageUpload"
-                          type="file"
-                          accept="image/jpeg,image/png,image/gif,image/webp"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                      </div>
-                      {imageFile && (
-                        <div className="space-y-2">
+                        {documentFile && (
                           <div className="flex items-center justify-between p-2 bg-gray-800 rounded-md text-gray-50">
                             <div className="flex items-center gap-2">
-                              <ImageIcon className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm truncate">{imageFile.name}</span>
+                              <FileText className="h-4 w-4 text-gray-400" />
+                              <span className="text-sm truncate">{documentPreview}</span>
                             </div>
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
-                              onClick={removeImage}
+                              onClick={removeDocument}
                               className="text-gray-400 hover:text-gray-50"
                             >
                               <X className="h-4 w-4" />
                             </Button>
                           </div>
-                          {imagePreview && (
-                            <div className="relative w-full h-32 bg-gray-800 rounded-md overflow-hidden">
-                              <img
-                                src={imagePreview || "/placeholder.svg"}
-                                alt="Project preview"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
+                        )}
+                        {documentHash && (
+                          <div className="text-xs text-gray-400">Hash: {documentHash.substring(0, 20)}...</div>
+                        )}
+                        <div className="text-xs text-gray-400">Max 2MB • PDF, DOC, DOCX, TXT</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="imageUpload" className="text-gray-300">
+                        Project Image
+                      </Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => document.getElementById("imageUpload")?.click()}
+                            disabled={uploadingImage}
+                            className="w-full bg-gray-800 border-gray-700 text-gray-50 hover:bg-gray-700"
+                          >
+                            <ImageIcon className="mr-2 h-4 w-4" />
+                            {uploadingImage ? "Processing..." : "Upload Image"}
+                          </Button>
+                          <input
+                            id="imageUpload"
+                            type="file"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                          />
                         </div>
-                      )}
-                      {imageHash && <div className="text-xs text-gray-400">Hash: {imageHash.substring(0, 20)}...</div>}
-                      <div className="text-xs text-gray-400">Max 2MB • JPEG, PNG, GIF, WebP</div>
+                        {imageFile && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between p-2 bg-gray-800 rounded-md text-gray-50">
+                              <div className="flex items-center gap-2">
+                                <ImageIcon className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm truncate">{imageFile.name}</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={removeImage}
+                                className="text-gray-400 hover:text-gray-50"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {imagePreview && (
+                              <div className="relative w-full h-32 bg-gray-800 rounded-md overflow-hidden">
+                                <img
+                                  src={imagePreview || "/placeholder.svg"}
+                                  alt="Project preview"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {imageHash && (
+                          <div className="text-xs text-gray-400">Hash: {imageHash.substring(0, 20)}...</div>
+                        )}
+                        <div className="text-xs text-gray-400">Max 2MB • JPEG, PNG, GIF, WebP</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div>
-                  <Label htmlFor="verifier" className="text-gray-300">
-                    Verifier *
-                  </Label>
-                  <Select value={verifierIndex} onValueChange={setVerifierIndex}>
-                    <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-50 focus:border-emerald-500">
-                      <SelectValue placeholder="Select a verifier" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-700 text-gray-50">
-                      {verifiers.length > 0 ? (
-                        verifiers.map((verifier, index) => (
-                          <SelectItem key={index} value={index.toString()} disabled={!verifier.isActive}>
-                            {verifier.name} {!verifier.isActive && "(Inactive)"}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="verifier" className="text-gray-300">
+                      Verifier *
+                    </Label>
+                    <Select value={verifierIndex} onValueChange={setVerifierIndex}>
+                      <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-50 focus:border-emerald-500">
+                        <SelectValue placeholder="Select a verifier" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-700 text-gray-50">
+                        {verifiers.length > 0 ? (
+                          verifiers.map((verifier, index) => (
+                            <SelectItem key={index} value={index.toString()} disabled={!verifier.isActive}>
+                              {verifier.name} {!verifier.isActive && "(Inactive)"}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="none" disabled>
+                            No verifiers available
                           </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="none" disabled>
-                          No verifiers available
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="pt-2">
-                  <Alert className="bg-gray-800 text-gray-50 border-gray-700">
-                    <AlertCircle className="h-4 w-4 text-gray-400" />
-                    <AlertTitle>Mint Fee</AlertTitle>
-                    <AlertDescription>
-                      Fee per ton: {mintFeePerTon} CAFI
-                      <br />
-                      Total fee: {totalFee} CAFI ({carbonReduction || 0} tons × {mintFeePerTon} CAFI)
-                    </AlertDescription>
-                  </Alert>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="pt-2">
+                    <Alert className="bg-gray-800 text-gray-50 border-gray-700">
+                      <AlertCircle className="h-4 w-4 text-gray-400" />
+                      <AlertTitle className="text-gray-50">Mint Fee</AlertTitle>
+                      <AlertDescription className="text-gray-300">
+                        Fee per ton: {mintFeePerTon} CAFI
+                        <br />
+                        Total fee: {totalFee} CAFI ({carbonReduction || 0} tons × {mintFeePerTon} CAFI)
+                      </AlertDescription>
+                    </Alert>
+                  </div>
                 </div>
               </CardContent>
               <CardFooter>
@@ -978,143 +834,6 @@ export default function MintNFTPage() {
               <TransactionStatus hash={txHash} />
             </div>
           )}
-
-          <h2 className="text-2xl font-bold mb-4">Your Minted NFTs</h2>
-          <Card>
-            <CardHeader>
-              <CardTitle>Owned Carbon Credit NFTs</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {userNFTs.length === 0 ? (
-                <p className="text-muted-foreground">You do not own any Carbon Credit NFTs yet.</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Token ID</TableHead>
-                      <TableHead>Token URI</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {userNFTs.map((id) => (
-                      <TableRow key={id}>
-                        <TableCell>{id}</TableCell>
-                        <TableCell>
-                          {/* In a real app, you'd fetch the URI for each token ID */}
-                          <span className="text-muted-foreground">Not directly available via balance query</span>
-                        </TableCell>
-                        <TableCell>
-                          {/* Add actions like "View on Marketplace", "Retire", etc. */}
-                          <Button variant="outline" size="sm" disabled>
-                            View Details
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-              <p className="text-sm text-muted-foreground mt-4">
-                Note: Displaying actual NFT details (like Token URI) for all owned NFTs requires iterating through all
-                possible token IDs or using an off-chain indexer/API, which is beyond the scope of this simple DApp.
-              </p>
-            </CardContent>
-          </Card>
-
-          {error && (
-            <Alert variant="destructive">
-              <Terminal className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your NFT Balance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">{nftBalance} NFTs</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Mint New NFT</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="mint-recipient">Recipient Address</Label>
-                  <Input
-                    id="mint-recipient"
-                    type="text"
-                    value={mintRecipient}
-                    onChange={(e) => setMintRecipient(e.target.value)}
-                    placeholder="0x..."
-                    disabled={loading}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="token-id">Token ID</Label>
-                  <Input
-                    id="token-id"
-                    type="number"
-                    value={tokenId}
-                    onChange={(e) => setTokenId(e.target.value)}
-                    placeholder="e.g., 1"
-                    disabled={loading}
-                  />
-                </div>
-                <Button onClick={handleNewMint} disabled={loading || !tokenId || !mintRecipient}>
-                  {loading ? "Minting..." : "Mint NFT"}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {mintedTokenURI && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Minted NFT Details</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4">
-                <p>
-                  Token URI:{" "}
-                  <a href={mintedTokenURI} target="_blank" rel="noopener noreferrer" className="underline">
-                    {mintedTokenURI}
-                  </a>
-                </p>
-                {/* You might want to fetch and display the image from the URI here */}
-                {mintedTokenURI.startsWith("ipfs://") ? (
-                  <p className="text-sm text-muted-foreground">IPFS URIs require a gateway to display the image.</p>
-                ) : (
-                  <div className="relative w-48 h-48">
-                    <Image
-                      src={mintedTokenURI || "/placeholder.svg"}
-                      alt={`NFT ${tokenId}`}
-                      layout="fill"
-                      objectFit="contain"
-                      className="rounded-md"
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>About CarbonFi NFTs</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                CarbonFi NFTs represent unique digital assets that can be tied to various environmental initiatives or
-                achievements. These NFTs can be traded on the marketplace and serve as verifiable proof of participation
-                in carbon offsetting programs or ownership of digital carbon credits.
-              </p>
-            </CardContent>
-          </Card>
         </>
       )}
     </div>

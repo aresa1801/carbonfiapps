@@ -1,251 +1,110 @@
-import { Contract, parseEther, formatEther } from "ethers"
-import { getContractAddresses } from "./constants"
-import CAFITokenABI from "@/contracts/cafi-token-abi.json"
-import FaucetABI from "@/contracts/faucet-abi.json"
-import StakingABI from "@/contracts/staking-abi.json"
-import FarmingABI from "@/contracts/farming-abi.json"
-import NFTABI from "@/contracts/nft-abi.json"
-import CarbonRetireABI from "@/contracts/carbon-retire-abi.json"
-import MarketplaceABI from "@/contracts/marketplace-abi.json"
+import { ethers } from "ethers"
+import nftAbi from "../contracts/nft-abi.json"
+import stakingAbi from "../contracts/staking-abi.json"
+import marketplaceAbi from "../contracts/marketplace-abi.json"
+import carbonRetireAbi from "../contracts/carbon-retire-abi.json"
+import faucetAbi from "../contracts/faucet-abi.json"
 
-// Helper to get contract instances
-export const getContracts = (signerOrProvider: any, chainId: number) => {
-  const addresses = getContractAddresses(chainId)
+// Contract addresses
+const NFT_CONTRACT_ADDRESS = "0x541F250F0699765dDC5DC064DaDBed31932118B8" // Updated NFT contract address
+const STAKING_CONTRACT_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+const MARKETPLACE_CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+const CARBON_RETIRE_CONTRACT_ADDRESS = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+const FAUCET_CONTRACT_ADDRESS = "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"
 
-  return {
-    cafiTokenContract: new Contract(addresses.CAFI_TOKEN, CAFITokenABI, signerOrProvider),
-    faucetContract: new Contract(addresses.FAUCET, FaucetABI, signerOrProvider),
-    stakingContract: new Contract(addresses.STAKING, StakingABI, signerOrProvider),
-    farmingContract: new Contract(addresses.FARMING, FarmingABI, signerOrProvider),
-    nftContract: new Contract(addresses.NFT, NFTABI, signerOrProvider),
-    carbonRetireContract: new Contract(addresses.CARBON_RETIRE, CarbonRetireABI, signerOrProvider),
-    marketplaceContract: new Contract(addresses.MARKETPLACE, MarketplaceABI, signerOrProvider),
+class ContractService {
+  provider: ethers.providers.Web3Provider | null = null
+  signer: ethers.Signer | null = null
+
+  // Initialize with provider and signer
+  initialize(provider: ethers.providers.Web3Provider) {
+    this.provider = provider
+    this.signer = provider.getSigner()
+  }
+
+  // Get NFT contract instance
+  getNFTContract() {
+    if (!this.provider || !this.signer) {
+      throw new Error("Provider or signer not initialized")
+    }
+    return new ethers.Contract(NFT_CONTRACT_ADDRESS, nftAbi, this.signer)
+  }
+
+  // Get staking contract instance
+  getStakingContract() {
+    if (!this.provider || !this.signer) {
+      throw new Error("Provider or signer not initialized")
+    }
+    return new ethers.Contract(STAKING_CONTRACT_ADDRESS, stakingAbi, this.signer)
+  }
+
+  // Get marketplace contract instance
+  getMarketplaceContract() {
+    if (!this.provider || !this.signer) {
+      throw new Error("Provider or signer not initialized")
+    }
+    return new ethers.Contract(MARKETPLACE_CONTRACT_ADDRESS, marketplaceAbi, this.signer)
+  }
+
+  // Get carbon retire contract instance
+  getCarbonRetireContract() {
+    if (!this.provider || !this.signer) {
+      throw new Error("Provider or signer not initialized")
+    }
+    return new ethers.Contract(CARBON_RETIRE_CONTRACT_ADDRESS, carbonRetireAbi, this.signer)
+  }
+
+  // Get faucet contract instance
+  getFaucetContract() {
+    if (!this.provider || !this.signer) {
+      throw new Error("Provider or signer not initialized")
+    }
+    return new ethers.Contract(FAUCET_CONTRACT_ADDRESS, faucetAbi, this.signer)
+  }
+
+  // Check if an address is a contract owner
+  async isContractOwner(address: string) {
+    try {
+      if (!this.provider) {
+        throw new Error("Provider not initialized")
+      }
+
+      const nftContract = this.getNFTContract()
+      const owner = await nftContract.owner()
+
+      return owner.toLowerCase() === address.toLowerCase()
+    } catch (error) {
+      console.error("Error checking contract owner:", error)
+      return false
+    }
+  }
+
+  // Check if auto-approval is enabled
+  async isAutoApproveEnabled() {
+    try {
+      const nftContract = this.getNFTContract()
+      return await nftContract.autoApproveEnabled()
+    } catch (error) {
+      console.error("Error checking auto-approval status:", error)
+      return false
+    }
+  }
+
+  // Toggle auto-approval status
+  async toggleAutoApprove() {
+    try {
+      const nftContract = this.getNFTContract()
+      const tx = await nftContract.toggleAutoApprove()
+      await tx.wait()
+      return true
+    } catch (error) {
+      console.error("Error toggling auto-approval:", error)
+      throw error
+    }
   }
 }
 
-// CAFI Token Operations
-export const mintCafiTokens = async (cafiTokenContract: Contract, toAddress: string, amount: string) => {
-  const parsedAmount = parseEther(amount)
-  const tx = await cafiTokenContract.mint(toAddress, parsedAmount)
-  return tx.wait()
-}
+// Create a singleton instance
+const contractService = new ContractService()
 
-export const burnCafiTokens = async (cafiTokenContract: Contract, amount: string) => {
-  const parsedAmount = parseEther(amount)
-  const tx = await cafiTokenContract.burn(parsedAmount)
-  return tx.wait()
-}
-
-export const transferCafiTokens = async (cafiTokenContract: Contract, toAddress: string, amount: string) => {
-  const parsedAmount = parseEther(amount)
-  const tx = await cafiTokenContract.transfer(toAddress, parsedAmount)
-  return tx.wait()
-}
-
-export const getCafiBalance = async (cafiTokenContract: Contract, address: string) => {
-  const balance = await cafiTokenContract.balanceOf(address)
-  return formatEther(balance)
-}
-
-export const getCafiTotalSupply = async (cafiTokenContract: Contract) => {
-  const totalSupply = await cafiTokenContract.totalSupply()
-  return formatEther(totalSupply)
-}
-
-// Faucet Operations
-export const claimFaucetTokens = async (faucetContract: Contract) => {
-  const tx = await faucetContract.claim()
-  return tx.wait()
-}
-
-export const getClaimStatus = async (faucetContract: Contract, userAddress: string) => {
-  const [canClaim, timeUntilNextClaim] = await faucetContract.getClaimStatus(userAddress)
-  return { canClaim, timeUntilNextClaim: Number(timeUntilNextClaim) }
-}
-
-export const setFaucetClaimAmount = async (faucetContract: Contract, amount: string) => {
-  const parsedAmount = parseEther(amount)
-  const tx = await faucetContract.setClaimAmount(parsedAmount)
-  return tx.wait()
-}
-
-export const setFaucetClaimInterval = async (faucetContract: Contract, interval: number) => {
-  const tx = await faucetContract.setClaimInterval(interval)
-  return tx.wait()
-}
-
-export const mintToFaucet = async (faucetContract: Contract, amount: string) => {
-  const parsedAmount = parseEther(amount)
-  const tx = await faucetContract.mintToFaucet(parsedAmount)
-  return tx.wait()
-}
-
-// Staking Operations
-export const stakeTokens = async (stakingContract: Contract, amount: string) => {
-  const parsedAmount = parseEther(amount)
-  const tx = await stakingContract.stake(parsedAmount)
-  return tx.wait()
-}
-
-export const unstakeTokens = async (stakingContract: Contract, amount: string) => {
-  const parsedAmount = parseEther(amount)
-  const tx = await stakingContract.unstake(parsedAmount)
-  return tx.wait()
-}
-
-export const getStakedBalance = async (stakingContract: Contract, userAddress: string) => {
-  const balance = await stakingContract.stakedBalance(userAddress)
-  return formatEther(balance)
-}
-
-export const getStakingRewardRate = async (stakingContract: Contract) => {
-  const rate = await stakingContract.rewardRate()
-  return formatEther(rate)
-}
-
-export const getStakingRewards = async (stakingContract: Contract, userAddress: string) => {
-  const rewards = await stakingContract.getReward(userAddress)
-  return formatEther(rewards)
-}
-
-export const claimStakingRewards = async (stakingContract: Contract) => {
-  const tx = await stakingContract.claimReward()
-  return tx.wait()
-}
-
-export const setStakingRewardRate = async (stakingContract: Contract, rate: string) => {
-  const parsedRate = parseEther(rate)
-  const tx = await stakingContract.setRewardRate(parsedRate)
-  return tx.wait()
-}
-
-// Farming Operations
-export const depositFarmingTokens = async (farmingContract: Contract, amount: string) => {
-  const parsedAmount = parseEther(amount)
-  const tx = await farmingContract.deposit(parsedAmount)
-  return tx.wait()
-}
-
-export const withdrawFarmingTokens = async (farmingContract: Contract, amount: string) => {
-  const parsedAmount = parseEther(amount)
-  const tx = await farmingContract.withdraw(parsedAmount)
-  return tx.wait()
-}
-
-export const getFarmingStakedBalance = async (farmingContract: Contract, userAddress: string) => {
-  const balance = await farmingContract.stakedBalance(userAddress)
-  return formatEther(balance)
-}
-
-export const getFarmingRewardRate = async (farmingContract: Contract) => {
-  const rate = await farmingContract.rewardRate()
-  return formatEther(rate)
-}
-
-export const getFarmingRewards = async (farmingContract: Contract, userAddress: string) => {
-  const rewards = await farmingContract.getReward(userAddress)
-  return formatEther(rewards)
-}
-
-export const claimFarmingRewards = async (farmingContract: Contract) => {
-  const tx = await farmingContract.claimReward()
-  return tx.wait()
-}
-
-export const setFarmingRewardRate = async (farmingContract: Contract, rate: string) => {
-  const parsedRate = parseEther(rate)
-  const tx = await farmingContract.setRewardRate(parsedRate)
-  return tx.wait()
-}
-
-// NFT Operations
-export const mintNFT = async (nftContract: Contract, toAddress: string, tokenId: number) => {
-  const tx = await nftContract.mint(toAddress, tokenId)
-  return tx.wait()
-}
-
-export const getNFTBalance = async (nftContract: Contract, ownerAddress: string) => {
-  const balance = await nftContract.balanceOf(ownerAddress)
-  return Number(balance)
-}
-
-export const getNFTTokenURI = async (nftContract: Contract, tokenId: number) => {
-  const uri = await nftContract.tokenURI(tokenId)
-  return uri
-}
-
-export const setNFTBaseURI = async (nftContract: Contract, newBaseURI: string) => {
-  const tx = await nftContract.setBaseURI(newBaseURI)
-  return tx.wait()
-}
-
-// Carbon Retire Operations
-export const retireCarbon = async (carbonRetireContract: Contract, amount: string) => {
-  const parsedAmount = parseEther(amount)
-  const tx = await carbonRetireContract.retire(parsedAmount)
-  return tx.wait()
-}
-
-export const getRetiredAmount = async (carbonRetireContract: Contract, userAddress: string) => {
-  const amount = await carbonRetireContract.retiredAmounts(userAddress)
-  return formatEther(amount)
-}
-
-export const setVerifierStatus = async (
-  carbonRetireContract: Contract,
-  verifierAddress: string,
-  isVerifier: boolean,
-) => {
-  const tx = await carbonRetireContract.setVerifier(verifierAddress, isVerifier)
-  return tx.wait()
-}
-
-export const isVerifier = async (carbonRetireContract: Contract, verifierAddress: string) => {
-  const status = await carbonRetireContract.isVerifier(verifierAddress)
-  return status
-}
-
-export const setAutoApproval = async (carbonRetireContract: Contract, verifierAddress: string, status: boolean) => {
-  const tx = await carbonRetireContract.setAutoApproval(verifierAddress, status)
-  return tx.wait()
-}
-
-export const isAutoApproved = async (carbonRetireContract: Contract, verifierAddress: string) => {
-  const status = await carbonRetireContract.isAutoApproved(verifierAddress)
-  return status
-}
-
-// Marketplace Operations
-export const listItem = async (marketplaceContract: Contract, nftAddress: string, tokenId: number, price: string) => {
-  const parsedPrice = parseEther(price)
-  const tx = await marketplaceContract.listItem(nftAddress, tokenId, parsedPrice)
-  return tx.wait()
-}
-
-export const buyItem = async (marketplaceContract: Contract, itemId: number, value: string) => {
-  const parsedValue = parseEther(value)
-  const tx = await marketplaceContract.buyItem(itemId, { value: parsedValue })
-  return tx.wait()
-}
-
-export const cancelListing = async (marketplaceContract: Contract, itemId: number) => {
-  const tx = await marketplaceContract.cancelListing(itemId)
-  return tx.wait()
-}
-
-export const getListing = async (marketplaceContract: Contract, itemId: number) => {
-  const listing = await marketplaceContract.listings(itemId)
-  return {
-    itemId: Number(listing.itemId),
-    nftAddress: listing.nftAddress,
-    tokenId: Number(listing.tokenId),
-    seller: listing.seller,
-    price: formatEther(listing.price),
-    isSold: listing.isSold,
-  }
-}
-
-export const getListingCount = async (marketplaceContract: Contract) => {
-  const count = await marketplaceContract.itemIds()
-  return Number(count)
-}
+export default contractService

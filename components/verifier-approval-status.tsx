@@ -1,142 +1,141 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { useWeb3 } from "@/components/web3-provider"
-import { useToast } from "@/hooks/use-toast"
-import { isVerifier, setVerifierStatus } from "@/lib/contract-service"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Terminal } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { contractService } from "@/services/contract-service"
+import { CheckCircle2, Clock } from "lucide-react"
 
-export function VerifierApprovalStatus() {
-  const { signer, chainId, isConnected, isAdmin, refreshBalances } = useWeb3()
-  const { toast } = useToast()
+interface VerifierApprovalStatusProps {
+  tokenId: string
+  approvals: Array<{ verifier: string; approved: boolean }>
+  isAutoApprovalEnabled?: boolean
+}
 
-  const [verifierAddress, setVerifierAddress] = useState("")
-  const [isCurrentlyVerifier, setIsCurrentlyVerifier] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export function VerifierApprovalStatus({
+  tokenId,
+  approvals: initialApprovals,
+  isAutoApprovalEnabled = false,
+}: VerifierApprovalStatusProps) {
+  const [approvals, setApprovals] = useState(initialApprovals)
+  const [isLoading, setIsLoading] = useState(true)
+  const [verifiers, setVerifiers] = useState<Array<{ name: string; wallet: string; isActive: boolean }>>([])
 
   useEffect(() => {
-    const fetchVerifierStatus = async () => {
-      if (verifierAddress && chainId && signer) {
-        setLoading(true)
-        setError(null)
-        try {
-          const status = await isVerifier(signer.provider, verifierAddress)
-          setIsCurrentlyVerifier(status)
-        } catch (err: any) {
-          console.error("Error fetching verifier status:", err)
-          setError(`Failed to fetch status: ${err.message || "Unknown error"}`)
-          setIsCurrentlyVerifier(false)
-        } finally {
-          setLoading(false)
-        }
-      } else {
-        setIsCurrentlyVerifier(false)
-      }
+    if (tokenId) {
+      loadVerifiersAndApprovals()
     }
-    fetchVerifierStatus()
-  }, [verifierAddress, chainId, signer])
+  }, [tokenId])
 
-  const handleToggleVerifierStatus = async () => {
-    if (!verifierAddress || !chainId || !signer) {
-      toast({
-        title: "Error",
-        description: "Please enter a verifier address and connect your wallet.",
-        variant: "destructive",
-      })
-      return
-    }
-    setLoading(true)
-    setError(null)
+  const loadVerifiersAndApprovals = async () => {
     try {
-      await setVerifierStatus(signer, verifierAddress, !isCurrentlyVerifier)
-      setIsCurrentlyVerifier(!isCurrentlyVerifier)
-      toast({
-        title: "Success",
-        description: `Verifier status for ${verifierAddress.substring(0, 6)}...${verifierAddress.slice(-4)} set to ${!isCurrentlyVerifier}.`,
-      })
-      refreshBalances() // Refresh to reflect any potential changes
-    } catch (err: any) {
-      console.error("Error toggling verifier status:", err)
-      setError(`Failed to set verifier status: ${err.message || err.reason || "Unknown error"}`)
-      toast({
-        title: "Transaction Failed",
-        description: `Error: ${err.message?.substring(0, 100) || "Unknown error"}`,
-        variant: "destructive",
-      })
+      setIsLoading(true)
+      const nftContract = await contractService.getNftContract()
+      const verifiersList = []
+      const approvalsList = []
+
+      // Try to load verifiers from index 0 to 9 (adjust as needed)
+      for (let i = 0; i < 10; i++) {
+        try {
+          const verifier = await nftContract.getVerifier(i)
+          if (verifier && verifier.wallet !== "0x0000000000000000000000000000000000000000") {
+            verifiersList.push({
+              name: verifier.name,
+              wallet: verifier.wallet,
+              isActive: verifier.isActive,
+            })
+
+            // Check if this verifier has approved the token
+            const isApproved = await nftContract.isApprovedByVerifier(tokenId, verifier.wallet)
+            approvalsList.push({
+              verifier: verifier.name,
+              wallet: verifier.wallet,
+              approved: isApproved,
+            })
+          }
+        } catch (error) {
+          // Stop when we can't get more verifiers
+          break
+        }
+      }
+
+      setVerifiers(verifiersList)
+      setApprovals(approvalsList)
+    } catch (error) {
+      console.error("Error loading verifiers and approvals:", error)
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
-  if (!isConnected) {
+  if (isLoading) {
     return (
-      <Alert variant="destructive">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Wallet Not Connected</AlertTitle>
-        <AlertDescription>Please connect your wallet to manage verifier settings.</AlertDescription>
-      </Alert>
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+        <Clock className="h-4 w-4" />
+        <span>Loading approval status...</span>
+      </div>
     )
   }
 
-  if (!isAdmin) {
+  if (isAutoApprovalEnabled) {
     return (
-      <Alert variant="destructive">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Unauthorized Access</AlertTitle>
-        <AlertDescription>You do not have admin privileges to access this page.</AlertDescription>
-      </Alert>
+      <div className="flex items-center space-x-2">
+        <Badge
+          variant="outline"
+          className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700"
+        >
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Auto-Approved
+        </Badge>
+      </div>
     )
   }
+
+  const approvedCount = approvals.filter((a) => a.approved).length
+  const pendingCount = approvals.length - approvedCount
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Verifier Status Management</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-6">
-        {error && (
-          <Alert variant="destructive">
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {approvedCount > 0 && (
+          <Badge
+            variant="outline"
+            className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700"
+          >
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            {approvedCount} Approved
+          </Badge>
         )}
-        <div className="grid gap-2">
-          <Label htmlFor="verifier-address">Verifier Address</Label>
-          <Input
-            id="verifier-address"
-            type="text"
-            placeholder="Enter verifier address (e.g., 0x...)"
-            value={verifierAddress}
-            onChange={(e) => setVerifierAddress(e.target.value)}
-            disabled={loading}
-          />
-        </div>
-        <div className="flex items-center justify-between">
-          <Label htmlFor="verifier-status-switch">Is Verifier?</Label>
-          <Switch
-            id="verifier-status-switch"
-            checked={isCurrentlyVerifier}
-            onCheckedChange={handleToggleVerifierStatus}
-            disabled={loading || !verifierAddress}
-          />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {isCurrentlyVerifier
-            ? `The address ${verifierAddress || "entered"} is currently a verifier.`
-            : `The address ${verifierAddress || "entered"} is NOT currently a verifier.`}
-        </p>
-        <Button onClick={handleToggleVerifierStatus} disabled={loading || !verifierAddress}>
-          {loading ? "Updating..." : `Toggle Verifier Status to ${isCurrentlyVerifier ? "Disable" : "Enable"}`}
-        </Button>
-      </CardContent>
-    </Card>
+        {pendingCount > 0 && (
+          <Badge
+            variant="outline"
+            className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700"
+          >
+            <Clock className="h-3 w-3 mr-1" />
+            {pendingCount} Pending
+          </Badge>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        {approvals.map((approval, index) => (
+          <div key={index} className="flex items-center justify-between text-sm">
+            <span>{approval.verifier}</span>
+            {approval.approved ? (
+              <span className="flex items-center text-green-600 dark:text-green-400">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Approved
+              </span>
+            ) : (
+              <span className="flex items-center text-yellow-600 dark:text-yellow-400">
+                <Clock className="h-3 w-3 mr-1" />
+                Pending
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
+
+export default VerifierApprovalStatus

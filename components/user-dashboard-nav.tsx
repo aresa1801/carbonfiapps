@@ -1,39 +1,59 @@
 "use client"
 
-import type React from "react"
-
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { Home, Coins, Sprout, Recycle, Store } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
 
-interface UserDashboardNavProps extends React.HTMLAttributes<HTMLElement> {
-  items: {
-    href: string
-    title: string
-    disabled?: boolean
-  }[]
-}
-
-export function UserDashboardNav({ className, items, ...props }: UserDashboardNavProps) {
+export function UserDashboardNav() {
   const pathname = usePathname()
 
+  const navigation = [
+    {
+      name: "Dashboard",
+      href: "/user",
+      icon: <Home className="h-4 w-4" />,
+    },
+    {
+      name: "Mint NFT",
+      href: "/user/mint-nft",
+      icon: <Coins className="h-4 w-4" />,
+    },
+    {
+      name: "Staking",
+      href: "/user/staking",
+      icon: <Sprout className="h-4 w-4" />,
+    },
+    {
+      name: "Marketplace",
+      href: "/user/marketplace",
+      icon: <Store className="h-4 w-4" />,
+    },
+    {
+      name: "Retire",
+      href: "/user/retire",
+      icon: <Recycle className="h-4 w-4" />,
+    },
+  ]
+
   return (
-    <nav className={cn("flex space-x-2 lg:flex-col lg:space-x-0 lg:space-y-1", className)} {...props}>
-      {items.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={cn(
-            buttonVariants({ variant: "ghost" }),
-            pathname === item.href ? "bg-muted hover:bg-muted" : "hover:bg-transparent hover:underline",
-            "justify-start",
-            item.disabled && "cursor-not-allowed opacity-80",
-          )}
-        >
-          {item.title}
-        </Link>
-      ))}
+    <nav className="space-y-1">
+      {navigation.map((item) => {
+        const isActive = pathname === item.href
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            className={cn(
+              "flex items-center px-3 py-2 text-sm font-medium rounded-md",
+              isActive ? "bg-emerald-100 text-emerald-800" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+            )}
+          >
+            <span className="mr-3">{item.icon}</span>
+            {item.name}
+          </Link>
+        )
+      })}
     </nav>
   )
 }

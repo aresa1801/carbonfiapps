@@ -1,17 +1,15 @@
 import type React from "react"
-import type { Metadata } from "next/types"
-import { Inter } from "next/font/google"
+import type { Metadata } from "next"
+import { GeistSans } from "geist/font/sans"
+import { GeistMono } from "geist/font/mono"
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import { ContractMigrationNotice } from "@/components/contract-migration-notice"
 import { Web3Provider } from "@/components/web3-provider"
-import { Toaster } from "@/components/ui/sonner"
-
-const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "CarbonFi DApps",
-  description: "Decentralized applications for carbon offsetting and sustainable finance.",
-    generator: 'v0.dev'
+  title: "CarbonFi Apps",
+  description: "Created with v0",
+  generator: "v0.dev",
 }
 
 export default function RootLayout({
@@ -20,14 +18,23 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <Web3Provider>
+    <html lang="en">
+      <head>
+        <style>{`
+html {
+  font-family: ${GeistSans.style.fontFamily};
+  --font-sans: ${GeistSans.variable};
+  --font-mono: ${GeistMono.variable};
+}
+        `}</style>
+      </head>
+      <body>
+        <Web3Provider>
+          <div className="min-h-screen bg-background">
+            <ContractMigrationNotice />
             {children}
-            <Toaster />
-          </Web3Provider>
-        </ThemeProvider>
+          </div>
+        </Web3Provider>
       </body>
     </html>
   )

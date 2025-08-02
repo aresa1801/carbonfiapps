@@ -1,47 +1,61 @@
 "use client"
 
-import { useEffect, useCallback } from "react"
-import type { Contract } from "ethers"
-import { useWeb3 } from "@/components/web3-provider"
-import { useOptimizedRefresh } from "./use-optimized-refresh"
+import { useCallback, useState, useEffect } from "react"
+import { usePathname } from "next/navigation"
 
-// Define a type for the event listener function
-type EventListener = (...args: any[]) => void
-
-interface EventConfig {
-  contract: Contract | null
-  eventName: string
-  listener: EventListener
+interface UseEventRefreshOptions {
+  onRefresh: () => Promise<void>
+  enabled?: boolean
 }
 
-export const useEventRefresh = (eventConfigs: EventConfig[]) => {
-  const { isConnected, address, chainId } = useWeb3()
-  const { triggerRefresh } = useOptimizedRefresh()
+export function useEventRefresh({ onRefresh, enabled = true }: UseEventRefreshOptions) {
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const [refreshCount, setRefreshCount] = useState(0)
+  const pathname = usePathname()
 
-  const setupListeners = useCallback(() => {
-    eventConfigs.forEach(({ contract, eventName, listener }) => {
-      if (contract && isConnected && address && chainId) {
-        console.log(`Listening for ${eventName} on ${contract.target}`)
-        contract.on(eventName, listener)
-      }
-    })
-  }, [eventConfigs, isConnected, address, chainId])
+  const performRefresh = useCallback(async () => {
+    if (!enabled) return
 
-  const cleanupListeners = useCallback(() => {
-    eventConfigs.forEach(({ contract, eventName, listener }) => {
-      if (contract) {
-        console.log(`Removing listener for ${eventName} on ${contract.target}`)
-        contract.off(eventName, listener)
-      }
-    })
-  }, [eventConfigs])
-
-  useEffect(() => {
-    setupListeners()
-    return () => {
-      cleanupListeners()
+    try {
+      setIsRefreshing(true)
+      await onRefresh()
+      setRefreshCount((prev) => prev + 1)
+      setLastRefresh(new Date())
+    } catch (error) {
+      console.error("Refresh error:", error)
+    } finally {
+      setIsRefreshing(false)
     }
-  }, [setupListeners, cleanupListeners])
+  }, [onRefresh, enabled])
 
-  return { triggerRefresh }
+  // Refresh on page change
+  useEffect(() => {
+    if (enabled) {
+      performRefresh()
+    }
+  }, [pathname, enabled])
+
+  // Initial refresh on mount
+  useEffect(() => {
+    if (enabled) {
+      performRefresh()
+    }
+  }, [enabled])
+
+  const manualRefresh = useCallback(async () => {
+    await performRefresh()
+  }, [performRefresh])
+
+  const triggerRefresh = useCallback(async () => {
+    await performRefresh()
+  }, [performRefresh])
+
+  return {
+    refreshCount,
+    isRefreshing,
+    lastRefresh,
+    manualRefresh,
+    triggerRefresh,
+  }
 }

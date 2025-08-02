@@ -1,20 +1,17 @@
 "use client"
 
-import { CardFooter } from "@/components/ui/card"
-
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useWeb3 } from "@/components/web3-provider"
 import { TransactionStatus } from "@/components/transaction-status"
 import { useToast } from "@/components/ui/use-toast"
+import { AdminGuard } from "@/components/admin-guard"
 import { UserPlus, Users, RefreshCw, CheckCircle, XCircle } from "lucide-react"
 import { contractService } from "@/lib/contract-utils"
 import { VerifierApprovalStatus } from "@/components/verifier-approval-status"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Terminal } from "lucide-react"
 
 interface Verifier {
   id: number
@@ -23,8 +20,9 @@ interface Verifier {
   isActive: boolean
 }
 
-export default function AdminVerifiersPage() {
-  const { isConnected, isAdmin, account, nftContractExists, NFT_CONTRACT_ADDRESS } = useWeb3()
+export default function VerifiersPage() {
+  const { isConnected, account, nftContractExists, NFT_CONTRACT_ADDRESS } = useWeb3()
+
   const [verifierName, setVerifierName] = useState("")
   const [verifierWallet, setVerifierWallet] = useState("")
   const [verifiers, setVerifiers] = useState<Verifier[]>([])
@@ -235,210 +233,178 @@ export default function AdminVerifiersPage() {
     })
   }
 
-  if (!isConnected) {
-    return (
-      <Alert variant="destructive">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Wallet Not Connected</AlertTitle>
-        <AlertDescription>Please connect your wallet to manage verifier settings.</AlertDescription>
-      </Alert>
-    )
-  }
-
-  if (!isAdmin) {
-    return (
-      <Alert variant="destructive">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Unauthorized Access</AlertTitle>
-        <AlertDescription>You do not have admin privileges to access this page.</AlertDescription>
-      </Alert>
-    )
-  }
-
   return (
-    <div className="container mx-auto max-w-6xl space-y-6 p-4 md:p-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-white">Verifier Management</h1>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefreshData}
-          disabled={isLoadingVerifiers || isLoading}
-          className="flex items-center gap-1 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border-gray-700"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
-
-      <TransactionStatus status={txStatus} hash={txHash} message={txMessage} />
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Add Verifier */}
-        <div className="lg:col-span-1">
-          <Card className="bg-gray-900 border border-gray-700">
-            <CardHeader>
-              <div className="flex items-center space-x-3 mb-2">
-                <div className="p-2 bg-emerald-900/20 rounded-lg">
-                  <UserPlus className="h-5 w-5 text-emerald-400" />
-                </div>
-                <CardTitle className="text-white">Add Verifier</CardTitle>
-              </div>
-              <CardDescription className="text-gray-400">Add a new verifier to approve NFT minting</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="verifierName" className="text-gray-300">
-                    Verifier Name
-                  </Label>
-                  <Input
-                    id="verifierName"
-                    placeholder="Enter name"
-                    value={verifierName}
-                    onChange={(e) => setVerifierName(e.target.value)}
-                    className="bg-gray-800 text-white border-gray-700 focus:border-emerald-500"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="verifierWallet" className="text-gray-300">
-                    Wallet Address
-                  </Label>
-                  <Input
-                    id="verifierWallet"
-                    placeholder="0x..."
-                    value={verifierWallet}
-                    onChange={(e) => setVerifierWallet(e.target.value)}
-                    className="bg-gray-800 text-white border-gray-700 focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                onClick={addVerifier}
-                disabled={!isConnected || !verifierName || !verifierWallet || isLoading}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                {isLoading ? "Processing..." : "Add Verifier"}
-              </Button>
-            </CardFooter>
-          </Card>
+    <AdminGuard>
+      <div className="container mx-auto max-w-6xl space-y-6 p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Verifier Management</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshData}
+            disabled={isLoadingVerifiers || isLoading}
+            className="flex items-center gap-1 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border-gray-700"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
         </div>
 
-        {/* Verifiers List */}
-        <div className="lg:col-span-2">
-          <Card className="bg-gray-900 border border-gray-700">
-            <CardHeader>
-              <div className="flex items-center space-x-3 mb-2">
-                <div className="p-2 bg-emerald-900/20 rounded-lg">
-                  <Users className="h-5 w-5 text-emerald-400" />
+        <TransactionStatus status={txStatus} hash={txHash} message={txMessage} />
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Add Verifier */}
+          <div className="lg:col-span-1">
+            <Card className="bg-gray-900 border border-gray-700">
+              <CardHeader>
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <UserPlus className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <CardTitle className="text-white">Add Verifier</CardTitle>
                 </div>
-                <CardTitle className="text-white">Verifiers</CardTitle>
-              </div>
-              <CardDescription className="text-gray-400">Manage existing verifiers</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingVerifiers ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="animate-pulse flex items-center justify-between p-4 rounded-lg border border-gray-700 bg-gray-800"
-                    >
-                      <div className="space-y-2">
-                        <div className="h-4 bg-gray-700 rounded w-24"></div>
-                        <div className="h-3 bg-gray-700 rounded w-40"></div>
-                      </div>
-                      <div className="h-8 w-20 bg-gray-700 rounded"></div>
-                    </div>
-                  ))}
+                <CardDescription className="text-gray-400">Add a new verifier to approve NFT minting</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="verifierName" className="text-gray-300">
+                      Verifier Name
+                    </Label>
+                    <Input
+                      id="verifierName"
+                      placeholder="Enter name"
+                      value={verifierName}
+                      onChange={(e) => setVerifierName(e.target.value)}
+                      className="bg-gray-800 text-white border-gray-700 focus:border-emerald-500"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="verifierWallet" className="text-gray-300">
+                      Wallet Address
+                    </Label>
+                    <Input
+                      id="verifierWallet"
+                      placeholder="0x..."
+                      value={verifierWallet}
+                      onChange={(e) => setVerifierWallet(e.target.value)}
+                      className="bg-gray-800 text-white border-gray-700 focus:border-emerald-500"
+                    />
+                  </div>
                 </div>
-              ) : verifiers.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-400">No verifiers found</p>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  onClick={addVerifier}
+                  disabled={!isConnected || !verifierName || !verifierWallet || isLoading}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {isLoading ? "Processing..." : "Add Verifier"}
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+
+          {/* Verifiers List */}
+          <div className="lg:col-span-2">
+            <Card className="bg-gray-900 border border-gray-700">
+              <CardHeader>
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <Users className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <CardTitle className="text-white">Verifiers</CardTitle>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {verifiers.map((verifier) => (
-                    <div
-                      key={verifier.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-gray-700 bg-gray-800"
-                    >
-                      <div className="space-y-1 mb-3 sm:mb-0">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="font-medium text-white">{verifier.name}</h3>
-                          {verifier.isActive ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-900/50 text-emerald-400">
-                              Active
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/50 text-red-400">
-                              Inactive
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-400 font-mono">
-                          {verifier.wallet.substring(0, 6)}...{verifier.wallet.substring(38)}
-                        </p>
-                      </div>
-                      <Button
-                        variant={verifier.isActive ? "destructive" : "default"}
-                        size="sm"
-                        onClick={() => toggleVerifierStatus(verifier.id, verifier.isActive)}
-                        disabled={isLoading}
-                        className={`w-full sm:w-auto ${verifier.isActive ? "bg-red-600 hover:bg-red-700 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}
+                <CardDescription className="text-gray-400">Manage existing verifiers</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingVerifiers ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="animate-pulse flex items-center justify-between p-4 rounded-lg border border-gray-700 bg-gray-800"
                       >
-                        {verifier.isActive ? (
-                          <>
-                            <XCircle className="h-4 w-4 mr-1" /> Deactivate
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="h-4 w-4 mr-1" /> Activate
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                        <div className="space-y-2">
+                          <div className="h-4 bg-gray-700 rounded w-24"></div>
+                          <div className="h-3 bg-gray-700 rounded w-40"></div>
+                        </div>
+                        <div className="h-8 w-20 bg-gray-700 rounded"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : verifiers.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400">No verifiers found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {verifiers.map((verifier) => (
+                      <div
+                        key={verifier.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-gray-700 bg-gray-800"
+                      >
+                        <div className="space-y-1 mb-3 sm:mb-0">
+                          <div className="flex items-center space-x-2">
+                            <h3 className="font-medium text-white">{verifier.name}</h3>
+                            {verifier.isActive ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-900/50 text-emerald-400">
+                                Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/50 text-red-400">
+                                Inactive
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-400 font-mono">
+                            {verifier.wallet.substring(0, 6)}...{verifier.wallet.substring(38)}
+                          </p>
+                        </div>
+                        <Button
+                          variant={verifier.isActive ? "destructive" : "default"}
+                          size="sm"
+                          onClick={() => toggleVerifierStatus(verifier.id, verifier.isActive)}
+                          disabled={isLoading}
+                          className={`w-full sm:w-auto ${verifier.isActive ? "bg-red-600 hover:bg-red-700 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}
+                        >
+                          {verifier.isActive ? (
+                            <>
+                              <XCircle className="h-4 w-4 mr-1" /> Deactivate
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-1" /> Activate
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
+
+        {/* Verifier Approval Status */}
+        <Card className="bg-gray-900 border border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white">Verifier Approval Status</CardTitle>
+            <CardDescription className="text-gray-400">
+              Current status of auto-approval and verifier settings
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <VerifierApprovalStatus />
+          </CardContent>
+        </Card>
+
+        {/* Removed global styles as they are now inline or replaced */}
+        <style jsx global>{`
+          /* Removed .gradient-card, .card-hover, .btn-green as styles are now inline or replaced */
+        `}</style>
       </div>
-
-      {/* Verifier Approval Status */}
-      <Card className="bg-gray-900 border border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-white">Verifier Approval Status</CardTitle>
-          <CardDescription className="text-gray-400">
-            Current status of auto-approval and verifier settings
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <VerifierApprovalStatus />
-        </CardContent>
-      </Card>
-
-      {/* About Verifiers */}
-      <Card className="bg-gray-900 border border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-white">About Verifiers</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            Verifiers are trusted entities responsible for validating carbon retirement claims. Only addresses granted
-            the verifier role can approve or disapprove carbon retirement requests, ensuring the integrity of the
-            system.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Removed global styles as they are now inline or replaced */}
-      <style jsx global>{`
-        /* Removed .gradient-card, .card-hover, .btn-green as styles are now inline or replaced */
-      `}</style>
-    </div>
+    </AdminGuard>
   )
 }

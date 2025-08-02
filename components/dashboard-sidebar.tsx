@@ -1,179 +1,92 @@
 "use client"
 
-import { Home, DollarSign, Gem, Recycle, Store, Settings, ShieldCheck, BarChart3, Factory } from "lucide-react"
+import type React from "react"
+
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-  SidebarSeparator,
-} from "@/components/ui/sidebar"
+import { cn } from "@/lib/utils"
+import { LayoutDashboard, Coins, TrendingUp, ShoppingCart, Droplets, Settings, LogOut } from "lucide-react"
 import { useWeb3 } from "@/components/web3-provider"
 
-// Menu items.
-const userItems = [
-  {
-    title: "Dashboard",
-    url: "/user",
-    icon: Home,
-  },
-  {
-    title: "Faucet",
-    url: "/user/faucet",
-    icon: DollarSign,
-  },
-  {
-    title: "Staking",
-    url: "/user/staking",
-    icon: Gem,
-  },
-  {
-    title: "Farming",
-    url: "/user/farming",
-    icon: Factory,
-  },
-  {
-    title: "Retire Carbon",
-    url: "/user/retire",
-    icon: Recycle,
-  },
-  {
-    title: "Mint NFT",
-    url: "/user/mint-nft",
-    icon: Gem,
-  },
-  {
-    title: "Marketplace",
-    url: "/user/marketplace",
-    icon: Store,
-  },
-]
-
-const adminItems = [
-  {
-    title: "Admin Dashboard",
-    url: "/admin",
-    icon: BarChart3,
-  },
-  {
-    title: "Token Config",
-    url: "/admin/token-config",
-    icon: Settings,
-  },
-  {
-    title: "Faucet Settings",
-    url: "/admin/faucet-settings",
-    icon: Settings,
-  },
-  {
-    title: "Staking Pool",
-    url: "/admin/staking-pool",
-    icon: Settings,
-  },
-  {
-    title: "Farming Pool",
-    url: "/admin/farming",
-    icon: Settings,
-  },
-  {
-    title: "NFT Settings",
-    url: "/admin/nft-settings",
-    icon: Settings,
-  },
-  {
-    title: "Verifiers",
-    url: "/admin/verifiers",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Retire Settings",
-    url: "/admin/retire-settings",
-    icon: Settings,
-  },
-  {
-    title: "Contract Addresses",
-    url: "/admin/contract-addresses",
-    icon: Settings,
-  },
-  {
-    title: "Contract Migration",
-    url: "/admin/contract-migration",
-    icon: Settings,
-  },
-]
-
-interface DashboardSidebarProps {
-  isMobileSheet?: boolean
+interface SidebarLinkProps {
+  href: string
+  icon: React.ReactNode
+  children: React.ReactNode
 }
 
-export function DashboardSidebar({ isMobileSheet = false }: DashboardSidebarProps) {
+function SidebarLink({ href, icon, children }: SidebarLinkProps) {
   const pathname = usePathname()
-  const { isAdmin } = useWeb3()
+  const isActive = pathname === href
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
-        {isMobileSheet && (
-          <div className="flex items-center justify-between p-2">
-            <Link href="/" className="flex items-center space-x-2">
-              <img src="/images/carbonfi-logo.png" alt="CarbonFi Logo" width={32} height={32} className="h-8 w-8" />
-              <span className="font-bold">CarbonFi</span>
-            </Link>
-          </div>
-        )}
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>User DApps</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {userItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url}>
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+        isActive
+          ? "bg-emerald-100/10 text-emerald-500"
+          : "text-gray-400 hover:bg-emerald-100/10 hover:text-emerald-500",
+      )}
+    >
+      {icon}
+      <span>{children}</span>
+    </Link>
+  )
+}
 
-        {isAdmin && (
-          <>
-            <SidebarSeparator />
-            <SidebarGroup>
-              <SidebarGroupLabel>Admin</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {adminItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={pathname === item.url}>
-                        <Link href={item.url}>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
-        )}
-      </SidebarContent>
-      <SidebarRail />
-    </Sidebar>
+export function DashboardSidebar() {
+  const { disconnect } = useWeb3()
+
+  return (
+    <div className="flex h-screen w-64 flex-col border-r border-gray-800 bg-gray-900">
+      <div className="flex h-14 items-center border-b border-gray-800 px-4">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-md bg-emerald-500 flex items-center justify-center">
+            <Coins className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-white">Carbon Finance</h1>
+            <p className="text-xs text-gray-400">Sustainable financial solutions</p>
+          </div>
+        </Link>
+      </div>
+      <div className="flex-1 overflow-auto py-4">
+        <nav className="grid gap-1 px-2">
+          <SidebarLink href="/user" icon={<LayoutDashboard className="h-4 w-4" />}>
+            Dashboard
+          </SidebarLink>
+          <SidebarLink href="/user/mint-nft" icon={<Coins className="h-4 w-4" />}>
+            Mint NFT
+          </SidebarLink>
+          <SidebarLink href="/user/staking" icon={<TrendingUp className="h-4 w-4" />}>
+            Staking
+          </SidebarLink>
+          <SidebarLink href="/user/marketplace" icon={<ShoppingCart className="h-4 w-4" />}>
+            Marketplace
+          </SidebarLink>
+          <SidebarLink href="/user/retire" icon={<Droplets className="h-4 w-4" />}>
+            Retire
+          </SidebarLink>
+        </nav>
+      </div>
+      <div className="border-t border-gray-800 p-4">
+        <div className="grid gap-1">
+          <Link
+            href="/user/settings"
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-emerald-100/10 hover:text-emerald-500"
+          >
+            <Settings className="h-4 w-4" />
+            <span>Settings</span>
+          </Link>
+          <button
+            onClick={() => disconnect()}
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-red-100/10 hover:text-red-500"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Logout</span>
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

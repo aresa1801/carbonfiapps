@@ -1,37 +1,28 @@
 "use client"
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { useWeb3 } from "@/components/web3-provider"
-import { useEffect, useState } from "react"
-import { getCafiBalance } from "@/lib/contract-service"
+import { Card, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 
-export function FaucetStatCard() {
-  const { faucetContract, cafiTokenContract, isConnected, address } = useWeb3()
-  const [faucetBalance, setFaucetBalance] = useState("0")
+interface FaucetStatCardProps {
+  title: string
+  value: string
+  isLoading: boolean
+  subtitle?: string
+}
 
-  useEffect(() => {
-    const fetchFaucetBalance = async () => {
-      if (faucetContract && cafiTokenContract && isConnected && address) {
-        try {
-          const balance = await getCafiBalance(cafiTokenContract, await faucetContract.getAddress())
-          setFaucetBalance(balance)
-        } catch (error) {
-          console.error("Error fetching faucet balance:", error)
-          setFaucetBalance("Error")
-        }
-      }
-    }
-    fetchFaucetBalance()
-  }, [faucetContract, cafiTokenContract, isConnected, address])
-
+export function FaucetStatCard({ title, value, isLoading, subtitle }: FaucetStatCardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Faucet Balance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-bold">{faucetBalance} CAFI</p>
-        <p className="text-sm text-muted-foreground">Tokens available in the faucet for claiming.</p>
+    <Card className="border-gray-700 bg-gray-900 hover:shadow-md transition-shadow">
+      <CardContent className="p-6">
+        <div className="text-sm font-medium text-gray-300">{title}</div>
+        <div className="mt-2">
+          {isLoading ? (
+            <Skeleton className="h-8 w-32 bg-gray-700" />
+          ) : (
+            <div className="text-2xl font-bold text-white">{value}</div>
+          )}
+        </div>
+        {subtitle && <div className="mt-1 text-xs text-gray-400">{subtitle}</div>}
       </CardContent>
     </Card>
   )

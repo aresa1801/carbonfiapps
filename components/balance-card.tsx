@@ -1,41 +1,52 @@
 "use client"
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { useWeb3 } from "@/components/web3-provider"
-import { formatBigIntToEther } from "@/lib/wallet-utils"
+import { Card, CardContent } from "@/components/ui/card"
+import { Wallet, Coins } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useWeb3 } from "@/components/web3-provider" // Import useWeb3
 
-export function BalanceCard() {
-  const { nativeBalance, chainId } = useWeb3()
+interface BalanceCardProps {
+  type: "eth" | "cafi"
+  balance: string
+  isLoading: boolean
+  symbol: string
+  subtitle: string
+}
 
-  const getCurrencySymbol = (id: number | null) => {
-    switch (id) {
-      case 97: // BSC Testnet
-        return "BNB"
-      case 296: // Hedera Testnet
-        return "HBAR"
-      case 11155111: // Sepolia
-        return "ETH"
-      case 4202: // Lisk Sepolia
-        return "ETH"
-      case 84532: // Base Sepolia
-        return "ETH"
-      case 44787: // Celo Alfajores
-        return "CELO"
-      default:
-        return "ETH"
-    }
+export function BalanceCard({ type, balance, isLoading, symbol, subtitle }: BalanceCardProps) {
+  const { chainId } = useWeb3() // Get chainId from context
+
+  const getNativeTokenSymbol = (id: number | null) => {
+    if (id === 97) return "BNB" // BSC Testnet
+    if (id === 296) return "HBAR" // Hedera Testnet
+    return "ETH" // Default
   }
 
+  const nativeTokenSymbol = getNativeTokenSymbol(chainId)
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Native Balance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-bold">
-          {formatBigIntToEther(nativeBalance)} {getCurrencySymbol(chainId)}
-        </p>
-        <p className="text-sm text-muted-foreground">Your native token balance on the current network.</p>
+    <Card className="border-gray-700 bg-gray-900 hover:shadow-md transition-shadow">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-medium text-gray-300">
+            {type === "eth" ? `${nativeTokenSymbol} Balance` : "CAFI Balance"}
+          </div>
+          {type === "eth" ? (
+            <Wallet className="h-5 w-5 text-blue-400" />
+          ) : (
+            <Coins className="h-5 w-5 text-emerald-400" />
+          )}
+        </div>
+        <div className="mt-2 flex items-center">
+          {isLoading ? (
+            <Skeleton className="h-8 w-32 bg-gray-700" />
+          ) : (
+            <div className="text-2xl font-bold text-white">
+              {balance} {symbol}
+            </div>
+          )}
+        </div>
+        <div className="mt-1 text-xs text-gray-400">{subtitle}</div>
       </CardContent>
     </Card>
   )

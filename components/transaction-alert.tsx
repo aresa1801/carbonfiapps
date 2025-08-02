@@ -1,28 +1,29 @@
 "use client"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Terminal } from 'lucide-react'
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle, CheckCircle } from "lucide-react"
 
 interface TransactionAlertProps {
-  message: string
-  type: "info" | "success" | "error"
+  status: "success" | "error" | "none"
+  message?: string
 }
 
-export function TransactionAlert({ message, type }: TransactionAlertProps) {
-  let variant: "default" | "destructive" = "default"
-  let icon = <Terminal className="h-4 w-4" />
+export function TransactionAlert({ status, message }: TransactionAlertProps) {
+  if (status === "none") return null
 
-  if (type === "error") {
-    variant = "destructive"
-  } else if (type === "success") {
-    icon = <Terminal className="h-4 w-4 text-green-500" /> // Placeholder for a success icon
+  if (status === "success") {
+    return (
+      <Alert className="border-emerald-800 bg-emerald-900/50">
+        <CheckCircle className="h-4 w-4 text-emerald-500" />
+        <AlertDescription className="text-emerald-400">{message || "Transaction successful"}</AlertDescription>
+      </Alert>
+    )
   }
 
   return (
-    <Alert variant={variant}>
-      {icon}
-      <AlertTitle>{type.charAt(0).toUpperCase() + type.slice(1)}</AlertTitle>
-      <AlertDescription>{message}</AlertDescription>
+    <Alert className="border-red-800 bg-red-900/50">
+      <AlertCircle className="h-4 w-4 text-red-500" />
+      <AlertDescription className="text-red-400">{message || "Failed to claim CAFI tokens"}</AlertDescription>
     </Alert>
   )
 }

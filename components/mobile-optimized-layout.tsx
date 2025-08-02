@@ -1,36 +1,29 @@
 "use client"
 
-import type React from "react"
-
+import { type ReactNode, useEffect, useState } from "react"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { MobileBottomNav } from "@/components/mobile-bottom-nav"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { DashboardHeader } from "@/components/dashboard-header"
+import { cn } from "@/lib/utils"
+import { isMobileDevice } from "@/lib/wallet-utils"
 
 interface MobileOptimizedLayoutProps {
-  children: React.ReactNode
+  children: ReactNode
+  className?: string
+  mobileClassName?: string
+  desktopClassName?: string
 }
 
-export function MobileOptimizedLayout({ children }: MobileOptimizedLayoutProps) {
-  const isMobile = useIsMobile()
+export function MobileOptimizedLayout({
+  children,
+  className = "",
+  mobileClassName = "",
+  desktopClassName = "",
+}: MobileOptimizedLayoutProps) {
+  const [isMobile, setIsMobile] = useState(false)
+  const isMobileView = useIsMobile()
 
-  return (
-    <div className="flex min-h-screen w-full flex-col">
-      {isMobile ? (
-        <>
-          <DashboardHeader />
-          <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">{children}</main>
-          <MobileBottomNav />
-        </>
-      ) : (
-        <div className="flex min-h-screen w-full">
-          <DashboardSidebar />
-          <div className="flex flex-1 flex-col">
-            <DashboardHeader />
-            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">{children}</main>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  useEffect(() => {
+    setIsMobile(isMobileDevice())
+  }, [])
+
+  return <div className={cn(className, isMobileView ? mobileClassName : desktopClassName)}>{children}</div>
 }
