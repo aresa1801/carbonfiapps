@@ -1,15 +1,10 @@
 import type React from "react"
-import type { Metadata } from "next"
+import { AdminGuard } from "@/components/admin-guard"
 
-export const metadata: Metadata = {
-  title: "Verifiers | CarbonFi Admin",
-  description: "Manage verifiers for CarbonFi.",
-}
-
-export default function VerifiersLayout({
+export default function AdminVerifiersLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  return <AdminGuard>{children}</AdminGuard>
 }

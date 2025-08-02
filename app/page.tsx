@@ -1,90 +1,119 @@
 "use client"
-
-import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ConnectWalletButton } from "@/components/connect-wallet-button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useWeb3 } from "@/components/web3-provider"
-import { Loader2 } from "lucide-react"
+import { formatBigIntToEther } from "@/lib/wallet-utils"
+import { MetamaskDetector } from "@/components/metamask-detector"
+import { DashboardHeader } from "@/components/dashboard-header"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { TransactionStatus } from "@/components/transaction-status"
 
-export default function LandingPage() {
-  const { isConnected, isLoading } = useWeb3()
+export default function Home() {
+  const { isConnected, address, nativeBalance, cafiBalance, isLoading } = useWeb3()
+  const isMobile = useIsMobile()
+
+  if (!isConnected) {
+    return <MetamaskDetector />
+  }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="px-4 lg:px-6 h-14 flex items-center">
-        <Link href="#" className="flex items-center justify-center">
-          <Image src="/public/images/carbonfi-logo.png" alt="CarbonFi Logo" width={120} height={30} priority />
-          <span className="sr-only">CarbonFi</span>
-        </Link>
-        <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
-            Features
-          </Link>
-          <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
-            Pricing
-          </Link>
-          <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
-            About
-          </Link>
-          <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
-            Contact
-          </Link>
-        </nav>
-        <div className="ml-4">
-          <ConnectWalletButton />
-        </div>
-      </header>
-      <main className="flex-1">
-        <section className="w-full pt-12 md:pt-24 lg:pt-32 border-y">
-          <div className="px-4 md:px-6 space-y-10 xl:space-y-16">
-            <div className="grid max-w-[1300px] mx-auto gap-4 px-4 sm:px-6 md:grid-cols-2 md:gap-16">
-              <div>
-                <h1 className="lg:leading-tighter text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl xl:text-[3.4rem] 2xl:text-[3.75rem]">
-                  Decentralized Carbon Credit Management
-                </h1>
-                <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl dark:text-gray-400">
-                  Trade, retire, and manage carbon credits on the blockchain. Transparent, secure, and efficient.
-                </p>
-                <div className="space-x-4 mt-6">
-                  {isLoading ? (
-                    <Button disabled>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Loading...
-                    </Button>
-                  ) : isConnected ? (
-                    <Link href="/user" passHref>
-                      <Button>Go to Dashboard</Button>
-                    </Link>
-                  ) : (
-                    <ConnectWalletButton />
-                  )}
+    <div className="flex min-h-screen w-full flex-col">
+      <DashboardHeader />
+      <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-8">
+        <div className="w-full max-w-4xl space-y-8">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold tracking-tight lg:text-5xl">Welcome to CarbonFi DApps</h1>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Your decentralized platform for carbon offsetting and sustainable finance.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Wallet</CardTitle>
+                <CardDescription>Connected Address</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-semibold break-all">{address}</p>
+                <div className="mt-4 flex justify-between">
+                  <span>Native Balance:</span>
+                  <span>
+                    {formatBigIntToEther(nativeBalance)} {process.env.NEXT_PUBLIC_NETWORK_CURRENCY_SYMBOL || "ETH"}
+                  </span>
                 </div>
-              </div>
-              <div className="flex flex-col items-start space-y-4">
-                <Image
-                  src="/public/images/carbonfi-header.jpeg"
-                  width="550"
-                  height="550"
-                  alt="Hero"
-                  className="mx-auto aspect-video overflow-hidden rounded-xl object-cover"
-                />
-              </div>
+                <div className="flex justify-between">
+                  <span>CAFI Balance:</span>
+                  <span>{cafiBalance} CAFI</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Explore DApps</CardTitle>
+                <CardDescription>Dive into CarbonFi features</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-2">
+                <Link href="/user/faucet" passHref>
+                  <Button variant="outline" className="w-full bg-transparent">
+                    Get CAFI from Faucet
+                  </Button>
+                </Link>
+                <Link href="/user/retire" passHref>
+                  <Button variant="outline" className="w-full bg-transparent">
+                    Retire Carbon
+                  </Button>
+                </Link>
+                <Link href="/user/staking" passHref>
+                  <Button variant="outline" className="w-full bg-transparent">
+                    Stake CAFI
+                  </Button>
+                </Link>
+                <Link href="/user/marketplace" passHref>
+                  <Button variant="outline" className="w-full bg-transparent">
+                    NFT Marketplace
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Admin Panel</CardTitle>
+                <CardDescription>Manage contract settings (Admin Only)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link href="/admin" passHref>
+                  <Button className="w-full">Go to Admin Dashboard</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center mt-8">
+            <h2 className="text-3xl font-bold tracking-tight">About CarbonFi</h2>
+            <p className="mt-4 text-muted-foreground">
+              CarbonFi is a pioneering decentralized application (DApp) built on blockchain technology, designed to
+              revolutionize carbon offsetting and promote sustainable finance. Our platform provides transparent,
+              immutable, and efficient solutions for individuals and organizations to manage their carbon footprint and
+              participate in a green economy.
+            </p>
+            <div className="mt-6 flex justify-center space-x-4">
+              <Link href="#" passHref>
+                <Button variant="link">Learn More</Button>
+              </Link>
+              <Link href="#" passHref>
+                <Button variant="link">Documentation</Button>
+              </Link>
             </div>
           </div>
-        </section>
+        </div>
       </main>
-      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
-        <p className="text-xs text-gray-500 dark:text-gray-400">&copy; 2024 CarbonFi. All rights reserved.</p>
-        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
-          <Link href="#" className="text-xs hover:underline underline-offset-4">
-            Terms of Service
-          </Link>
-          <Link href="#" className="text-xs hover:underline underline-offset-4">
-            Privacy
-          </Link>
-        </nav>
-      </footer>
+      {isMobile && <MobileBottomNav />}
+      <TransactionStatus />
     </div>
   )
 }

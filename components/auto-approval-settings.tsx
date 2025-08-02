@@ -2,79 +2,96 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { useWeb3 } from "@/components/web3-provider"
-import { toast } from "@/components/ui/use-toast"
-import { checkAutoApprovalStatus, toggleAutoApproval } from "@/lib/auto-approval-utils"
+import { useToast } from "@/hooks/use-toast"
+import { getAutoApprovalStatus, setAutoApprovalStatus } from "@/lib/auto-approval-utils"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Terminal } from "lucide-react"
 
 export function AutoApprovalSettings() {
-  const { provider, signer, chainId, isConnected, isAdmin, refreshBalances } = useWeb3()
-  const [isAutoApprovalEnabled, setIsAutoApprovalEnabled] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const { signer, chainId, isConnected, isAdmin, refreshBalances } = useWeb3()
+  const { toast } = useToast()
+
+  const [verifierAddress, setVerifierAddress] = useState("")
+  const [isApproved, setIsApproved] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchStatus = async () => {
-      if (isConnected && provider && chainId) {
-        setIsLoading(true)
-        const status = await checkAutoApprovalStatus(provider, chainId)
-        setIsAutoApprovalEnabled(status)
-        setIsLoading(false)
+    const fetchApprovalStatus = async () => {
+      if (verifierAddress && chainId && signer) {
+        setLoading(true)
+        setError(null)
+        try {
+          const status = await getAutoApprovalStatus(verifierAddress, chainId, signer.provider)
+          setIsApproved(status)
+        } catch (err: any) {
+          console.error("Error fetching auto-approval status:", err)
+          setError(`Failed to fetch status: ${err.message || "Unknown error"}`)
+          setIsApproved(false)
+        } finally {
+          setLoading(false)
+        }
+      } else {
+        setIsApproved(false)
       }
     }
-    fetchStatus()
-  }, [isConnected, provider, chainId, refreshBalances])
+    fetchApprovalStatus()
+  }, [verifierAddress, chainId, signer])
 
-  const handleToggle = async () => {
-    if (!isAdmin || !signer || !chainId) {
+  const handleToggleApproval = async () => {
+    if (!verifierAddress || !chainId || !signer) {
       toast({
         title: "Error",
-        description: "You are not authorized to perform this action or wallet not connected.",
+        description: "Please enter a verifier address and connect your wallet.",
         variant: "destructive",
       })
       return
     }
-
-    setIsLoading(true)
+    setLoading(true)
+    setError(null)
     try {
-      const success = await toggleAutoApproval(signer, chainId)
-      if (success) {
-        setIsAutoApprovalEnabled((prev) => !prev)
-        toast({
-          title: "Success",
-          description: `Auto-approval ${isAutoApprovalEnabled ? "disabled" : "enabled"}.`,
-        })
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to toggle auto-approval.",
-          variant: "destructive",
-        })
-      }
-    } catch (error: any) {
-      console.error("Error toggling auto-approval:", error)
+      await setAutoApprovalStatus(verifierAddress, !isApproved, chainId, signer)
+      setIsApproved(!isApproved)
       toast({
-        title: "Error",
-        description: `Failed to toggle auto-approval: ${error.message || error}`,
+        title: "Success",
+        description: `Auto-approval for ${verifierAddress.substring(0, 6)}...${verifierAddress.slice(-4)} set to ${!isApproved}.`,
+      })
+      refreshBalances() // Refresh to reflect any potential changes
+    } catch (err: any) {
+      console.error("Error toggling auto-approval:", err)
+      setError(`Failed to set auto-approval: ${err.message || err.reason || "Unknown error"}`)
+      toast({
+        title: "Transaction Failed",
+        description: `Error: ${err.message?.substring(0, 100) || "Unknown error"}`,
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
+  }
+
+  if (!isConnected) {
+    return (
+      <Alert variant="destructive">
+        <Terminal className="h-4 w-4" />
+        <AlertTitle>Wallet Not Connected</AlertTitle>
+        <AlertDescription>Please connect your wallet to manage auto-approval settings.</AlertDescription>
+      </Alert>
+    )
   }
 
   if (!isAdmin) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Auto-Approval Settings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            You do not have administrative privileges to view or modify these settings.
-          </p>
-        </CardContent>
-      </Card>
+      <Alert variant="destructive">
+        <Terminal className="h-4 w-4" />
+        <AlertTitle>Unauthorized Access</AlertTitle>
+        <AlertDescription>You do not have admin privileges to access this page.</AlertDescription>
+      </Alert>
     )
   }
 
@@ -83,14 +100,42 @@ export function AutoApprovalSettings() {
       <CardHeader>
         <CardTitle>Auto-Approval Settings</CardTitle>
       </CardHeader>
-      <CardContent className="flex items-center justify-between">
-        <Label htmlFor="auto-approval-switch">Enable Auto-Approval for Faucet</Label>
-        <Switch
-          id="auto-approval-switch"
-          checked={isAutoApprovalEnabled}
-          onCheckedChange={handleToggle}
-          disabled={isLoading || !isConnected}
-        />
+      <CardContent className="grid gap-6">
+        {error && (
+          <Alert variant="destructive">
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <div className="grid gap-2">
+          <Label htmlFor="verifier-address">Verifier Address</Label>
+          <Input
+            id="verifier-address"
+            type="text"
+            placeholder="Enter verifier address (e.g., 0x...)"
+            value={verifierAddress}
+            onChange={(e) => setVerifierAddress(e.target.value)}
+            disabled={loading}
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="auto-approval-switch">Auto-Approval Status</Label>
+          <Switch
+            id="auto-approval-switch"
+            checked={isApproved}
+            onCheckedChange={handleToggleApproval}
+            disabled={loading || !verifierAddress}
+          />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {isApproved
+            ? `Auto-approval is ENABLED for ${verifierAddress || "this address"}.`
+            : `Auto-approval is DISABLED for ${verifierAddress || "this address"}.`}
+        </p>
+        <Button onClick={handleToggleApproval} disabled={loading || !verifierAddress}>
+          {loading ? "Updating..." : `Toggle Auto-Approval to ${isApproved ? "Disable" : "Enable"}`}
+        </Button>
       </CardContent>
     </Card>
   )

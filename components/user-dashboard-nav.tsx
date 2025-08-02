@@ -11,6 +11,7 @@ interface UserDashboardNavProps extends React.HTMLAttributes<HTMLElement> {
   items: {
     href: string
     title: string
+    disabled?: boolean
   }[]
 }
 
@@ -27,6 +28,7 @@ export function UserDashboardNav({ className, items, ...props }: UserDashboardNa
             buttonVariants({ variant: "ghost" }),
             pathname === item.href ? "bg-muted hover:bg-muted" : "hover:bg-transparent hover:underline",
             "justify-start",
+            item.disabled && "cursor-not-allowed opacity-80",
           )}
         >
           {item.title}

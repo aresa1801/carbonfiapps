@@ -1,17 +1,16 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata } from "next/types"
 import { Inter } from "next/font/google"
-import "../styles/globals.css"
+import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
 import { Web3Provider } from "@/components/web3-provider"
-import MetaMaskDetector from "@/components/metamask-detector" // Updated import
+import { Toaster } from "@/components/ui/sonner"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "CarbonFi DApps",
-  description: "Decentralized Applications for CarbonFi Ecosystem",
+  description: "Decentralized applications for carbon offsetting and sustainable finance.",
     generator: 'v0.dev'
 }
 
@@ -26,9 +25,8 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <Web3Provider>
             {children}
-            <MetaMaskDetector /> {/* Render MetaMaskDetector here */}
+            <Toaster />
           </Web3Provider>
-          <Toaster />
         </ThemeProvider>
       </body>
     </html>

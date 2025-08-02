@@ -4,133 +4,106 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useWeb3 } from "@/components/web3-provider"
 import { useEffect, useState } from "react"
-import { formatEther } from "ethers"
+import { getClaimStatus, claimFaucetTokens } from "@/lib/contract-service"
+import { useToast } from "@/hooks/use-toast"
+import { formatDistanceToNowStrict } from "date-fns"
 import { Loader2 } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
 
 export function ClaimStatusCard() {
-  const { faucetContract, address, isConnected, refreshBalances, setTransactionStatus } = useWeb3()
-  const [lastClaimTime, setLastClaimTime] = useState<number | null>(null)
-  const [claimInterval, setClaimInterval] = useState<number | null>(null)
-  const [claimAmount, setClaimAmount] = useState<string | null>(null)
+  const { faucetContract, address, isConnected, signer, refreshBalances } = useWeb3()
+  const { toast } = useToast()
+
   const [canClaim, setCanClaim] = useState(false)
-  const [timeUntilNextClaim, setTimeUntilNextClaim] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isClaiming, setIsClaiming] = useState(false)
+  const [timeUntilNextClaim, setTimeUntilNextClaim] = useState<number | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [countdown, setCountdown] = useState<string | null>(null)
 
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null
 
-    const fetchClaimStatus = async () => {
-      if (isConnected && faucetContract && address) {
-        setIsLoading(true)
+    const fetchStatus = async () => {
+      if (faucetContract && address) {
         try {
-          const lastTime = await faucetContract.lastClaimTime(address)
-          const interval = await faucetContract.claimInterval()
-          const amount = await faucetContract.claimAmount()
+          const { canClaim: newCanClaim, timeUntilNextClaim: newTimeUntilNextClaim } = await getClaimStatus(
+            faucetContract,
+            address,
+          )
+          setCanClaim(newCanClaim)
+          setTimeUntilNextClaim(newTimeUntilNextClaim)
 
-          setLastClaimTime(Number(lastTime))
-          setClaimInterval(Number(interval))
-          setClaimAmount(formatEther(amount))
-
-          const currentTime = Math.floor(Date.now() / 1000)
-          const nextClaimTimestamp = Number(lastTime) + Number(interval)
-          const remainingTime = nextClaimTimestamp - currentTime
-
-          if (remainingTime <= 0) {
-            setCanClaim(true)
-            setTimeUntilNextClaim("Ready to claim!")
-          } else {
-            setCanClaim(false)
-            const hours = Math.floor(remainingTime / 3600)
-            const minutes = Math.floor((remainingTime % 3600) / 60)
-            const seconds = remainingTime % 60
-            setTimeUntilNextClaim(`${hours}h ${minutes}m ${seconds}s`)
-
-            // Set up a countdown timer
-            if (timer) clearInterval(timer)
+          if (!newCanClaim && newTimeUntilNextClaim > 0) {
+            const targetTime = Date.now() + newTimeUntilNextClaim * 1000
             timer = setInterval(() => {
-              const newRemainingTime = nextClaimTimestamp - Math.floor(Date.now() / 1000)
-              if (newRemainingTime <= 0) {
-                setCanClaim(true)
-                setTimeUntilNextClaim("Ready to claim!")
-                if (timer) clearInterval(timer)
-                refreshBalances() // Refresh balances when claim becomes available
+              const remaining = targetTime - Date.now()
+              if (remaining <= 0) {
+                clearInterval(timer!)
+                setCountdown(null)
+                fetchStatus() // Re-fetch status to update canClaim
               } else {
-                const h = Math.floor(newRemainingTime / 3600)
-                const m = Math.floor((newRemainingTime % 3600) / 60)
-                const s = newRemainingTime % 60
-                setTimeUntilNextClaim(`${h}h ${m}m ${s}s`)
+                setCountdown(formatDistanceToNowStrict(targetTime, { addSuffix: true }))
               }
             }, 1000)
+          } else {
+            setCountdown(null)
           }
         } catch (error) {
           console.error("Error fetching claim status:", error)
-          toast({
-            title: "Error",
-            description: "Failed to fetch claim status.",
-            variant: "destructive",
-          })
-          setLastClaimTime(null)
-          setClaimInterval(null)
-          setClaimAmount(null)
           setCanClaim(false)
-          setTimeUntilNextClaim("Error fetching status.")
-        } finally {
-          setIsLoading(false)
+          setTimeUntilNextClaim(null)
+          setCountdown(null)
         }
-      } else {
-        setLastClaimTime(null)
-        setClaimInterval(null)
-        setClaimAmount(null)
-        setCanClaim(false)
-        setTimeUntilNextClaim(null)
-        setIsLoading(false)
       }
     }
 
-    fetchClaimStatus()
+    fetchStatus()
 
     return () => {
       if (timer) clearInterval(timer)
     }
-  }, [isConnected, faucetContract, address, refreshBalances])
+  }, [faucetContract, address, refreshBalances])
 
   const handleClaim = async () => {
-    if (!faucetContract || !canClaim) {
+    if (!faucetContract || !signer) {
       toast({
         title: "Error",
-        description: "Cannot claim tokens at this time.",
+        description: "Wallet not connected.",
         variant: "destructive",
       })
       return
     }
-
-    setIsClaiming(true)
-    setTransactionStatus({ hash: null, status: "pending", message: "Claiming tokens..." })
+    setLoading(true)
     try {
-      const tx = await faucetContract.claim()
-      await tx.wait()
-      setTransactionStatus({ hash: tx.hash, status: "success", message: "Tokens claimed successfully!" })
+      await claimFaucetTokens(faucetContract)
       toast({
         title: "Claim Successful",
-        description: `${claimAmount} CAFI tokens claimed.`,
+        description: "Tokens claimed from faucet!",
       })
-      refreshBalances() // Trigger a full refresh after successful claim
-    } catch (error: any) {
-      console.error("Error claiming tokens:", error)
-      setTransactionStatus({
-        hash: error.hash || null,
-        status: "failed",
-        message: `Claim failed: ${error.reason || error.message}`,
-      })
+      refreshBalances()
+      // Immediately set canClaim to false and start countdown for next claim
+      setCanClaim(false)
+      // Assuming a default interval if not fetched immediately after claim
+      const defaultInterval = 24 * 60 * 60 // 24 hours in seconds
+      setTimeUntilNextClaim(defaultInterval)
+      const targetTime = Date.now() + defaultInterval * 1000
+      const timer = setInterval(() => {
+        const remaining = targetTime - Date.now()
+        if (remaining <= 0) {
+          clearInterval(timer!)
+          setCountdown(null)
+          fetchStatus() // Re-fetch status to update canClaim
+        } else {
+          setCountdown(formatDistanceToNowStrict(targetTime, { addSuffix: true }))
+        }
+      }, 1000)
+    } catch (err: any) {
+      console.error("Claim error:", err)
       toast({
         title: "Claim Failed",
-        description: `Failed to claim tokens: ${error.reason || error.message}`,
+        description: `Error: ${err.message?.substring(0, 100) || "Unknown error"}`,
         variant: "destructive",
       })
     } finally {
-      setIsClaiming(false)
+      setLoading(false)
     }
   }
 
@@ -138,24 +111,10 @@ export function ClaimStatusCard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Claim CAFI Tokens</CardTitle>
+          <CardTitle>Claim Status</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Connect your wallet to claim CAFI tokens.</p>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Claim CAFI Tokens</CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center gap-2">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading claim status...</p>
+          <p className="text-muted-foreground">Connect your wallet to see claim status.</p>
         </CardContent>
       </Card>
     )
@@ -164,32 +123,32 @@ export function ClaimStatusCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Claim CAFI Tokens</CardTitle>
+        <CardTitle>Claim Status</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-4">
-        <div>
-          <p className="text-sm font-medium">Last Claim:</p>
-          <p className="text-lg font-bold">
-            {lastClaimTime ? new Date(lastClaimTime * 1000).toLocaleString() : "Never"}
-          </p>
-        </div>
-        <div>
-          <p className="text-sm font-medium">Next Claim Available In:</p>
-          <p className="text-lg font-bold">{timeUntilNextClaim}</p>
-        </div>
-        <div>
-          <p className="text-sm font-medium">Claim Amount:</p>
-          <p className="text-lg font-bold">{claimAmount || "N/A"} CAFI</p>
-        </div>
-        <Button onClick={handleClaim} disabled={!canClaim || isClaiming}>
-          {isClaiming ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Claiming...
-            </>
-          ) : (
-            "Claim CAFI"
-          )}
-        </Button>
+      <CardContent className="space-y-4">
+        {canClaim ? (
+          <>
+            <p className="text-lg font-semibold text-green-500">You can claim tokens now!</p>
+            <Button onClick={handleClaim} disabled={loading} className="w-full">
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Claiming...
+                </>
+              ) : (
+                "Claim CAFI Tokens"
+              )}
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="text-lg font-semibold text-red-500">Claim not available yet.</p>
+            {countdown && <p className="text-muted-foreground">Next claim: {countdown}</p>}
+            <Button disabled className="w-full">
+              Claim Not Ready
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   )

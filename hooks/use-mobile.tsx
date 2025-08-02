@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import * as React from "react"
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile, setIsMobile] = React.useState(false)
 
-  useEffect(() => {
+  React.useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768) // Tailwind's 'md' breakpoint is 768px
     }

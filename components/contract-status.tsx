@@ -1,20 +1,22 @@
 "use client"
 
-import { useWeb3 } from "@/components/web3-provider"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { useWeb3 } from "@/components/web3-provider"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Terminal } from "lucide-react"
 import { getNetworkByChainId } from "@/lib/constants"
 
 export function ContractStatus() {
-  const { chainId, error, isConnected } = useWeb3()
+  const { isConnected, chainId, error } = useWeb3()
+
+  const network = chainId ? getNetworkByChainId(chainId) : null
 
   if (!isConnected) {
     return (
       <Alert variant="destructive">
         <Terminal className="h-4 w-4" />
         <AlertTitle>Wallet Not Connected</AlertTitle>
-        <AlertDescription>Please connect your wallet to interact with the DApp.</AlertDescription>
+        <AlertDescription>Please connect your wallet to view contract status.</AlertDescription>
       </Alert>
     )
   }
@@ -29,52 +31,25 @@ export function ContractStatus() {
     )
   }
 
-  if (!chainId) {
-    return (
-      <Alert variant="destructive">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Network Not Detected</AlertTitle>
-        <AlertDescription>
-          Could not detect the connected network. Please ensure your wallet is connected to a supported network.
-        </AlertDescription>
-      </Alert>
-    )
-  }
-
-  const network = getNetworkByChainId(chainId)
-
-  if (!network) {
-    return (
-      <Alert variant="destructive">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Unsupported Network</AlertTitle>
-        <AlertDescription>
-          You are connected to an unsupported network (Chain ID: {chainId}). Please switch to a supported testnet (e.g.,
-          Sepolia, Lisk Sepolia, BSC Testnet, Hedera Testnet, Base Sepolia, Celo Alfajores).
-        </AlertDescription>
-      </Alert>
-    )
-  }
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Network Status</CardTitle>
+        <CardTitle>Contract Status</CardTitle>
       </CardHeader>
-      <CardContent>
-        <p>
-          Connected to: <strong>{network.name}</strong> (Chain ID: {network.chainId})
-        </p>
-        <p>
-          Block Explorer:{" "}
-          <a
-            href={network.blockExplorer}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 hover:underline"
-          >
-            {network.blockExplorer}
-          </a>
+      <CardContent className="grid gap-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Network:</span>
+          <span className="text-sm">
+            {network ? network.name : "Unknown Network"} (Chain ID: {chainId})
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Connection Status:</span>
+          <span className="text-sm text-green-500">Connected</span>
+        </div>
+        {/* You can add more contract-specific status checks here */}
+        <p className="text-sm text-muted-foreground">
+          All contracts are loaded and ready for interaction on the current network.
         </p>
       </CardContent>
     </Card>

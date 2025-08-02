@@ -1,15 +1,10 @@
 import type React from "react"
-import type { Metadata } from "next"
+import { AdminGuard } from "@/components/admin-guard"
 
-export const metadata: Metadata = {
-  title: "Retire Settings | CarbonFi Admin",
-  description: "Manage Carbon Retirement settings for CarbonFi.",
-}
-
-export default function RetireSettingsLayout({
+export default function AdminRetireSettingsLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  return <AdminGuard>{children}</AdminGuard>
 }

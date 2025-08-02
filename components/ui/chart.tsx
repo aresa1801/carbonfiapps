@@ -36,7 +36,7 @@ function useChart() {
 }
 
 const ChartContainer = React.forwardRef<HTMLDivElement, RechartsChartContainerProps>(({ className, ...props }, ref) => (
-  <RechartsChartContainer ref={ref} className={cn("flex aspect-video w-full", className)} {...props} />
+  <RechartsChartContainer ref={ref} className={cn("aspect-video h-[400px] w-full", className)} {...props} />
 ))
 ChartContainer.displayName = "ChartContainer"
 

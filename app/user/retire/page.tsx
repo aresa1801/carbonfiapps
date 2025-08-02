@@ -1,7 +1,6 @@
 "use client"
 
 import { CardDescription } from "@/components/ui/card"
-
 import { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,16 +8,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useWeb3 } from "@/components/web3-provider"
 import { formatEther, parseEther } from "ethers"
-import { toast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import type { RetirementCertificate } from "@/services/contract-service"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { contractService, type CarbonProject } from "@/lib/contract-utils"
-import { Recycle, Leaf, Calendar, FileText, AlertCircle, CheckCircle, MapPin, Factory } from "lucide-react"
+import { Recycle, Leaf, Calendar, FileText, AlertCircle, CheckCircle, MapPin, Factory, Terminal } from "lucide-react"
+import { retireCarbon, getRetiredAmount } from "@/lib/contract-service"
 
 interface NFTData {
   tokenId: number
@@ -35,11 +35,14 @@ export default function RetirePage() {
   const {
     carbonRetireContract,
     nftContract: nftContractInstance,
+    cafiTokenContract,
+    signer,
     address,
     isConnected,
     refreshBalances,
-    setTransactionStatus,
+    cafiBalance,
   } = useWeb3()
+  const { toast } = useToast()
 
   const [tokenId, setTokenId] = useState("")
   const [amountToRetire, setAmountToRetire] = useState("")
@@ -52,6 +55,9 @@ export default function RetirePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [retirementCertificate, setRetirementCertificate] = useState<RetirementCertificate | null>(null)
+  const [retireAmount, setRetireAmount] = useState("")
+  const [totalRetired, setTotalRetired] = useState("0")
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchRetirementData = async () => {
@@ -277,6 +283,21 @@ export default function RetirePage() {
     loadOwnedNFTs()
   }, [address])
 
+  useEffect(() => {
+    const fetchRetiredAmount = async () => {
+      if (carbonRetireContract && address) {
+        try {
+          const amount = await getRetiredAmount(carbonRetireContract, address)
+          setTotalRetired(amount)
+        } catch (err: any) {
+          console.error("Error fetching retired amount:", err)
+          setError(`Failed to fetch retired amount: ${err.message || "Unknown error"}`)
+        }
+      }
+    }
+    fetchRetiredAmount()
+  }, [carbonRetireContract, address, refreshBalances])
+
   const handleRetireCarbon = async () => {
     if (
       !carbonRetireContract ||
@@ -296,7 +317,10 @@ export default function RetirePage() {
     }
 
     setIsRetiring(true)
-    setTransactionStatus({ hash: null, status: "pending", message: "Approving NFT for retirement..." })
+    toast({
+      title: "Approving NFT for retirement...",
+      variant: "default",
+    })
     try {
       const parsedTokenId = BigInt(tokenId)
       const parsedAmount = parseEther(amountToRetire)
@@ -311,17 +335,20 @@ export default function RetirePage() {
       // Approve NFT transfer to CarbonRetire contract
       const approveTx = await nftContractInstance.approve(await carbonRetireContract.getAddress(), parsedTokenId)
       await approveTx.wait()
-      setTransactionStatus({ hash: approveTx.hash, status: "pending", message: "NFT approved. Retiring carbon..." })
+      toast({
+        title: "NFT approved. Retiring carbon...",
+        variant: "default",
+      })
 
       // Retire carbon
       const retireTx = await carbonRetireContract.retireCarbon(parsedTokenId, parsedAmount, certificateURI, {
         value: feeInWei,
       })
       await retireTx.wait()
-      setTransactionStatus({ hash: retireTx.hash, status: "success", message: "Carbon retired successfully!" })
       toast({
         title: "Retirement Successful",
         description: `Successfully retired ${amountToRetire} units of carbon for NFT ID ${tokenId}.`,
+        variant: "success",
       })
       setTokenId("")
       setAmountToRetire("")
@@ -329,14 +356,54 @@ export default function RetirePage() {
       refreshBalances()
     } catch (error: any) {
       console.error("Error retiring carbon:", error)
-      setTransactionStatus({
-        hash: error.hash || null,
-        status: "failed",
-        message: `Retirement failed: ${error.reason || error.message}`,
-      })
       toast({
         title: "Retirement Failed",
         description: `Failed to retire carbon: ${error.reason || error.message}`,
+        variant: "destructive",
+      })
+    } finally {
+      setIsRetiring(false)
+    }
+  }
+
+  const handleRetire = async () => {
+    if (!carbonRetireContract || !cafiTokenContract || !signer || !retireAmount || !address) {
+      toast({
+        title: "Error",
+        description: "Wallet not connected or retire amount invalid.",
+        variant: "destructive",
+      })
+      return
+    }
+    setIsRetiring(true)
+    setError(null)
+    try {
+      const amount = parseEther(retireAmount)
+
+      // First, approve the carbon retire contract to spend CAFI tokens
+      const approveTx = await cafiTokenContract.approve(await carbonRetireContract.getAddress(), amount)
+      await approveTx.wait()
+      toast({
+        title: "Approval Successful",
+        description: "Carbon Retire contract approved to spend your CAFI tokens.",
+        variant: "success",
+      })
+
+      // Then, retire
+      await retireCarbon(carbonRetireContract, retireAmount)
+      toast({
+        title: "Retirement Successful",
+        description: `${retireAmount} CAFI tokens retired.`,
+        variant: "success",
+      })
+      setRetireAmount("")
+      refreshBalances()
+    } catch (err: any) {
+      console.error("Retirement error:", err)
+      setError(`Retirement failed: ${err.message || err.reason || "Unknown error"}`)
+      toast({
+        title: "Retirement Failed",
+        description: `Error: ${err.message?.substring(0, 100) || "Unknown error"}`,
         variant: "destructive",
       })
     } finally {
@@ -351,15 +418,44 @@ export default function RetirePage() {
 
   if (!isConnected) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-        <p className="text-muted-foreground">Please connect your wallet to retire carbon credits.</p>
-      </div>
+      <Alert variant="destructive">
+        <Terminal className="h-4 w-4" />
+        <AlertTitle>Wallet Not Connected</AlertTitle>
+        <AlertDescription>Please connect your wallet to retire carbon tokens.</AlertDescription>
+      </Alert>
     )
   }
 
   return (
     <div className="container mx-auto p-4 space-y-6">
       <h1 className="text-3xl font-bold mb-6">Retire Carbon Credits</h1>
+
+      {error && (
+        <Alert variant="destructive">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Your CAFI Balance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{cafiBalance} CAFI</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Total CAFI Retired by You</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{totalRetired} CAFI</p>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card className="mb-6">
         <CardHeader>
@@ -410,6 +506,28 @@ export default function RetirePage() {
             ) : (
               "Retire Carbon"
             )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Retire CAFI Tokens</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="retire-amount">Amount to Retire</Label>
+            <Input
+              id="retire-amount"
+              type="number"
+              value={retireAmount}
+              onChange={(e) => setRetireAmount(e.target.value)}
+              placeholder="e.g., 100"
+              disabled={isRetiring}
+            />
+          </div>
+          <Button onClick={handleRetire} disabled={isRetiring || Number.parseFloat(retireAmount) <= 0}>
+            {isRetiring ? "Retiring..." : "Retire CAFI"}
           </Button>
         </CardContent>
       </Card>

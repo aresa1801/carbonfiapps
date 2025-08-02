@@ -5,7 +5,6 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 import { cva } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 
 const AlertDialog = AlertDialogPrimitive.Root
 
@@ -23,6 +22,7 @@ const AlertDialogOverlay = React.forwardRef<
       className,
     )}
     {...props}
+    ref={ref}
   />
 ))
 AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName
@@ -75,7 +75,7 @@ const AlertDialogAction = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Action>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Action>
 >(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Action ref={ref} className={cn(cva(Button.displayName), className)} {...props} />
+  <AlertDialogPrimitive.Action ref={ref} className={cn(cva("button"), className)} {...props} />
 ))
 AlertDialogAction.displayName = AlertDialogPrimitive.Action.displayName
 
@@ -85,7 +85,7 @@ const AlertDialogCancel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Cancel
     ref={ref}
-    className={cn(cva(Button.displayName, { variant: "outline" }), "mt-2 sm:mt-0", className)}
+    className={cn(cva("button", { variant: "outline" }), "mt-2 sm:mt-0", className)}
     {...props}
   />
 ))

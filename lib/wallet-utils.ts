@@ -1,4 +1,4 @@
-import { formatEther } from "ethers"
+import { formatEther, parseEther } from "ethers"
 
 export function isMobileDevice(): boolean {
   if (typeof window === "undefined") return false
@@ -72,12 +72,21 @@ export function getInAppBrowserType(): string {
   return "Generic In-App Browser"
 }
 
-export const formatAddress = (address: string | null | undefined) => {
+export const formatWalletAddress = (address: string | null | undefined) => {
   if (!address) return "N/A"
   return `${address.substring(0, 6)}...${address.slice(-4)}`
 }
 
-export const formatBalance = (balance: bigint | null) => {
-  if (balance === null) return "0.00"
-  return Number.parseFloat(formatEther(balance)).toFixed(2)
+export const formatBigIntToEther = (value: bigint | null | undefined) => {
+  if (value === null || value === undefined) return "0.0"
+  return formatEther(value)
+}
+
+export const parseEtherToBigInt = (value: string) => {
+  try {
+    return parseEther(value)
+  } catch (error) {
+    console.error("Error parsing ether amount:", error)
+    return BigInt(0)
+  }
 }

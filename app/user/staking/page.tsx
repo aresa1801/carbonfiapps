@@ -6,311 +6,266 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useWeb3 } from "@/components/web3-provider"
-import { formatEther, parseEther } from "ethers"
-import { toast } from "@/components/ui/use-toast"
-import { Loader2 } from "lucide-react"
-import type { StakeInfo } from "@/services/contract-service"
+import { parseEther } from "ethers"
+import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Terminal } from "lucide-react"
+import {
+  stakeTokens,
+  unstakeTokens,
+  getStakedBalance,
+  getStakingRewardRate,
+  getStakingRewards,
+  claimStakingRewards,
+} from "@/lib/contract-service"
 
 export default function StakingPage() {
-  const { stakingContract, cafiTokenContract, address, isConnected, refreshBalances, setTransactionStatus } = useWeb3()
+  const { stakingContract, cafiTokenContract, signer, address, isConnected, refreshBalances, cafiBalance } = useWeb3()
+  const { toast } = useToast()
 
   const [stakeAmount, setStakeAmount] = useState("")
   const [unstakeAmount, setUnstakeAmount] = useState("")
-  const [stakingAPY, setStakingAPY] = useState<string | null>(null)
-  const [stakingDuration, setStakingDuration] = useState<string | null>(null)
-  const [userStake, setUserStake] = useState<StakeInfo | null>(null)
-  const [isStaking, setIsStaking] = useState(false)
-  const [isUnstaking, setIsUnstaking] = useState(false)
-  const [isClaimingRewards, setIsClaimingRewards] = useState(false)
-  const [calculatedRewards, setCalculatedRewards] = useState<string | null>(null)
+  const [stakedBalance, setStakedBalance] = useState("0")
+  const [rewardRate, setRewardRate] = useState("0")
+  const [availableRewards, setAvailableRewards] = useState("0")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchStakingData = async () => {
-      if (isConnected && stakingContract && address) {
+    const fetchStakingDetails = async () => {
+      if (stakingContract && address) {
         try {
-          const apy = await stakingContract.stakingAPY()
-          const duration = await stakingContract.stakingDuration()
-          const stake = await stakingContract.stakes(address)
-          const rewards = await stakingContract.calculateRewards(address)
-
-          setStakingAPY(apy.toString())
-          setStakingDuration(duration.toString())
-          setUserStake({
-            amount: stake.amount,
-            stakeTime: stake.stakeTime,
-            unlockTime: stake.unlockTime,
-            claimed: stake.claimed,
-            autoStaking: stake.autoStaking,
-            compoundedAmount: stake.compoundedAmount,
-          })
-          setCalculatedRewards(formatEther(rewards))
-        } catch (error) {
-          console.error("Error fetching staking data:", error)
-          toast({
-            title: "Error",
-            description: "Failed to fetch staking data.",
-            variant: "destructive",
-          })
-          setStakingAPY(null)
-          setStakingDuration(null)
-          setUserStake(null)
-          setCalculatedRewards(null)
+          const staked = await getStakedBalance(stakingContract, address)
+          const rate = await getStakingRewardRate(stakingContract)
+          const rewards = await getStakingRewards(stakingContract, address)
+          setStakedBalance(staked)
+          setRewardRate(rate)
+          setAvailableRewards(rewards)
+        } catch (err: any) {
+          console.error("Error fetching staking details:", err)
+          setError(`Failed to fetch staking details: ${err.message || "Unknown error"}`)
         }
-      } else {
-        setStakingAPY(null)
-        setStakingDuration(null)
-        setUserStake(null)
-        setCalculatedRewards(null)
       }
     }
-    fetchStakingData()
-  }, [isConnected, stakingContract, address, refreshBalances])
+    fetchStakingDetails()
+  }, [stakingContract, address, refreshBalances])
 
   const handleStake = async () => {
-    if (!stakingContract || !cafiTokenContract || !stakeAmount || !address) {
+    if (!stakingContract || !cafiTokenContract || !signer || !stakeAmount || !address) {
       toast({
         title: "Error",
-        description: "Please connect wallet and enter stake amount.",
+        description: "Wallet not connected or stake amount invalid.",
         variant: "destructive",
       })
       return
     }
-
-    setIsStaking(true)
-    setTransactionStatus({ hash: null, status: "pending", message: "Approving CAFI tokens..." })
+    setLoading(true)
+    setError(null)
     try {
       const amount = parseEther(stakeAmount)
 
-      // Approve tokens
+      // First, approve the staking contract to spend CAFI tokens
       const approveTx = await cafiTokenContract.approve(await stakingContract.getAddress(), amount)
       await approveTx.wait()
-      setTransactionStatus({
-        hash: approveTx.hash,
-        status: "pending",
-        message: "Approval successful. Staking tokens...",
+      toast({
+        title: "Approval Successful",
+        description: "Staking contract approved to spend your CAFI tokens.",
       })
 
-      // Stake tokens
-      const stakeTx = await stakingContract.stake(amount)
-      await stakeTx.wait()
-      setTransactionStatus({ hash: stakeTx.hash, status: "success", message: "Tokens staked successfully!" })
+      // Then, stake
+      await stakeTokens(stakingContract, stakeAmount)
+      toast({
+        title: "Stake Successful",
+        description: `${stakeAmount} CAFI staked.`,
+      })
       setStakeAmount("")
       refreshBalances()
-    } catch (error: any) {
-      console.error("Error staking tokens:", error)
-      setTransactionStatus({
-        hash: error.hash || null,
-        status: "failed",
-        message: `Staking failed: ${error.reason || error.message}`,
-      })
+    } catch (err: any) {
+      console.error("Staking error:", err)
+      setError(`Staking failed: ${err.message || err.reason || "Unknown error"}`)
       toast({
-        title: "Staking Failed",
-        description: `Failed to stake tokens: ${error.reason || error.message}`,
+        title: "Stake Failed",
+        description: `Error: ${err.message?.substring(0, 100) || "Unknown error"}`,
         variant: "destructive",
       })
     } finally {
-      setIsStaking(false)
+      setLoading(false)
     }
   }
 
   const handleUnstake = async () => {
-    if (!stakingContract || !unstakeAmount || !address) {
+    if (!stakingContract || !signer || !unstakeAmount) {
       toast({
         title: "Error",
-        description: "Please connect wallet and enter unstake amount.",
+        description: "Wallet not connected or unstake amount invalid.",
         variant: "destructive",
       })
       return
     }
-
-    setIsUnstaking(true)
-    setTransactionStatus({ hash: null, status: "pending", message: "Unstaking tokens..." })
+    setLoading(true)
+    setError(null)
     try {
-      const amount = parseEther(unstakeAmount)
-      const tx = await stakingContract.unstake(amount)
-      await tx.wait()
-      setTransactionStatus({ hash: tx.hash, status: "success", message: "Tokens unstaked successfully!" })
+      await unstakeTokens(stakingContract, unstakeAmount)
+      toast({
+        title: "Unstake Successful",
+        description: `${unstakeAmount} CAFI unstaked.`,
+      })
       setUnstakeAmount("")
       refreshBalances()
-    } catch (error: any) {
-      console.error("Error unstaking tokens:", error)
-      setTransactionStatus({
-        hash: error.hash || null,
-        status: "failed",
-        message: `Unstaking failed: ${error.reason || error.message}`,
-      })
+    } catch (err: any) {
+      console.error("Unstaking error:", err)
+      setError(`Unstaking failed: ${err.message || err.reason || "Unknown error"}`)
       toast({
-        title: "Unstaking Failed",
-        description: `Failed to unstake tokens: ${error.reason || error.message}`,
+        title: "Unstake Failed",
+        description: `Error: ${err.message?.substring(0, 100) || "Unknown error"}`,
         variant: "destructive",
       })
     } finally {
-      setIsUnstaking(false)
+      setLoading(false)
     }
   }
 
   const handleClaimRewards = async () => {
-    if (!stakingContract || !address) {
+    if (!stakingContract || !signer) {
       toast({
         title: "Error",
-        description: "Wallet not connected or staking contract not loaded.",
+        description: "Wallet not connected.",
         variant: "destructive",
       })
       return
     }
-
-    setIsClaimingRewards(true)
-    setTransactionStatus({ hash: null, status: "pending", message: "Claiming rewards..." })
+    setLoading(true)
+    setError(null)
     try {
-      const tx = await stakingContract.claimRewards()
-      await tx.wait()
-      setTransactionStatus({ hash: tx.hash, status: "success", message: "Rewards claimed successfully!" })
-      refreshBalances()
-    } catch (error: any) {
-      console.error("Error claiming rewards:", error)
-      setTransactionStatus({
-        hash: error.hash || null,
-        status: "failed",
-        message: `Claiming failed: ${error.reason || error.message}`,
+      await claimStakingRewards(stakingContract)
+      toast({
+        title: "Claim Successful",
+        description: "Staking rewards claimed.",
       })
+      setAvailableRewards("0")
+      refreshBalances()
+    } catch (err: any) {
+      console.error("Claim rewards error:", err)
+      setError(`Claim failed: ${err.message || err.reason || "Unknown error"}`)
       toast({
         title: "Claim Failed",
-        description: `Failed to claim rewards: ${error.reason || error.message}`,
+        description: `Error: ${err.message?.substring(0, 100) || "Unknown error"}`,
         variant: "destructive",
       })
     } finally {
-      setIsClaimingRewards(false)
+      setLoading(false)
     }
   }
 
   if (!isConnected) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-        <p className="text-muted-foreground">Please connect your wallet to view staking information.</p>
-      </div>
+      <Alert variant="destructive">
+        <Terminal className="h-4 w-4" />
+        <AlertTitle>Wallet Not Connected</AlertTitle>
+        <AlertDescription>Please connect your wallet to interact with the Staking Pool.</AlertDescription>
+      </Alert>
     )
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">CAFI Staking</h1>
+    <div className="grid gap-6">
+      <h1 className="text-3xl font-bold">CAFI Staking Pool</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      {error && (
+        <Alert variant="destructive">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>Staking Pool Details</CardTitle>
+            <CardTitle>Your CAFI Balance</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-2">
-            <div>
-              <p className="text-sm font-medium">Annual Percentage Yield (APY):</p>
-              <p className="text-lg font-bold">{stakingAPY ? `${stakingAPY}%` : "Loading..."}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium">Staking Duration:</p>
-              <p className="text-lg font-bold">
-                {stakingDuration ? `${Number(stakingDuration) / (24 * 3600)} Days` : "Loading..."}
-              </p>
-            </div>
+          <CardContent>
+            <p className="text-2xl font-bold">{cafiBalance} CAFI</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader>
-            <CardTitle>Your Current Stake</CardTitle>
+            <CardTitle>Staked CAFI</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-2">
-            <div>
-              <p className="text-sm font-medium">Staked Amount:</p>
-              <p className="text-lg font-bold">
-                {userStake?.amount ? `${formatEther(userStake.amount)} CAFI` : "0 CAFI"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium">Stake Time:</p>
-              <p className="text-lg font-bold">
-                {userStake?.stakeTime ? new Date(Number(userStake.stakeTime) * 1000).toLocaleString() : "N/A"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium">Unlock Time:</p>
-              <p className="text-lg font-bold">
-                {userStake?.unlockTime ? new Date(Number(userStake.unlockTime) * 1000).toLocaleString() : "N/A"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium">Claimable Rewards:</p>
-              <p className="text-lg font-bold">{calculatedRewards || "0.00"} CAFI</p>
-            </div>
+          <CardContent>
+            <p className="text-2xl font-bold">{stakedBalance} CAFI</p>
           </CardContent>
         </Card>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Stake CAFI</CardTitle>
+            <CardTitle>Available Rewards</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4">
-            <div>
-              <Label htmlFor="stake-amount">Amount to Stake</Label>
-              <Input
-                id="stake-amount"
-                type="number"
-                placeholder="Enter amount"
-                value={stakeAmount}
-                onChange={(e) => setStakeAmount(e.target.value)}
-                disabled={isStaking}
-              />
-            </div>
-            <Button onClick={handleStake} disabled={isStaking}>
-              {isStaking ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Staking...
-                </>
-              ) : (
-                "Stake CAFI"
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Unstake CAFI & Claim Rewards</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div>
-              <Label htmlFor="unstake-amount">Amount to Unstake</Label>
-              <Input
-                id="unstake-amount"
-                type="number"
-                placeholder="Enter amount"
-                value={unstakeAmount}
-                onChange={(e) => setUnstakeAmount(e.target.value)}
-                disabled={isUnstaking}
-              />
-            </div>
-            <Button onClick={handleUnstake} disabled={isUnstaking} variant="destructive">
-              {isUnstaking ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Unstaking...
-                </>
-              ) : (
-                "Unstake CAFI"
-              )}
-            </Button>
-            <Button onClick={handleClaimRewards} disabled={isClaimingRewards}>
-              {isClaimingRewards ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Claiming...
-                </>
-              ) : (
-                "Claim Rewards"
-              )}
+          <CardContent>
+            <p className="text-2xl font-bold">{availableRewards} CAFI</p>
+            <Button
+              onClick={handleClaimRewards}
+              disabled={loading || Number.parseFloat(availableRewards) <= 0}
+              className="mt-4 w-full"
+            >
+              {loading ? "Claiming..." : "Claim Rewards"}
             </Button>
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Stake CAFI</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="stake-amount">Amount to Stake</Label>
+            <Input
+              id="stake-amount"
+              type="number"
+              value={stakeAmount}
+              onChange={(e) => setStakeAmount(e.target.value)}
+              placeholder="e.g., 100"
+              disabled={loading}
+            />
+          </div>
+          <Button onClick={handleStake} disabled={loading || Number.parseFloat(stakeAmount) <= 0}>
+            {loading ? "Staking..." : "Stake CAFI"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Unstake CAFI</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="unstake-amount">Amount to Unstake</Label>
+            <Input
+              id="unstake-amount"
+              type="number"
+              value={unstakeAmount}
+              onChange={(e) => setUnstakeAmount(e.target.value)}
+              placeholder="e.g., 50"
+              disabled={loading}
+            />
+          </div>
+          <Button onClick={handleUnstake} disabled={loading || Number.parseFloat(unstakeAmount) <= 0}>
+            {loading ? "Unstaking..." : "Unstake CAFI"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Staking Pool Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>Reward Rate: {rewardRate} CAFI per second per staked token</p>
+          {/* Add more details if available from the contract */}
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -29,8 +29,10 @@ import { TransactionStatus } from "@/components/transaction-status"
 import { VerifierApprovalStatus } from "@/components/verifier-approval-status"
 import { contractService } from "@/lib/contract-utils"
 import { CONTRACT_ADDRESSES } from "@/lib/constants"
-import { AlertCircle, CheckCircle2, Leaf, Calendar, Upload, FileText, ImageIcon, X } from "lucide-react"
+import { AlertCircle, CheckCircle2, Leaf, Calendar, Upload, FileText, ImageIcon, X, Terminal } from "lucide-react"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
+import Image from "next/image"
+import { mintNFT, getNFTBalance, getNFTTokenURI } from "@/lib/contract-service"
 
 const CARBON_PROJECT_TYPES = [
   "Reforestation & Afforestation",
@@ -75,6 +77,12 @@ export default function MintNFTPage() {
   const [imagePreview, setImagePreview] = useState<string>("")
   const [uploadingDocument, setUploadingDocument] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+
+  const [mintRecipient, setMintRecipient] = useState("")
+  const [nftBalance, setNftBalance] = useState(0)
+  const [mintedTokenURI, setMintedTokenURI] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false) // Declare loading variable
 
   useEffect(() => {
     if (isConnected) {
@@ -122,6 +130,21 @@ export default function MintNFTPage() {
     }
     fetchUserNFTs()
   }, [isConnected, nftContract, address, refreshBalances])
+
+  useEffect(() => {
+    const fetchNftDetails = async () => {
+      if (nftContract && address) {
+        try {
+          const balance = await getNFTBalance(nftContract, address)
+          setNftBalance(balance)
+        } catch (err: any) {
+          console.error("Error fetching NFT balance:", err)
+          setError(`Failed to fetch NFT balance: ${err.message || "Unknown error"}`)
+        }
+      }
+    }
+    fetchNftDetails()
+  }, [nftContract, address, refreshBalances])
 
   useEffect(() => {
     // Calculate end date based on duration
@@ -579,11 +602,50 @@ export default function MintNFTPage() {
     })
   }
 
+  const handleNewMint = async () => {
+    if (!nftContract || !address || !tokenId || !mintRecipient) {
+      toast({
+        title: "Error",
+        description: "Wallet not connected, token ID or recipient invalid.",
+        variant: "destructive",
+      })
+      return
+    }
+    setLoading(true)
+    setError(null)
+    setMintedTokenURI(null)
+    try {
+      const parsedTokenId = Number.parseInt(tokenId)
+      await mintNFT(nftContract, mintRecipient, parsedTokenId)
+      const uri = await getNFTTokenURI(nftContract, parsedTokenId)
+      setMintedTokenURI(uri)
+      toast({
+        title: "Mint Successful",
+        description: `NFT with ID ${tokenId} minted to ${mintRecipient.substring(0, 6)}...${mintRecipient.slice(-4)}.`,
+      })
+      setTokenId("")
+      setMintRecipient("")
+      refreshBalances()
+    } catch (err: any) {
+      console.error("Minting NFT error:", err)
+      setError(`Minting failed: ${err.message || err.reason || "Unknown error"}`)
+      toast({
+        title: "Mint Failed",
+        description: `Error: ${err.message?.substring(0, 100) || "Unknown error"}`,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (!isConnected) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-        <p className="text-muted-foreground">Please connect your wallet to mint NFTs.</p>
-      </div>
+      <Alert variant="destructive">
+        <Terminal className="h-4 w-4" />
+        <AlertTitle>Wallet Not Connected</AlertTitle>
+        <AlertDescription>Please connect your wallet to mint NFTs.</AlertDescription>
+      </Alert>
     )
   }
 
@@ -956,6 +1018,100 @@ export default function MintNFTPage() {
               <p className="text-sm text-muted-foreground mt-4">
                 Note: Displaying actual NFT details (like Token URI) for all owned NFTs requires iterating through all
                 possible token IDs or using an off-chain indexer/API, which is beyond the scope of this simple DApp.
+              </p>
+            </CardContent>
+          </Card>
+
+          {error && (
+            <Alert variant="destructive">
+              <Terminal className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Your NFT Balance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{nftBalance} NFTs</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Mint New NFT</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="mint-recipient">Recipient Address</Label>
+                  <Input
+                    id="mint-recipient"
+                    type="text"
+                    value={mintRecipient}
+                    onChange={(e) => setMintRecipient(e.target.value)}
+                    placeholder="0x..."
+                    disabled={loading}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="token-id">Token ID</Label>
+                  <Input
+                    id="token-id"
+                    type="number"
+                    value={tokenId}
+                    onChange={(e) => setTokenId(e.target.value)}
+                    placeholder="e.g., 1"
+                    disabled={loading}
+                  />
+                </div>
+                <Button onClick={handleNewMint} disabled={loading || !tokenId || !mintRecipient}>
+                  {loading ? "Minting..." : "Mint NFT"}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {mintedTokenURI && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Minted NFT Details</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <p>
+                  Token URI:{" "}
+                  <a href={mintedTokenURI} target="_blank" rel="noopener noreferrer" className="underline">
+                    {mintedTokenURI}
+                  </a>
+                </p>
+                {/* You might want to fetch and display the image from the URI here */}
+                {mintedTokenURI.startsWith("ipfs://") ? (
+                  <p className="text-sm text-muted-foreground">IPFS URIs require a gateway to display the image.</p>
+                ) : (
+                  <div className="relative w-48 h-48">
+                    <Image
+                      src={mintedTokenURI || "/placeholder.svg"}
+                      alt={`NFT ${tokenId}`}
+                      layout="fill"
+                      objectFit="contain"
+                      className="rounded-md"
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>About CarbonFi NFTs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                CarbonFi NFTs represent unique digital assets that can be tied to various environmental initiatives or
+                achievements. These NFTs can be traded on the marketplace and serve as verifiable proof of participation
+                in carbon offsetting programs or ownership of digital carbon credits.
               </p>
             </CardContent>
           </Card>

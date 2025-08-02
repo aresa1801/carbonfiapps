@@ -1,5 +1,7 @@
 "use client"
 
+import { AlertTitle } from "@/components/ui/alert"
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,12 +11,24 @@ import { useWeb3 } from "@/components/web3-provider"
 import { TransactionStatus } from "@/components/transaction-status"
 import { useToast } from "@/components/ui/use-toast"
 import { AdminGuard } from "@/components/admin-guard"
-import { TrendingUp, Settings, RefreshCw, Coins, ArrowRight, AlertCircle } from "lucide-react"
+import { TrendingUp, Settings, RefreshCw, Coins, ArrowRight, AlertCircle, Terminal } from "lucide-react"
 import { contractService, CONTRACT_ADDRESSES } from "@/lib/contract-utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { getStakingRewardRate, setStakingRewardRate } from "@/lib/contract-service"
 
 export default function StakingPoolPage() {
-  const { isConnected, account, tokenSymbol, stakingContractExists, STAKING_CONTRACT_ADDRESS } = useWeb3()
+  const {
+    isConnected,
+    account,
+    tokenSymbol,
+    stakingContractExists,
+    STAKING_CONTRACT_ADDRESS,
+    stakingContract,
+    signer,
+    isAdmin,
+    refreshBalances,
+  } = useWeb3()
+  const { toast } = useToast()
 
   const [rewardAmount, setRewardAmount] = useState("")
   const [apyValues, setApyValues] = useState(["5", "10", "15"])
@@ -28,7 +42,10 @@ export default function StakingPoolPage() {
   const [allowance, setAllowance] = useState("0")
   const [needsApproval, setNeedsApproval] = useState(false)
   const [stakingContractPaused, setStakingContractPaused] = useState(false)
-  const { toast } = useToast()
+  const [currentRewardRate, setCurrentRewardRate] = useState("0")
+  const [newRewardRate, setNewRewardRate] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (isConnected && account) {
@@ -423,6 +440,73 @@ export default function StakingPoolPage() {
     })
   }
 
+  const handleSetRewardRate = async () => {
+    if (!stakingContract || !signer || !newRewardRate) {
+      toast({
+        title: "Error",
+        description: "Wallet not connected or new reward rate invalid.",
+        variant: "destructive",
+      })
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      await setStakingRewardRate(stakingContract, newRewardRate)
+      toast({
+        title: "Success",
+        description: `Staking reward rate set to ${newRewardRate}.`,
+      })
+      setNewRewardRate("")
+      refreshBalances()
+    } catch (err: any) {
+      console.error("Set reward rate error:", err)
+      setError(`Failed to set reward rate: ${err.message || err.reason || "Unknown error"}`)
+      toast({
+        title: "Transaction Failed",
+        description: `Error: ${err.message?.substring(0, 100) || "Unknown error"}`,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    const fetchRewardRate = async () => {
+      if (stakingContract) {
+        try {
+          const rate = await getStakingRewardRate(stakingContract)
+          setCurrentRewardRate(rate)
+        } catch (err: any) {
+          console.error("Error fetching staking reward rate:", err)
+          setError(`Failed to fetch reward rate: ${err.message || "Unknown error"}`)
+        }
+      }
+    }
+    fetchRewardRate()
+  }, [stakingContract, refreshBalances])
+
+  if (!isConnected) {
+    return (
+      <Alert variant="destructive">
+        <Terminal className="h-4 w-4" />
+        <AlertTitle>Wallet Not Connected</AlertTitle>
+        <AlertDescription>Please connect your wallet to manage staking pool settings.</AlertDescription>
+      </Alert>
+    )
+  }
+
+  if (!isAdmin) {
+    return (
+      <Alert variant="destructive">
+        <Terminal className="h-4 w-4" />
+        <AlertTitle>Unauthorized Access</AlertTitle>
+        <AlertDescription>You do not have admin privileges to access this page.</AlertDescription>
+      </Alert>
+    )
+  }
+
   return (
     <AdminGuard>
       <div className="container mx-auto max-w-6xl space-y-6 p-4 md:p-6">
@@ -457,6 +541,14 @@ export default function StakingPoolPage() {
             <AlertDescription>
               The staking contract is currently paused. Some functions may not be available.
             </AlertDescription>
+          </Alert>
+        )}
+
+        {error && (
+          <Alert variant="destructive">
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
@@ -701,6 +793,39 @@ export default function StakingPoolPage() {
                 </CardFooter>
               </Card>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Current Staking Reward Rate */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Current Staking Reward Rate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{currentRewardRate} CAFI per second per staked token</p>
+          </CardContent>
+        </Card>
+
+        {/* Set New Reward Rate */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Set New Reward Rate</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="new-reward-rate">New Reward Rate (CAFI per second per staked token)</Label>
+              <Input
+                id="new-reward-rate"
+                type="number"
+                value={newRewardRate}
+                onChange={(e) => setNewRewardRate(e.target.value)}
+                placeholder="e.g., 0.000000000000000001"
+                disabled={loading}
+              />
+            </div>
+            <Button onClick={handleSetRewardRate} disabled={loading || Number.parseFloat(newRewardRate) <= 0}>
+              {loading ? "Setting..." : "Set Reward Rate"}
+            </Button>
           </CardContent>
         </Card>
 

@@ -1,21 +1,9 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react"
-import { BrowserProvider, Contract, type JsonRpcSigner } from "ethers"
-import { useToast } from "@/components/ui/use-toast"
-import { useOptimizedRefresh } from "@/hooks/use-optimized-refresh"
-import {
-  CAFI_TOKEN_ADDRESS,
-  FAUCET_ADDRESS,
-  STAKING_ADDRESS,
-  FARMING_ADDRESS,
-  NFT_ADDRESS,
-  CARBON_RETIRE_ADDRESS,
-  MARKETPLACE_ADDRESS,
-  BSC_TESTNET_CHAIN_ID,
-  HEDERA_TESTNET_CHAIN_ID,
-} from "@/lib/constants"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { BrowserProvider, type JsonRpcSigner, Contract } from "ethers"
+import { getContractAddresses, addNetworkToMetamask, getNetworkByChainId } from "@/lib/constants"
 import CAFITokenABI from "@/contracts/cafi-token-abi.json"
 import FaucetABI from "@/contracts/faucet-abi.json"
 import StakingABI from "@/contracts/staking-abi.json"
@@ -23,6 +11,8 @@ import FarmingABI from "@/contracts/farming-abi.json"
 import NFTABI from "@/contracts/nft-abi.json"
 import CarbonRetireABI from "@/contracts/carbon-retire-abi.json"
 import MarketplaceABI from "@/contracts/marketplace-abi.json"
+import { formatEther } from "ethers"
+import { useToast } from "@/hooks/use-toast"
 
 interface Web3ContextType {
   provider: BrowserProvider | null
@@ -32,21 +22,13 @@ interface Web3ContextType {
   isConnected: boolean
   isLoading: boolean
   error: Error | null
-  ethBalance: bigint | null
-  stableTokenBalance: bigint | null
-  faucetContract: Contract | null
-  stakingContract: Contract | null
-  farmingContract: Contract | null
-  nftContract: Contract | null
-  carbonRetireContract: Contract | null
-  marketplaceContract: Contract | null
-  cafiTokenContract: Contract | null
+  nativeBalance: bigint | null
+  cafiBalance: string
   isAdmin: boolean
   connectWallet: () => Promise<void>
   disconnectWallet: () => void
-  switchNetwork: (chainId: number) => Promise<void>
-  refreshBalances: () => void
-  isRefreshing: boolean
+  switchNetwork: (newChainId: number) => Promise<void>
+  refreshBalances: () => Promise<void>
   transactionStatus: {
     hash: string | null
     status: "pending" | "success" | "failed" | null
@@ -59,6 +41,13 @@ interface Web3ContextType {
       message: string | null
     }>
   >
+  cafiTokenContract: Contract | null
+  faucetContract: Contract | null
+  stakingContract: Contract | null
+  farmingContract: Contract | null
+  nftContract: Contract | null
+  carbonRetireContract: Contract | null
+  marketplaceContract: Contract | null
 }
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined)
@@ -71,15 +60,8 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const [ethBalance, setEthBalance] = useState<bigint | null>(null)
-  const [stableTokenBalance, setStableTokenBalance] = useState<bigint | null>(null)
-  const [faucetContract, setFaucetContract] = useState<Contract | null>(null)
-  const [stakingContract, setStakingContract] = useState<Contract | null>(null)
-  const [farmingContract, setFarmingContract] = useState<Contract | null>(null)
-  const [nftContract, setNftContract] = useState<Contract | null>(null)
-  const [carbonRetireContract, setCarbonRetireContract] = useState<Contract | null>(null)
-  const [marketplaceContract, setMarketplaceContract] = useState<Contract | null>(null)
-  const [cafiTokenContract, setCafiTokenContract] = useState<Contract | null>(null)
+  const [nativeBalance, setNativeBalance] = useState<bigint | null>(null)
+  const [cafiBalance, setCafiBalance] = useState<string>("0")
   const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
 
@@ -89,258 +71,143 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
     message: string | null
   }>({ hash: null, status: null, message: null })
 
-  const isConnectingRef = useRef(false)
+  const [cafiTokenContract, setCafiTokenContract] = useState<Contract | null>(null)
+  const [faucetContract, setFaucetContract] = useState<Contract | null>(null)
+  const [stakingContract, setStakingContract] = useState<Contract | null>(null)
+  const [farmingContract, setFarmingContract] = useState<Contract | null>(null)
+  const [nftContract, setNftContract] = useState<Contract | null>(null)
+  const [carbonRetireContract, setCarbonRetireContract] = useState<Contract | null>(null)
+  const [marketplaceContract, setMarketplaceContract] = useState<Contract | null>(null)
 
-  const getNetworkRpcUrl = useCallback((id: number) => {
-    switch (id) {
-      case BSC_TESTNET_CHAIN_ID:
-        return process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL
-      case HEDERA_TESTNET_CHAIN_ID:
-        return process.env.NEXT_PUBLIC_HEDERA_TESTNET_RPC_URL
-      default:
-        return null
+  const ADMIN_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_ADDRESS?.toLowerCase()
+
+  const initializeProvider = useCallback(async () => {
+    if (typeof window !== "undefined" && window.ethereum) {
+      try {
+        const browserProvider = new BrowserProvider(window.ethereum)
+        setProvider(browserProvider)
+
+        const network = await browserProvider.getNetwork()
+        setChainId(Number(network.chainId))
+
+        const accounts = await window.ethereum.request({ method: "eth_accounts" })
+        if (accounts.length > 0) {
+          const currentAddress = accounts[0]
+          setAddress(currentAddress)
+          setIsConnected(true)
+          const signerInstance = await browserProvider.getSigner(currentAddress)
+          setSigner(signerInstance)
+        } else {
+          setIsConnected(false)
+          setAddress(null)
+          setSigner(null)
+        }
+      } catch (err: any) {
+        console.error("Error initializing provider:", err)
+        setError(new Error("Failed to connect to Ethereum. Please refresh."))
+        setIsConnected(false)
+        setAddress(null)
+        setSigner(null)
+      } finally {
+        setIsLoading(false)
+      }
+    } else {
+      setIsLoading(false)
+      setError(new Error("MetaMask or compatible wallet not detected."))
     }
   }, [])
 
-  const initializeProvider = useCallback(async () => {
-    if (typeof window === "undefined" || !window.ethereum) {
-      setError(new Error("MetaMask or compatible wallet not detected."))
-      setIsLoading(false)
-      return
-    }
-
+  const connectWallet = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
     try {
+      if (!window.ethereum) {
+        throw new Error("MetaMask or compatible wallet not detected.")
+      }
+
+      // Request account access
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      })
+      const selectedAddress = accounts[0] as string
+      setAddress(selectedAddress)
+      setIsConnected(true)
+
       const browserProvider = new BrowserProvider(window.ethereum)
       setProvider(browserProvider)
+      const signerInstance = await browserProvider.getSigner(selectedAddress)
+      setSigner(signerInstance)
 
       const network = await browserProvider.getNetwork()
       setChainId(Number(network.chainId))
 
-      const accounts = await browserProvider.listAccounts()
-      if (accounts.length > 0) {
-        const currentSigner = await browserProvider.getSigner()
-        setSigner(currentSigner)
-        setAddress(currentSigner.address)
-        setIsConnected(true)
-      } else {
-        setIsConnected(false)
-      }
+      toast({
+        title: "Wallet Connected",
+        description: `Connected with ${selectedAddress.substring(0, 6)}...${selectedAddress.slice(-4)}`,
+      })
     } catch (err: any) {
-      console.error("Error initializing provider:", err)
-      setError(new Error(`Failed to initialize Web3 provider: ${err.message || err}`))
+      console.error("Failed to connect wallet:", err)
+      setError(new Error(err.message || "Failed to connect wallet."))
+      toast({
+        title: "Connection Failed",
+        description: err.message || "Could not connect to wallet.",
+        variant: "destructive",
+      })
       setIsConnected(false)
+      setAddress(null)
+      setSigner(null)
     } finally {
       setIsLoading(false)
     }
-  }, [])
-
-  const fetchBalances = useCallback(async () => {
-    if (!provider || !address) return
-
-    try {
-      const ethBal = await provider.getBalance(address)
-      setEthBalance(ethBal)
-
-      if (cafiTokenContract) {
-        const stableBal = await cafiTokenContract.balanceOf(address)
-        setStableTokenBalance(stableBal)
-      }
-    } catch (err: any) {
-      console.error("Error fetching balances:", err)
-      setError(new Error(`Failed to fetch balances: ${err.message || err}`))
-    }
-  }, [provider, address, cafiTokenContract])
-
-  const fetchAdminStatus = useCallback(async () => {
-    if (!faucetContract || !address) return
-    try {
-      const adminRole = await faucetContract.DEFAULT_ADMIN_ROLE()
-      const isAdminUser = await faucetContract.hasRole(adminRole, address)
-      setIsAdmin(isAdminUser)
-    } catch (err: any) {
-      console.error("Error fetching admin status:", err)
-      setError(new Error(`Failed to fetch admin status: ${err.message || err}`))
-      setIsAdmin(false) // Default to false on error
-    }
-  }, [faucetContract, address])
-
-  const { manualRefresh, isAutoRefreshing } = useOptimizedRefresh({
-    initialDelay: 1000, // Initial delay before first auto-refresh
-    interval: 10000, // Auto-refresh every 10 seconds
-    onRefresh: useCallback(async () => {
-      if (isConnected && address && provider) {
-        await fetchBalances()
-        await fetchAdminStatus()
-      }
-    }, [isConnected, address, provider, fetchBalances, fetchAdminStatus]),
-    enabled: isConnected && !!address, // Only enable auto-refresh when connected and address is available
-  })
-
-  const refreshBalancesAndAdmin = useCallback(() => {
-    manualRefresh.refresh()
-  }, [manualRefresh])
+  }, [toast])
 
   const disconnectWallet = useCallback(() => {
-    setProvider(null)
-    setSigner(null)
     setAddress(null)
-    setChainId(null)
+    setSigner(null)
     setIsConnected(false)
-    setEthBalance(null)
-    setStableTokenBalance(null)
+    setNativeBalance(null)
+    setCafiBalance("0")
     setIsAdmin(false)
-    setError(null)
-    setTransactionStatus({ hash: null, status: null, message: null })
+    setCafiTokenContract(null)
+    setFaucetContract(null)
+    setStakingContract(null)
+    setFarmingContract(null)
+    setNftContract(null)
+    setCarbonRetireContract(null)
+    setMarketplaceContract(null)
     toast({
       title: "Wallet Disconnected",
       description: "You have successfully disconnected your wallet.",
     })
   }, [toast])
 
-  // Event listeners for account and chain changes
-  useEffect(() => {
-    if (window.ethereum) {
-      const handleAccountsChanged = (accounts: string[]) => {
-        console.log("Accounts changed:", accounts)
-        if (accounts.length === 0) {
-          disconnectWallet()
-        } else {
-          setAddress(accounts[0])
-          setIsConnected(true)
-          // Re-initialize provider to get new signer
-          initializeProvider()
-        }
-      }
-
-      const handleChainChanged = (newChainId: string) => {
-        console.log("Chain changed:", newChainId)
-        setChainId(Number(newChainId))
-        // Re-initialize provider to get new signer and contracts for the new chain
-        initializeProvider()
-        // Also refresh balances for the new chain
-        if (address) {
-          fetchBalances()
-        }
-      }
-
-      const handleDisconnect = (error: any) => {
-        console.log("Wallet disconnected:", error)
-        disconnectWallet()
-        toast({
-          title: "Wallet Disconnected",
-          description: error?.message || "Your wallet has been disconnected.",
-          variant: "destructive",
-        })
-      }
-
-      window.ethereum.on("accountsChanged", handleAccountsChanged)
-      window.ethereum.on("chainChanged", handleChainChanged)
-      window.ethereum.on("disconnect", handleDisconnect)
-
-      return () => {
-        window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
-        window.ethereum.removeListener("chainChanged", handleChainChanged)
-        window.ethereum.removeListener("disconnect", handleDisconnect)
-      }
-    }
-  }, [initializeProvider, toast, address, fetchBalances]) // Added address and fetchBalances to dependencies
-
-  // Initialize provider on mount
-  useEffect(() => {
-    initializeProvider()
-  }, [initializeProvider])
-
-  // Fetch balances and admin status when connected or address changes
-  useEffect(() => {
-    if (isConnected && address && provider) {
-      fetchBalances()
-      fetchAdminStatus()
-    }
-  }, [isConnected, address, provider, fetchBalances, fetchAdminStatus])
-
-  // Set up contracts when provider, signer, or chainId changes
-  useEffect(() => {
-    if (provider && signer && chainId) {
+  const refreshBalances = useCallback(async () => {
+    if (provider && address && chainId) {
       try {
-        const cafi = new Contract(CAFI_TOKEN_ADDRESS[chainId], CAFITokenABI, signer)
-        setCafiTokenContract(cafi)
-        setFaucetContract(new Contract(FAUCET_ADDRESS[chainId], FaucetABI, signer))
-        setStakingContract(new Contract(STAKING_ADDRESS[chainId], StakingABI, signer))
-        setFarmingContract(new Contract(FARMING_ADDRESS[chainId], FarmingABI, signer))
-        setNftContract(new Contract(NFT_ADDRESS[chainId], NFTABI, signer))
-        setCarbonRetireContract(new Contract(CARBON_RETIRE_ADDRESS[chainId], CarbonRetireABI, signer))
-        setMarketplaceContract(new Contract(MARKETPLACE_ADDRESS[chainId], MarketplaceABI, signer))
-      } catch (err: any) {
-        console.error("Error setting up contracts:", err)
-        setError(new Error(`Failed to load contracts for chain ${chainId}: ${err.message || err}`))
-        // Clear contracts on error
-        setCafiTokenContract(null)
-        setFaucetContract(null)
-        setStakingContract(null)
-        setFarmingContract(null)
-        setNftContract(null)
-        setCarbonRetireContract(null)
-        setMarketplaceContract(null)
+        const nativeBal = await provider.getBalance(address)
+        setNativeBalance(nativeBal)
+
+        const contractAddresses = getContractAddresses(chainId)
+        if (contractAddresses.CAFI_TOKEN) {
+          const cafiContract = new Contract(contractAddresses.CAFI_TOKEN, CAFITokenABI, provider)
+          const cafiBal = await cafiContract.balanceOf(address)
+          setCafiBalance(formatEther(cafiBal))
+        } else {
+          setCafiBalance("0")
+        }
+      } catch (err) {
+        console.error("Error refreshing balances:", err)
+        setError(new Error("Failed to refresh balances."))
       }
-    } else {
-      // Clear contracts if not connected or no signer/chain
-      setCafiTokenContract(null)
-      setFaucetContract(null)
-      setStakingContract(null)
-      setFarmingContract(null)
-      setNftContract(null)
-      setCarbonRetireContract(null)
-      setMarketplaceContract(null)
     }
-  }, [provider, signer, chainId])
-
-  const connectWallet = useCallback(async () => {
-    if (isConnectingRef.current) return // Prevent multiple connection attempts
-    isConnectingRef.current = true
-    setError(null) // Clear previous errors
-    setIsLoading(true)
-
-    if (typeof window === "undefined" || !window.ethereum) {
-      setError(new Error("MetaMask or compatible wallet not detected. Please install it."))
-      setIsLoading(false)
-      isConnectingRef.current = false
-      return
-    }
-
-    try {
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
-      if (accounts.length > 0) {
-        const browserProvider = new BrowserProvider(window.ethereum)
-        setProvider(browserProvider)
-        const currentSigner = await browserProvider.getSigner()
-        setSigner(currentSigner)
-        setAddress(currentSigner.address)
-        setIsConnected(true)
-
-        const network = await browserProvider.getNetwork()
-        setChainId(Number(network.chainId))
-
-        toast({
-          title: "Wallet Connected",
-          description: `Connected to ${accounts[0].substring(0, 6)}...${accounts[0].slice(-4)}`,
-        })
-      }
-    } catch (err: any) {
-      console.error("Error connecting wallet:", err)
-      setError(new Error(`Failed to connect wallet: ${err.message || err}`))
-      setIsConnected(false)
-    } finally {
-      setIsLoading(false)
-      isConnectingRef.current = false
-    }
-  }, [toast])
+  }, [provider, address, chainId])
 
   const switchNetwork = useCallback(
-    async (targetChainId: number) => {
+    async (newChainId: number) => {
       if (!window.ethereum) {
         toast({
-          title: "Error",
-          description: "MetaMask is not installed.",
+          title: "Wallet Not Detected",
+          description: "Please install MetaMask or a compatible wallet.",
           variant: "destructive",
         })
         return
@@ -349,73 +216,169 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
       try {
         await window.ethereum.request({
           method: "wallet_switchEthereumChain",
-          params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+          params: [{ chainId: `0x${newChainId.toString(16)}` }],
         })
-        // Chain changed event will handle state update
+        // If switch is successful, the 'chainChanged' event will handle state update
       } catch (switchError: any) {
         // This error code indicates that the chain has not been added to MetaMask.
         if (switchError.code === 4902) {
           try {
-            const rpcUrl = getNetworkRpcUrl(targetChainId)
-            if (!rpcUrl) {
-              throw new Error(`RPC URL not configured for chain ID ${targetChainId}`)
-            }
-
-            let chainName = ""
-            let nativeCurrencySymbol = ""
-            let blockExplorerUrl = ""
-
-            if (targetChainId === BSC_TESTNET_CHAIN_ID) {
-              chainName = "Binance Smart Chain Testnet"
-              nativeCurrencySymbol = "BNB"
-              blockExplorerUrl = "https://testnet.bscscan.com"
-            } else if (targetChainId === HEDERA_TESTNET_CHAIN_ID) {
-              chainName = "Hedera Testnet"
-              nativeCurrencySymbol = "HBAR"
-              blockExplorerUrl = "https://hashscan.io/testnet"
+            const networkInfo = getNetworkByChainId(newChainId)
+            if (networkInfo) {
+              await addNetworkToMetamask(networkInfo)
+              // After adding, MetaMask will automatically try to switch
             } else {
-              throw new Error(`Network details not available for chain ID ${targetChainId}`)
+              throw new Error(`Network with chainId ${newChainId} not supported.`)
             }
-
-            await window.ethereum.request({
-              method: "wallet_addEthereumChain",
-              params: [
-                {
-                  chainId: `0x${targetChainId.toString(16)}`,
-                  chainName: chainName,
-                  rpcUrls: [rpcUrl],
-                  nativeCurrency: {
-                    name: nativeCurrencySymbol,
-                    symbol: nativeCurrencySymbol,
-                    decimals: 18,
-                  },
-                  blockExplorerUrls: [blockExplorerUrl],
-                },
-              ],
-            })
-            // Chain changed event will handle state update
           } catch (addError: any) {
-            console.error("Error adding network:", addError)
+            console.error("Failed to add network:", addError)
+            setError(new Error(addError.message || "Failed to add the new network."))
             toast({
-              title: "Error",
-              description: `Failed to add network: ${addError.message || addError}`,
+              title: "Failed to Add Network",
+              description: addError.message || "Could not add the network to your wallet.",
               variant: "destructive",
             })
           }
         } else {
-          console.error("Error switching network:", switchError)
+          console.error("Failed to switch network:", switchError)
+          setError(new Error(switchError.message || "Failed to switch network."))
           toast({
-            title: "Error",
-            description: `Failed to switch network: ${switchError.message || switchError}`,
+            title: "Failed to Switch Network",
+            description: switchError.message || "Could not switch network in your wallet.",
             variant: "destructive",
           })
         }
       }
     },
-    [toast, getNetworkRpcUrl],
+    [toast],
   )
 
-  const isRefreshingCombined = manualRefresh.isRefreshing || isAutoRefreshing
+  // Effect for initial load and setting up event listeners
+  useEffect(() => {
+    initializeProvider()
+
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (accounts.length === 0) {
+        disconnectWallet()
+      } else {
+        setAddress(accounts[0])
+        setIsConnected(true)
+        if (provider) {
+          provider.getSigner(accounts[0]).then(setSigner)
+        }
+        refreshBalances()
+      }
+    }
+
+    const handleChainChanged = (hexChainId: string) => {
+      const newChainId = Number(hexChainId)
+      setChainId(newChainId)
+      if (provider) {
+        provider.getSigner(address || 0).then(setSigner) // Re-get signer for new chain
+      }
+      refreshBalances()
+      toast({
+        title: "Network Changed",
+        description: `Switched to ${getNetworkByChainId(newChainId)?.name || "Unknown"} network.`,
+      })
+    }
+
+    const handleDisconnect = (error: any) => {
+      console.error("Wallet disconnected:", error)
+      disconnectWallet()
+      setError(new Error(error.message || "Wallet disconnected unexpectedly."))
+      toast({
+        title: "Wallet Disconnected",
+        description: error.message || "Your wallet was disconnected.",
+        variant: "destructive",
+      })
+    }
+
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", handleAccountsChanged)
+      window.ethereum.on("chainChanged", handleChainChanged)
+      window.ethereum.on("disconnect", handleDisconnect)
+    }
+
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.off("accountsChanged", handleAccountsChanged)
+        window.ethereum.off("chainChanged", handleChainChanged)
+        window.ethereum.off("disconnect", handleDisconnect)
+      }
+    }
+  }, [initializeProvider, disconnectWallet, refreshBalances, provider, address, toast])
+
+  // Effect to set up contract instances and check admin status
+  useEffect(() => {
+    if (signer && chainId) {
+      const contractAddresses = getContractAddresses(chainId)
+
+      setCafiTokenContract(new Contract(contractAddresses.CAFI_TOKEN, CAFITokenABI, signer))
+      setFaucetContract(new Contract(contractAddresses.FAUCET, FaucetABI, signer))
+      setStakingContract(new Contract(contractAddresses.STAKING, StakingABI, signer))
+      setFarmingContract(new Contract(contractAddresses.FARMING, FarmingABI, signer))
+      setNftContract(new Contract(contractAddresses.NFT, NFTABI, signer))
+      setCarbonRetireContract(new Contract(contractAddresses.CARBON_RETIRE, CarbonRetireABI, signer))
+      setMarketplaceContract(new Contract(contractAddresses.MARKETPLACE, MarketplaceABI, signer))
+
+      // Check admin status
+      if (address && ADMIN_ADDRESS) {
+        setIsAdmin(address.toLowerCase() === ADMIN_ADDRESS)
+      } else {
+        setIsAdmin(false)
+      }
+
+      refreshBalances()
+    } else {
+      setCafiTokenContract(null)
+      setFaucetContract(null)
+      setStakingContract(null)
+      setFarmingContract(null)
+      setNftContract(null)
+      setCarbonRetireContract(null)
+      setMarketplaceContract(null)
+      setIsAdmin(false)
+    }
+  }, [signer, chainId, address, refreshBalances, ADMIN_ADDRESS])
+
+  // Effect to handle transaction status updates
+  useEffect(() => {
+    if (transactionStatus.hash && provider) {
+      const checkTransaction = async () => {
+        try {
+          const receipt = await provider.waitForTransaction(
+            transactionStatus.hash!,
+            1, // confirmations
+          )
+          if (receipt && receipt.status === 1) {
+            setTransactionStatus({
+              hash: transactionStatus.hash,
+              status: "success",
+              message: "Transaction confirmed!",
+            })
+            refreshBalances()
+          } else if (receipt && receipt.status === 0) {
+            setTransactionStatus({
+              hash: transactionStatus.hash,
+              status: "failed",
+              message: "Transaction failed on chain.",
+            })
+          }
+        } catch (err: any) {
+          console.error("Error checking transaction status:", err)
+          setTransactionStatus({
+            hash: transactionStatus.hash,
+            status: "failed",
+            message: err.message || "Transaction check failed.",
+          })
+        }
+      }
+      if (transactionStatus.status === "pending") {
+        checkTransaction()
+      }
+    }
+  }, [transactionStatus.hash, transactionStatus.status, provider, refreshBalances])
 
   return (
     <Web3Context.Provider
@@ -427,23 +390,22 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
         isConnected,
         isLoading,
         error,
-        ethBalance,
-        stableTokenBalance,
+        nativeBalance,
+        cafiBalance,
+        isAdmin,
+        connectWallet,
+        disconnectWallet,
+        switchNetwork,
+        refreshBalances,
+        transactionStatus,
+        setTransactionStatus,
+        cafiTokenContract,
         faucetContract,
         stakingContract,
         farmingContract,
         nftContract,
         carbonRetireContract,
         marketplaceContract,
-        cafiTokenContract,
-        isAdmin,
-        connectWallet,
-        disconnectWallet,
-        switchNetwork,
-        refreshBalances: refreshBalancesAndAdmin,
-        isRefreshing: isRefreshingCombined,
-        transactionStatus,
-        setTransactionStatus,
       }}
     >
       {children}

@@ -1,7 +1,9 @@
 "use client"
 
+import { CardFooter } from "@/components/ui/card"
+
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,15 +11,16 @@ import { Switch } from "@/components/ui/switch"
 import { useWeb3 } from "@/components/web3-provider"
 import { TransactionStatus } from "@/components/transaction-status"
 import { useToast } from "@/hooks/use-toast"
-import { Settings, Recycle, Clock, Leaf, Save, DollarSign, Shield, Users, AlertTriangle } from "lucide-react"
+import { Settings, Recycle, Clock, Leaf, Save, DollarSign, Shield, Users, AlertTriangle, Terminal } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { getCarbonRetireContract } from "@/lib/contract-utils"
+import { AutoApprovalSettings } from "@/components/auto-approval-settings"
 
 export default function RetireSettingsPage() {
-  const { contract, isConnected, account, signer } = useWeb3()
+  const { contract, isConnected, account, signer, isAdmin } = useWeb3()
   const [txStatus, setTxStatus] = useState(null)
   const [txHash, setTxHash] = useState("")
   const [txMessage, setTxMessage] = useState("")
@@ -214,12 +217,32 @@ export default function RetireSettingsPage() {
     }
   }
 
+  if (!isConnected) {
+    return (
+      <Alert variant="destructive">
+        <Terminal className="h-4 w-4" />
+        <AlertTitle>Wallet Not Connected</AlertTitle>
+        <AlertDescription>Please connect your wallet to manage retire settings.</AlertDescription>
+      </Alert>
+    )
+  }
+
+  if (!isAdmin) {
+    return (
+      <Alert variant="destructive">
+        <Terminal className="h-4 w-4" />
+        <AlertTitle>Unauthorized Access</AlertTitle>
+        <AlertDescription>You do not have admin privileges to access this page.</AlertDescription>
+      </Alert>
+    )
+  }
+
   return (
     <div className="container mx-auto max-w-6xl space-y-6">
       {/* Header Section with Better Colors */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Retire Settings</h1>
+          <h1 className="text-3xl font-bold text-white">Admin Retire Settings</h1>
           <p className="text-gray-400 mt-1">Configure and manage carbon credit retirement settings</p>
         </div>
         <div className="flex items-center space-x-3">
@@ -632,6 +655,41 @@ export default function RetireSettingsPage() {
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-900 border border-gray-700">
+              <CardHeader>
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <Settings className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <CardTitle className="text-white">Auto-Approval for Verifiers</CardTitle>
+                </div>
+                <CardDescription className="text-gray-400">
+                  Configure whether specific verifiers have automatic approval for carbon retirement.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AutoApprovalSettings />
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-900 border border-gray-700">
+              <CardHeader>
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <Settings className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <CardTitle className="text-white">About Auto-Approval</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Auto-approval allows designated verifiers to automatically approve carbon retirement requests without
+                  manual intervention. This can streamline the process for trusted partners, but should be used with
+                  caution.
+                </p>
               </CardContent>
             </Card>
           </div>

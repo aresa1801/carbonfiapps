@@ -2,42 +2,11 @@
 
 import { useWeb3 } from "@/components/web3-provider"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Terminal, CheckCircle, XCircle, Loader2 } from "lucide-react"
+import { Terminal, CheckCircle2, XCircle } from "lucide-react"
 import { useEffect } from "react"
 
 export function TransactionStatus() {
   const { transactionStatus, setTransactionStatus, chainId } = useWeb3()
-
-  const getBlockExplorerUrl = (hash: string | null, chainId: number | null) => {
-    if (!hash || !chainId) return null
-
-    let baseUrl = ""
-    switch (chainId) {
-      case 11155111: // Sepolia
-        baseUrl = "https://sepolia.etherscan.io/tx/"
-        break
-      case 97: // BSC Testnet
-        baseUrl = "https://testnet.bscscan.com/tx/"
-        break
-      case 296: // Hedera Testnet
-        baseUrl = "https://hashscan.io/testnet/transaction/"
-        break
-      case 4202: // Lisk Sepolia
-        baseUrl = "https://sepolia-blockscout.lisk.com/tx/"
-        break
-      case 84532: // Base Sepolia
-        baseUrl = "https://sepolia.basescan.org/tx/"
-        break
-      case 44787: // Celo Alfajores
-        baseUrl = "https://alfajores.celoscan.io/tx/"
-        break
-      default:
-        return null
-    }
-    return `${baseUrl}${hash}`
-  }
-
-  const txUrl = getBlockExplorerUrl(transactionStatus.hash, chainId)
 
   useEffect(() => {
     if (transactionStatus.status === "success" || transactionStatus.status === "failed") {
@@ -52,58 +21,59 @@ export function TransactionStatus() {
     return null
   }
 
-  const getIcon = () => {
-    switch (transactionStatus.status) {
-      case "pending":
-        return <Loader2 className="h-4 w-4 animate-spin" />
-      case "success":
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case "failed":
-        return <XCircle className="h-4 w-4 text-red-500" />
+  const getBlockExplorerUrl = (hash: string) => {
+    // This should ideally come from your network configuration in constants.ts
+    // For now, a simple switch based on chainId
+    switch (chainId) {
+      case 11155111: // Sepolia
+        return `https://sepolia.etherscan.io/tx/${hash}`
+      case 97: // BSC Testnet
+        return `https://testnet.bscscan.com/tx/${hash}`
+      case 296: // Hedera Testnet
+        return `https://hashscan.io/testnet/transaction/${hash}`
+      case 4202: // Lisk Sepolia
+        return `https://sepolia-blockscout.lisk.com/tx/${hash}`
+      case 84532: // Base Sepolia
+        return `https://sepolia.basescan.org/tx/${hash}`
+      case 44787: // Celo Alfajores
+        return `https://alfajores.celoscan.io/tx/${hash}`
       default:
-        return <Terminal className="h-4 w-4" />
-    }
-  }
-
-  const getTitle = () => {
-    switch (transactionStatus.status) {
-      case "pending":
-        return "Transaction Pending"
-      case "success":
-        return "Transaction Successful"
-      case "failed":
-        return "Transaction Failed"
-      default:
-        return "Transaction Status"
+        return `https://etherscan.io/tx/${hash}` // Fallback
     }
   }
 
   return (
     <div className="fixed bottom-4 right-4 z-50 w-full max-w-sm">
       <Alert
-        variant={transactionStatus.status === "failed" ? "destructive" : "default"}
-        className="flex items-start space-x-3"
+        variant={
+          transactionStatus.status === "success"
+            ? "default"
+            : transactionStatus.status === "failed"
+              ? "destructive"
+              : "default"
+        }
       >
-        <div className="flex-shrink-0 mt-1">{getIcon()}</div>
-        <div className="flex-grow">
-          <AlertTitle>{getTitle()}</AlertTitle>
-          <AlertDescription>
-            {transactionStatus.message}
-            {transactionStatus.hash && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Hash:{" "}
-                <a
-                  href={txUrl} // TODO: Make this dynamic based on chainId
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  {transactionStatus.hash.substring(0, 6)}...{transactionStatus.hash.slice(-4)}
-                </a>
-              </p>
-            )}
-          </AlertDescription>
-        </div>
+        {transactionStatus.status === "pending" && <Terminal className="h-4 w-4" />}
+        {transactionStatus.status === "success" && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+        {transactionStatus.status === "failed" && <XCircle className="h-4 w-4 text-red-500" />}
+        <AlertTitle>
+          {transactionStatus.status === "pending" && "Transaction Pending"}
+          {transactionStatus.status === "success" && "Transaction Successful!"}
+          {transactionStatus.status === "failed" && "Transaction Failed!"}
+        </AlertTitle>
+        <AlertDescription>
+          {transactionStatus.message}
+          {transactionStatus.hash && (
+            <a
+              href={getBlockExplorerUrl(transactionStatus.hash)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-2 underline"
+            >
+              View on Explorer
+            </a>
+          )}
+        </AlertDescription>
       </Alert>
     </div>
   )

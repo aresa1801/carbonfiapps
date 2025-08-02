@@ -1,36 +1,59 @@
 import type React from "react"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Toaster } from "@/components/ui/toaster"
-import { TransactionStatus } from "@/components/transaction-status"
-import { ThemeProvider } from "@/components/theme-provider"
-import { Web3Provider } from "@/components/web3-provider"
-import { cookies } from "next/headers"
-import { SidebarProvider } from "@/components/ui/sidebar"
+import { MobileOptimizedLayout } from "@/components/mobile-optimized-layout"
+import { UserDashboardNav } from "@/components/user-dashboard-nav"
 
-export default async function UserLayout({
-  children,
-}: {
+interface UserLayoutProps {
   children: React.ReactNode
-}) {
-  const cookieStore = cookies()
-  const defaultOpen = cookieStore.get("sidebar:state")?.value === "true"
+}
 
+const sidebarNavItems = [
+  {
+    title: "Dashboard",
+    href: "/user",
+  },
+  {
+    title: "Faucet",
+    href: "/user/faucet",
+  },
+  {
+    title: "Staking",
+    href: "/user/staking",
+  },
+  {
+    title: "Farming",
+    href: "/user/farming",
+  },
+  {
+    title: "Retire Carbon",
+    href: "/user/retire",
+  },
+  {
+    title: "Mint NFT",
+    href: "/user/mint-nft",
+  },
+  {
+    title: "Marketplace",
+    href: "/user/marketplace",
+  },
+]
+
+export default function UserLayout({ children }: UserLayoutProps) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <Web3Provider>
-        <SidebarProvider defaultOpen={defaultOpen}>
-          <div className="flex min-h-screen w-full flex-col bg-muted/40 md:grid md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-            <DashboardSidebar />
-            <div className="flex flex-col">
-              <DashboardHeader />
-              <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">{children}</main>
-            </div>
+    <MobileOptimizedLayout>
+      <div className="flex-1 flex-col space-y-8 p-8 md:flex">
+        <div className="flex items-center justify-between space-y-2">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">User Dashboard</h2>
+            <p className="text-muted-foreground">Manage your CarbonFi assets and participate in DApp features.</p>
           </div>
-          <Toaster />
-          <TransactionStatus />
-        </SidebarProvider>
-      </Web3Provider>
-    </ThemeProvider>
+        </div>
+        <div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0">
+          <aside className="-mx-4 lg:w-1/5">
+            <UserDashboardNav items={sidebarNavItems} />
+          </aside>
+          <div className="flex-1 lg:max-w-full">{children}</div>
+        </div>
+      </div>
+    </MobileOptimizedLayout>
   )
 }
