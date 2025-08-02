@@ -3,16 +3,16 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Home, Settings, Users, Coins, Sprout } from "lucide-react"
+import { Settings, Users, Coins, Sprout, Droplets } from "lucide-react"
 
 export function AdminDashboardNav() {
   const pathname = usePathname()
 
   const navigation = [
     {
-      name: "Dashboard",
+      name: "Faucet Management",
       href: "/admin",
-      icon: <Home className="h-4 w-4" />,
+      icon: <Droplets className="h-4 w-4" />,
     },
     {
       name: "NFT Settings",
@@ -37,7 +37,7 @@ export function AdminDashboardNav() {
   ]
 
   return (
-    <nav className="space-y-1">
+    <nav className="space-y-1 p-4">
       {navigation.map((item) => {
         const isActive = pathname === item.href
         return (
@@ -46,7 +46,9 @@ export function AdminDashboardNav() {
             href={item.href}
             className={cn(
               "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-              isActive ? "bg-blue-600 text-white shadow-md" : "text-slate-300 hover:bg-slate-700 hover:text-white",
+              isActive
+                ? "bg-emerald-900/50 text-emerald-400 border border-emerald-700/50"
+                : "text-gray-300 hover:bg-gray-800 hover:text-white border border-transparent",
             )}
           >
             <span className="mr-3">{item.icon}</span>

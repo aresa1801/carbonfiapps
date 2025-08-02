@@ -7,7 +7,7 @@ import { ContractMigrationNotice } from "@/components/contract-migration-notice"
 import { Web3Provider } from "@/components/web3-provider"
 
 export const metadata: Metadata = {
-  title: "v0 App",
+  title: "CarbonFi Apps",
   description: "Created with v0",
   generator: "v0.dev",
 }

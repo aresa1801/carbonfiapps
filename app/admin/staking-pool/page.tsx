@@ -194,7 +194,7 @@ export default function StakingPoolPage() {
       setTxStatus("loading")
       setTxMessage(`Approving ${rewardAmount} ${tokenSymbol} tokens...`)
 
-      const tokenContract = await contractService.getCAFITokenContract(true)
+      const tokenContract = await contractService.getCAFITokenContract(undefined, true) // Corrected line
       const amountInWei = contractService.parseTokenAmount(rewardAmount)
 
       console.log(`Approving ${rewardAmount} tokens for staking contract: ${CONTRACT_ADDRESSES.STAKING}`)
@@ -279,7 +279,7 @@ export default function StakingPoolPage() {
       }
 
       // Add funds to reward pool
-      const stakingContract = await contractService.getStakingContract(true)
+      const stakingContract = await contractService.getStakingContract(undefined, true)
       const amountInWei = contractService.parseTokenAmount(rewardAmount)
 
       console.log(`Adding ${rewardAmount} tokens to reward pool`)
@@ -343,8 +343,7 @@ export default function StakingPoolPage() {
       setTxStatus("loading")
       setTxMessage(`Updating APY for period ${periodIndex + 1} to ${apy}%...`)
 
-      const stakingContract = await contractService.getStakingContract(true)
-
+      const stakingContract = await contractService.getStakingContract(undefined, true)
       // Convert APY percentage to basis points (e.g., 5% = 500)
       const apyInBasisPoints = Math.round(Number.parseFloat(apy) * 100)
       console.log(`Setting APY for period ${periodIndex} to ${apyInBasisPoints} basis points`)
@@ -383,7 +382,7 @@ export default function StakingPoolPage() {
       setTxStatus("loading")
       setTxMessage(`${stakingContractPaused ? "Unpausing" : "Pausing"} staking contract...`)
 
-      const stakingContract = await contractService.getStakingContract(true)
+      const stakingContract = await contractService.getStakingContract(undefined, true)
       const tx = await stakingContract.togglePause()
       setTxHash(tx.hash)
 
@@ -428,14 +427,14 @@ export default function StakingPoolPage() {
     <AdminGuard>
       <div className="container mx-auto max-w-6xl space-y-6 p-4 md:p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-50">Staking Pool Management</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Staking Pool Management</h1>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleRefreshData}
               disabled={isLoadingPoolData || isLoading}
-              className="flex items-center gap-1 bg-transparent"
+              className="flex items-center gap-1 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border-gray-700"
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
@@ -445,7 +444,7 @@ export default function StakingPoolPage() {
               size="sm"
               onClick={togglePause}
               disabled={isLoading}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white"
             >
               {stakingContractPaused ? "Unpause" : "Pause"} Contract
             </Button>
@@ -453,8 +452,8 @@ export default function StakingPoolPage() {
         </div>
 
         {stakingContractPaused && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+          <Alert variant="destructive" className="border-red-700 bg-red-900/20 text-red-300">
+            <AlertCircle className="h-4 w-4 text-red-400" />
             <AlertDescription>
               The staking contract is currently paused. Some functions may not be available.
             </AlertDescription>
@@ -466,22 +465,22 @@ export default function StakingPoolPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Add Reward Pool Funds */}
           <div className="lg:col-span-2">
-            <Card className="gradient-card card-hover border-blue-200 dark:border-blue-800">
+            <Card className="bg-gray-900 border border-gray-700">
               <CardHeader>
                 <div className="flex items-center space-x-3 mb-2">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                    <Coins className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <Coins className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <CardTitle className="text-slate-900 dark:text-slate-50">Add Reward Pool Funds</CardTitle>
+                  <CardTitle className="text-white">Add Reward Pool Funds</CardTitle>
                 </div>
-                <CardDescription className="text-slate-600 dark:text-slate-400">
+                <CardDescription className="text-gray-400">
                   Add {tokenSymbol} tokens to the staking reward pool
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="rewardAmount" className="text-slate-700 dark:text-slate-300">
+                    <Label htmlFor="rewardAmount" className="text-gray-300">
                       Amount to Add ({tokenSymbol})
                     </Label>
                     <Input
@@ -490,18 +489,14 @@ export default function StakingPoolPage() {
                       placeholder="0.0"
                       value={rewardAmount}
                       onChange={(e) => setRewardAmount(e.target.value)}
-                      className="border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400"
+                      className="bg-gray-800 text-white border-gray-700 focus:border-emerald-500"
                     />
                     {rewardAmount && (
-                      <div className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
+                      <div className="text-sm text-gray-400 space-y-1">
                         <p>
                           Current allowance: {Number.parseFloat(allowance).toFixed(4)} {tokenSymbol}
                         </p>
-                        {needsApproval && (
-                          <p className="text-orange-600 dark:text-orange-400">
-                            ⚠️ Approval required before adding funds
-                          </p>
-                        )}
+                        {needsApproval && <p className="text-orange-400">⚠️ Approval required before adding funds</p>}
                       </div>
                     )}
                   </div>
@@ -512,8 +507,7 @@ export default function StakingPoolPage() {
                   <Button
                     onClick={approveTokens}
                     disabled={!isConnected || isLoading}
-                    variant="outline"
-                    className="flex-1 bg-transparent"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     {isLoading ? "Approving..." : `Approve ${tokenSymbol}`}
                   </Button>
@@ -528,7 +522,7 @@ export default function StakingPoolPage() {
                     isLoading ||
                     stakingContractPaused
                   }
-                  className="flex-1 btn-blue"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   {isLoading ? "Processing..." : `Add ${tokenSymbol} to Pool`}
                 </Button>
@@ -538,42 +532,42 @@ export default function StakingPoolPage() {
 
           {/* Pool Information */}
           <div className="space-y-6">
-            <Card className="gradient-card card-hover border-blue-200 dark:border-blue-800">
+            <Card className="bg-gray-900 border border-gray-700">
               <CardHeader>
                 <div className="flex items-center space-x-3 mb-2">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                    <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <TrendingUp className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <CardTitle className="text-slate-900 dark:text-slate-50">Pool Information</CardTitle>
+                  <CardTitle className="text-white">Pool Information</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Reward Pool</div>
-                    <div className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
+                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <div className="text-sm font-medium text-gray-400 mb-1">Reward Pool</div>
+                    <div className="text-xl md:text-2xl font-bold text-white">
                       {isLoadingPoolData ? (
-                        <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                        <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-gray-700 rounded"></div>
                       ) : (
                         `${rewardPool} ${tokenSymbol}`
                       )}
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Total Staked</div>
-                    <div className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-50">
+                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <div className="text-sm font-medium text-gray-400 mb-1">Total Staked</div>
+                    <div className="text-xl md:text-2xl font-bold text-white">
                       {isLoadingPoolData ? (
-                        <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                        <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-gray-700 rounded"></div>
                       ) : (
                         `${totalStaked} ${tokenSymbol}`
                       )}
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Contract Status</div>
-                    <div className={`text-lg font-bold ${stakingContractPaused ? "text-red-600" : "text-green-600"}`}>
+                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <div className="text-sm font-medium text-gray-400 mb-1">Contract Status</div>
+                    <div className={`text-lg font-bold ${stakingContractPaused ? "text-red-400" : "text-emerald-400"}`}>
                       {stakingContractPaused ? "Paused" : "Active"}
                     </div>
                   </div>
@@ -581,24 +575,28 @@ export default function StakingPoolPage() {
               </CardContent>
             </Card>
 
-            <Card className="gradient-card border-slate-200 dark:border-slate-700">
+            <Card className="bg-gray-900 border border-gray-700">
               <CardHeader>
                 <div className="flex items-center space-x-3 mb-2">
-                  <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                    <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <Settings className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <CardTitle className="text-slate-900 dark:text-slate-50">Contract Info</CardTitle>
+                  <CardTitle className="text-white">Contract Info</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3 text-sm">
+                <div className="space-y-3 text-sm text-gray-300">
                   <div className="flex items-center justify-between">
                     <span>Staking Contract:</span>
-                    <span className="font-mono text-xs">{CONTRACT_ADDRESSES.STAKING.substring(0, 10)}...</span>
+                    <span className="font-mono text-xs text-gray-100">
+                      {CONTRACT_ADDRESSES.STAKING.substring(0, 10)}...
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Token Contract:</span>
-                    <span className="font-mono text-xs">{CONTRACT_ADDRESSES.CAFI_TOKEN.substring(0, 10)}...</span>
+                    <span className="font-mono text-xs text-gray-100">
+                      {CONTRACT_ADDRESSES.CAFI_TOKEN.substring(0, 10)}...
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -607,19 +605,19 @@ export default function StakingPoolPage() {
         </div>
 
         {/* APY Management */}
-        <Card className="gradient-card border-slate-200 dark:border-slate-700">
+        <Card className="bg-gray-900 border border-gray-700">
           <CardHeader>
-            <CardTitle className="text-slate-900 dark:text-slate-50">APY Management</CardTitle>
-            <CardDescription className="text-slate-600 dark:text-slate-400">
+            <CardTitle className="text-white">APY Management</CardTitle>
+            <CardDescription className="text-gray-400">
               Configure APY rates for different staking periods
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-6 md:grid-cols-3">
               {/* 30 Days APY */}
-              <Card className="border border-slate-200 dark:border-slate-700">
+              <Card className="bg-gray-800 border border-gray-700">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">30 Days Period</CardTitle>
+                  <CardTitle className="text-lg text-white">30 Days Period</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center space-x-2">
@@ -627,19 +625,18 @@ export default function StakingPoolPage() {
                       type="number"
                       value={apyValues[0]}
                       onChange={(e) => setApyValues([e.target.value, apyValues[1], apyValues[2]])}
-                      className="border-slate-200 dark:border-slate-700"
+                      className="bg-gray-700 text-white border-gray-600"
                       step="0.1"
                       min="0"
                     />
-                    <span className="text-lg font-bold">%</span>
+                    <span className="text-lg font-bold text-white">%</span>
                   </div>
                 </CardContent>
                 <CardFooter>
                   <Button
                     onClick={() => updateAPY(0)}
                     disabled={isLoading || stakingContractPaused}
-                    className="w-full"
-                    variant="outline"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
                     Update <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -647,9 +644,9 @@ export default function StakingPoolPage() {
               </Card>
 
               {/* 90 Days APY */}
-              <Card className="border border-slate-200 dark:border-slate-700">
+              <Card className="bg-gray-800 border border-gray-700">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">90 Days Period</CardTitle>
+                  <CardTitle className="text-lg text-white">90 Days Period</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center space-x-2">
@@ -657,19 +654,18 @@ export default function StakingPoolPage() {
                       type="number"
                       value={apyValues[1]}
                       onChange={(e) => setApyValues([apyValues[0], e.target.value, apyValues[2]])}
-                      className="border-slate-200 dark:border-slate-700"
+                      className="bg-gray-700 text-white border-gray-600"
                       step="0.1"
                       min="0"
                     />
-                    <span className="text-lg font-bold">%</span>
+                    <span className="text-lg font-bold text-white">%</span>
                   </div>
                 </CardContent>
                 <CardFooter>
                   <Button
                     onClick={() => updateAPY(1)}
                     disabled={isLoading || stakingContractPaused}
-                    className="w-full"
-                    variant="outline"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
                     Update <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -677,9 +673,9 @@ export default function StakingPoolPage() {
               </Card>
 
               {/* 180 Days APY */}
-              <Card className="border border-slate-200 dark:border-slate-700">
+              <Card className="bg-gray-800 border border-gray-700">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">180 Days Period</CardTitle>
+                  <CardTitle className="text-lg text-white">180 Days Period</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center space-x-2">
@@ -687,19 +683,18 @@ export default function StakingPoolPage() {
                       type="number"
                       value={apyValues[2]}
                       onChange={(e) => setApyValues([apyValues[0], apyValues[1], e.target.value])}
-                      className="border-slate-200 dark:border-slate-700"
+                      className="bg-gray-700 text-white border-gray-600"
                       step="0.1"
                       min="0"
                     />
-                    <span className="text-lg font-bold">%</span>
+                    <span className="text-lg font-bold text-white">%</span>
                   </div>
                 </CardContent>
                 <CardFooter>
                   <Button
                     onClick={() => updateAPY(2)}
                     disabled={isLoading || stakingContractPaused}
-                    className="w-full"
-                    variant="outline"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
                     Update <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -709,36 +704,9 @@ export default function StakingPoolPage() {
           </CardContent>
         </Card>
 
+        {/* Removed global styles as they are now inline or replaced */}
         <style jsx global>{`
-          .gradient-card {
-            background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8));
-          }
-          .dark .gradient-card {
-            background: linear-gradient(to bottom right, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.8));
-          }
-          .card-hover {
-            transition: all 0.3s ease;
-          }
-          .card-hover:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-          }
-          .dark .card-hover:hover {
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-          }
-          .btn-blue {
-            background-color: #3b82f6;
-            color: white;
-          }
-          .btn-blue:hover {
-            background-color: #2563eb;
-          }
-          .dark .btn-blue {
-            background-color: #2563eb;
-          }
-          .dark .btn-blue:hover {
-            background-color: #1d4ed8;
-          }
+          /* Removed .gradient-card, .card-hover, .btn-blue as styles are now inline or replaced */
         `}</style>
       </div>
     </AdminGuard>

@@ -21,8 +21,8 @@ export const NETWORKS = {
   HEDERA_TESTNET: {
     chainId: 296,
     name: "Hedera Testnet",
-    rpcUrl: "https://testnet.hashio.io/api",
-    blockExplorer: "https://hashscan.io/testnet",
+    rpcUrl: "https://testnet.hashio.io/api", // Updated RPC URL
+    blockExplorer: "https://hashscan.io/testnet", // Updated Block Explorer URL
   },
   BASE_SEPOLIA: {
     chainId: 84532,
