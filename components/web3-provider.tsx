@@ -319,6 +319,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     try {
       const walletInfo = detectWallet()
       if (walletInfo?.provider) {
+        console.log("[Web3Provider] Fetching network info...")
         const chainIdHex = await walletInfo.provider.request({ method: "eth_chainId" })
         const chainIdNum = Number.parseInt(chainIdHex, 16)
         setChainId(chainIdNum)
@@ -336,27 +337,30 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         const networkName = network?.name || `Chain ID: ${chainIdNum}`
         setNetworkName(networkName)
 
-        console.log(`Connected to ${networkName} (Chain ID: ${chainIdNum})`)
-        console.log(`Using contracts:`, networkContracts)
+        console.log(`[Web3Provider] Connected to ${networkName} (Chain ID: ${chainIdNum})`)
+        console.log(`[Web3Provider] Using contracts:`, networkContracts)
 
         if (!isSupported) {
-          console.warn(`Network ${networkName} is not officially supported`)
+          console.warn(`[Web3Provider] Network ${networkName} is not officially supported`)
         }
+      } else {
+        console.log("[Web3Provider] No wallet provider detected for network info.")
       }
     } catch (error) {
-      console.error("Error getting network info:", error)
+      console.error("[Web3Provider] Error getting network info:", error)
     }
   }
 
   // Check contracts existence with real addresses
   const checkContractsExistence = async () => {
     try {
-      console.log("Checking contract existence with current network addresses...")
+      console.log("[Web3Provider] Checking contract existence with current network addresses...")
 
       // Initialize contract service with the provider if not already done
       const walletInfo = detectWallet()
       if (walletInfo?.provider && !contractService.provider) {
         contractService.provider = new ethers.BrowserProvider(walletInfo.provider)
+        console.log("[Web3Provider] ContractService provider re-initialized for existence check.")
       }
 
       // Check contracts one by one with error handling
@@ -376,17 +380,18 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
 
       for (const { name, address, setter } of contractChecks) {
         try {
-          console.log(`Checking ${name} at:`, address)
+          console.log(`[Web3Provider] Checking ${name} at: ${address}`)
           const exists = await contractService.contractExists(address)
           setter(exists)
-          console.log(`${name} exists:`, exists)
+          console.log(`[Web3Provider] ${name} exists: ${exists}`)
         } catch (e) {
-          console.error(`Error checking ${name} contract:`, e)
+          console.error(`[Web3Provider] Error checking ${name} contract at ${address}:`, e)
           setter(false)
         }
       }
+      console.log("[Web3Provider] All contract existence checks completed.")
     } catch (error) {
-      console.error("Error in checkContractsExistence:", error)
+      console.error("[Web3Provider] Error in checkContractsExistence:", error)
     }
   }
 
@@ -421,12 +426,13 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
   const fetchBalances = async (address: string) => {
     try {
       setIsLoadingBalance(true)
-      console.log("🔄 Fetching ETH and CAFI balances for address:", address)
+      console.log("[Web3Provider] 🔄 Fetching ETH and CAFI balances for address:", address)
 
       // Initialize contract service with the provider if not already done
       const walletInfo = detectWallet()
       if (walletInfo?.provider && !contractService.provider) {
         contractService.provider = new ethers.BrowserProvider(walletInfo.provider)
+        console.log("[Web3Provider] ContractService provider re-initialized for balance fetch.")
       }
 
       // Prepare promises for parallel execution
@@ -481,14 +487,14 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         }
       })
 
-      console.log("✅ All balances fetched successfully")
+      console.log("[Web3Provider] ✅ All balances fetched successfully")
 
       // Fetch faucet data if connected
       if (isConnected && faucetContractExists && address) {
         await fetchFaucetData(address)
       }
     } catch (error) {
-      console.error("❌ Error in fetchBalances:", error)
+      console.error("[Web3Provider] ❌ Error in fetchBalances:", error)
       setBalance("0")
       setEthBalance("0")
     } finally {
@@ -556,6 +562,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
   const handleAccountsChanged = async (accounts: string[]) => {
     if (accounts.length === 0) {
       // User disconnected
+      console.log("[Web3Provider] 🔌 Wallet disconnected via accountsChanged event.")
       setAccount(null)
       setIsConnected(false)
       setBalance("0")
@@ -580,7 +587,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     } else {
       // User connected or switched accounts
       const newAccount = accounts[0]
-      console.log("🔗 Wallet connecting/reconnecting:", newAccount)
+      console.log(`[Web3Provider] 🔗 Wallet accounts changed/reconnecting: ${newAccount}`)
 
       // Check if admin FIRST before setting other states
       const ADMIN_WALLET_ADDRESS = "0x732eBd7B8c50A8e31EAb04aF774F4160C8c22Dd6"
@@ -603,12 +610,11 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       }
 
       // Re-check all contracts and balances on reconnection
-      console.log("🔄 Re-checking contracts and balances...")
+      console.log("[Web3Provider] 🔄 Re-checking contracts and balances after account change...")
       await checkContractsExistence()
-      await fetchTokenInfo()
+      await fetchTokenInfo() // Ensure token info is fetched after contract existence
       await fetchBalances(newAccount)
-
-      console.log("✅ Reconnection complete - Admin Status:", isSpecificAdmin)
+      console.log("[Web3Provider] ✅ Reconnection complete - Admin Status:", isSpecificAdmin)
     }
   }
 
@@ -631,7 +637,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     setError(null)
 
     try {
-      console.log(`Connecting to ${walletInfo.type} wallet...`)
+      console.log(`[Web3Provider] Attempting to connect to ${walletInfo.type} wallet...`)
 
       const browserProvider = new ethers.BrowserProvider(walletInfo.provider)
       const accounts = await browserProvider.send("eth_requestAccounts", [])
@@ -643,9 +649,9 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       const ADMIN_WALLET_ADDRESS = "0x732eBd7B8c50A8e31EAb04aF774F4160C8c22Dd6"
       const isSpecificAdmin = connectedAccount.toLowerCase() === ADMIN_WALLET_ADDRESS.toLowerCase()
 
-      console.log("🔗 Connect Function - Admin Check:")
-      console.log("- Connected Account:", connectedAccount)
-      console.log("- Is Admin:", isSpecificAdmin)
+      console.log("[Web3Provider] 🔗 Connect Function - Admin Check:")
+      console.log(`[Web3Provider] - Connected Account: ${connectedAccount}`)
+      console.log(`[Web3Provider] - Is Admin: ${isSpecificAdmin}`)
 
       setProvider(browserProvider)
       setAccount(connectedAccount)
@@ -659,17 +665,21 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
 
       // Initialize contract service with the provider
       contractService.provider = browserProvider
+      console.log("[Web3Provider] Contract service provider initialized.")
 
       // Fetch balances and contract data
+      console.log("[Web3Provider] Fetching contract existence and balances...")
       await checkContractsExistence()
+      await fetchTokenInfo() // Ensure token info is fetched after contract existence
       await fetchBalances(connectedAccount)
+      console.log("[Web3Provider] Contract existence and balances fetched.")
 
       toast({
         title: "Wallet Connected",
         description: `Successfully connected ${walletInfo.type} wallet: ${connectedAccount.substring(0, 6)}...${connectedAccount.substring(38)}`,
       })
     } catch (error: any) {
-      console.error("Error connecting wallet:", error)
+      console.error("[Web3Provider] Failed to connect wallet:", error)
 
       let errorMessage = "Failed to connect wallet"
       if (error.code === 4001) {
@@ -801,24 +811,26 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
 
         if (walletInfo && !isPreview) {
           try {
-            // Initialize contract service with the detected provider
+            console.log(`[Web3Provider] Detected wallet: ${walletInfo.type}. Setting up provider...`)
             const browserProvider = new ethers.BrowserProvider(walletInfo.provider)
             contractService.provider = browserProvider
             setWalletType(walletInfo.type)
 
-            console.log(`Detected wallet: ${walletInfo.type}`)
-
             // Check if user has previously connected
             const shouldAutoConnect = localStorage.getItem("carbonfi-auto-connect") === "true"
+            console.log(`[Web3Provider] Auto-connect preference: ${shouldAutoConnect}`)
 
             // Check if already connected
             try {
               const accounts = await walletInfo.provider.request({ method: "eth_accounts" })
               if (accounts && accounts.length > 0) {
+                console.log(`[Web3Provider] Existing accounts found: ${accounts[0]}. Handling account change...`)
                 await handleAccountsChanged(accounts)
+              } else {
+                console.log("[Web3Provider] No existing accounts found.")
               }
             } catch (accountError) {
-              console.warn("Error checking existing accounts:", accountError)
+              console.warn("[Web3Provider] Error checking existing accounts:", accountError)
             }
 
             // Get network info
@@ -827,26 +839,31 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
             // Auto connect if enabled
             if (autoConnect && shouldAutoConnect && !hasAttemptedAutoConnect) {
               setHasAttemptedAutoConnect(true)
+              console.log("[Web3Provider] Attempting auto-connect in 1 second...")
               setTimeout(() => connect(), 1000) // Delay to ensure everything is initialized
             }
 
             // Setup event listeners with error handling
             try {
+              console.log("[Web3Provider] Setting up wallet event listeners...")
               walletInfo.provider.on("accountsChanged", handleAccountsChanged)
               walletInfo.provider.on("chainChanged", handleChainChanged)
               walletInfo.provider.on("disconnect", handleDisconnect)
+              console.log("[Web3Provider] Wallet event listeners set up.")
             } catch (listenerError) {
-              console.warn("Error setting up event listeners:", listenerError)
+              console.warn("[Web3Provider] Error setting up event listeners:", listenerError)
             }
           } catch (error) {
-            console.error("Error setting up Web3:", error)
+            console.error("[Web3Provider] Error during wallet setup:", error)
           }
         } else {
-          console.log("No wallet detected or running in preview mode")
+          console.log("[Web3Provider] No wallet detected or running in preview mode. Setting up fallback provider.")
 
           // Set up a fallback provider for read-only operations
           try {
             const fallbackRPCs = [
+              process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545", // Use env var
+              process.env.NEXT_PUBLIC_HEDERA_TESTNET_RPC_URL || "https://testnet.hashio.io/api", // Use env var
               "https://eth-sepolia.public.blastapi.io",
               "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
               "https://rpc.sepolia.org",
@@ -857,19 +874,19 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
                 const fallbackProvider = new ethers.JsonRpcProvider(rpc)
                 await fallbackProvider.getNetwork() // Test connection
                 contractService.provider = fallbackProvider
-                console.log(`Set up fallback provider: ${rpc}`)
+                console.log(`[Web3Provider] Set up fallback provider: ${rpc}`)
                 break
               } catch (rpcError) {
-                console.warn(`Failed to connect to ${rpc}:`, rpcError)
+                console.warn(`[Web3Provider] Failed to connect to ${rpc}:`, rpcError)
                 continue
               }
             }
           } catch (fallbackError) {
-            console.error("Could not set up any fallback provider:", fallbackError)
+            console.error("[Web3Provider] Could not set up any fallback provider:", fallbackError)
           }
         }
       } catch (setupError) {
-        console.error("Critical error in setupWeb3:", setupError)
+        console.error("[Web3Provider] Critical error in setupWeb3:", setupError)
       }
     }
 
@@ -880,15 +897,17 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       const walletInfo = detectWallet()
       if (walletInfo?.provider) {
         try {
+          console.log("[Web3Provider] Cleaning up wallet event listeners...")
           walletInfo.provider.removeListener("accountsChanged", handleAccountsChanged)
           walletInfo.provider.removeListener("chainChanged", handleChainChanged)
           walletInfo.provider.removeListener("disconnect", handleDisconnect)
+          console.log("[Web3Provider] Wallet event listeners cleaned up.")
         } catch (cleanupError) {
-          console.warn("Error during cleanup:", cleanupError)
+          console.warn("[Web3Provider] Error during cleanup:", cleanupError)
         }
       }
     }
-  }, [isClient, autoConnect, hasAttemptedAutoConnect, detectWallet, isPreviewEnvironment])
+  }, [isClient, autoConnect, hasAttemptedAutoConnect, isPreviewEnvironment])
 
   // NFT Contract Methods - Real implementations
   const getMintFee = async (): Promise<string> => {

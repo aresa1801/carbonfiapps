@@ -168,7 +168,7 @@ export default function NFTSettingsPage() {
       setTxStatus("loading")
       setTxMessage(`Updating mint fee to ${newMintFee} ${tokenSymbol}...`)
 
-      const nftContract = await contractService.getNftContract(true)
+      const nftContract = await contractService.getNftContract(CONTRACT_ADDRESSES.NFT, true)
       const feeInWei = contractService.parseTokenAmount(newMintFee)
 
       const tx = await nftContract.setMintFeePerTon(feeInWei)
@@ -220,7 +220,7 @@ export default function NFTSettingsPage() {
       setTxStatus("loading")
       setTxMessage(`${autoApproveEnabled ? "Disabling" : "Enabling"} auto-approve...`)
 
-      const nftContract = await contractService.getNftContract(true)
+      const nftContract = await contractService.getNftContract(CONTRACT_ADDRESSES.NFT, true)
       const tx = await nftContract.toggleAutoApprove()
       setTxHash(tx.hash)
 
@@ -276,7 +276,7 @@ export default function NFTSettingsPage() {
       setTxStatus("loading")
       setTxMessage(`Adding verifier ${newVerifier.name}...`)
 
-      const nftContract = await contractService.getNftContract(true)
+      const nftContract = await contractService.getNftContract(CONTRACT_ADDRESSES.NFT, true)
 
       // Find next available index
       let nextIndex = verifiers.length
@@ -346,7 +346,7 @@ export default function NFTSettingsPage() {
       setTxStatus("loading")
       setTxMessage(`Updating verifier at index ${index}...`)
 
-      const nftContract = await contractService.getNftContract(true)
+      const nftContract = await contractService.getNftContract(CONTRACT_ADDRESSES.NFT, true)
       const tx = await nftContract.setVerifier(index, name, wallet)
       setTxHash(tx.hash)
 
@@ -384,7 +384,7 @@ export default function NFTSettingsPage() {
       setTxStatus("loading")
       setTxMessage(`${contractPaused ? "Unpausing" : "Pausing"} NFT contract...`)
 
-      const nftContract = await contractService.getNftContract(true)
+      const nftContract = await contractService.getNftContract(CONTRACT_ADDRESSES.NFT, true)
       const tx = await nftContract.togglePause()
       setTxHash(tx.hash)
 
@@ -428,14 +428,14 @@ export default function NFTSettingsPage() {
     <AdminGuard>
       <div className="container mx-auto max-w-6xl space-y-6 p-4 md:p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-50">NFT Settings</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">NFT Settings</h1>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleRefreshData}
               disabled={isLoadingData || isLoading}
-              className="flex items-center gap-1 bg-transparent"
+              className="flex items-center gap-1 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border-gray-700"
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
@@ -445,7 +445,7 @@ export default function NFTSettingsPage() {
               size="sm"
               onClick={togglePause}
               disabled={isLoading}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white"
             >
               {contractPaused ? "Unpause" : "Pause"} Contract
             </Button>
@@ -453,8 +453,8 @@ export default function NFTSettingsPage() {
         </div>
 
         {contractPaused && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+          <Alert variant="destructive" className="border-red-700 bg-red-900/20 text-red-300">
+            <AlertCircle className="h-4 w-4 text-red-400" />
             <AlertDescription>
               The NFT contract is currently paused. Some functions may not be available.
             </AlertDescription>
@@ -467,22 +467,22 @@ export default function NFTSettingsPage() {
           {/* Contract Settings */}
           <div className="lg:col-span-2 space-y-6">
             {/* Mint Fee Settings */}
-            <Card className="gradient-card card-hover border-purple-200 dark:border-purple-800">
+            <Card className="bg-gray-900 border border-gray-700">
               <CardHeader>
                 <div className="flex items-center space-x-3 mb-2">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                    <ImageIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <ImageIcon className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <CardTitle className="text-slate-900 dark:text-slate-50">Mint Fee Settings</CardTitle>
+                  <CardTitle className="text-white">Mint Fee Settings</CardTitle>
                 </div>
-                <CardDescription className="text-slate-600 dark:text-slate-400">
+                <CardDescription className="text-gray-400">
                   Configure the fee required to mint carbon NFTs
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="rewardAmount" className="text-slate-700 dark:text-slate-300">
+                    <Label htmlFor="rewardAmount" className="text-gray-300">
                       Amount to Add ({tokenSymbol})
                     </Label>
                     <Input
@@ -490,7 +490,8 @@ export default function NFTSettingsPage() {
                       type="number"
                       placeholder="0.0"
                       value={newMintFee}
-                      className="border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400"
+                      onChange={(e) => setNewMintFee(e.target.value)}
+                      className="bg-gray-800 text-white border-gray-700 focus:border-emerald-500"
                     />
                   </div>
                 </div>
@@ -499,8 +500,7 @@ export default function NFTSettingsPage() {
                 <Button
                   onClick={updateMintFee}
                   disabled={!isConnected || isLoading}
-                  variant="outline"
-                  className="flex-1 bg-transparent"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   Update Mint Fee
                 </Button>
@@ -508,24 +508,27 @@ export default function NFTSettingsPage() {
             </Card>
 
             {/* Auto Approve Settings */}
-            <Card className="gradient-card card-hover border-purple-200 dark:border-purple-800">
+            <Card className="bg-gray-900 border border-gray-700">
               <CardHeader>
-                <CardTitle className="text-slate-900 dark:text-slate-50">Auto Approve Settings</CardTitle>
-                <CardDescription className="text-slate-600 dark:text-slate-400">
+                <CardTitle className="text-white">Auto Approve Settings</CardTitle>
+                <CardDescription className="text-gray-400">
                   Configure automatic approval for new NFT projects
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label className="text-slate-700 dark:text-slate-300">Auto Approve New Projects</Label>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                    <Label className="text-gray-300">Auto Approve New Projects</Label>
+                    <p className="text-sm text-gray-400">
                       When enabled, new projects will be automatically approved without verifier review
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Switch checked={autoApproveEnabled} onCheckedChange={toggleAutoApprove} disabled={isLoading} />
-                    <Badge variant={autoApproveEnabled ? "default" : "secondary"}>
+                    <Badge
+                      variant={autoApproveEnabled ? "default" : "secondary"}
+                      className="bg-emerald-900/50 text-emerald-400 border-emerald-700/50"
+                    >
                       {autoApproveEnabled ? "Enabled" : "Disabled"}
                     </Badge>
                   </div>
@@ -534,44 +537,52 @@ export default function NFTSettingsPage() {
             </Card>
 
             {/* Add New Verifier */}
-            <Card className="gradient-card card-hover border-purple-200 dark:border-purple-800">
+            <Card className="bg-gray-900 border border-gray-700">
               <CardHeader>
                 <div className="flex items-center space-x-3 mb-2">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                    <Plus className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <Plus className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <CardTitle className="text-slate-900 dark:text-slate-50">Add New Verifier</CardTitle>
+                  <CardTitle className="text-white">Add New Verifier</CardTitle>
                 </div>
-                <CardDescription className="text-slate-600 dark:text-slate-400">
+                <CardDescription className="text-gray-400">
                   Add a new verifier to approve carbon NFT projects
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label htmlFor="verifierName" className="text-slate-700 dark:text-slate-300">
+                    <Label htmlFor="verifierName" className="text-gray-300">
                       Verifier Name
                     </Label>
                     <Input
                       id="verifierName"
                       placeholder="Enter name"
-                      className="border-slate-200 dark:border-slate-700 focus:border-green-500 dark:focus:border-green-400"
+                      value={newVerifier.name}
+                      onChange={(e) => setNewVerifier({ ...newVerifier, name: e.target.value })}
+                      className="bg-gray-800 text-white border-gray-700 focus:border-emerald-500"
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="verifierWallet" className="text-slate-700 dark:text-slate-300">
+                    <Label htmlFor="verifierWallet" className="text-gray-300">
                       Wallet Address
                     </Label>
                     <Input
                       id="verifierWallet"
                       placeholder="0x..."
-                      className="border-slate-200 dark:border-slate-700 focus:border-green-500 dark:focus:border-green-400"
+                      value={newVerifier.wallet}
+                      onChange={(e) => setNewVerifier({ ...newVerifier, wallet: e.target.value })}
+                      className="bg-gray-800 text-white border-gray-700 focus:border-emerald-500"
                     />
                   </div>
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={() => {}} disabled={!isConnected} className="w-full btn-purple">
+                <Button
+                  onClick={addVerifier}
+                  disabled={!isConnected || isLoading}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
                   Add Verifier
                 </Button>
               </CardFooter>
@@ -580,24 +591,24 @@ export default function NFTSettingsPage() {
 
           {/* Contract Information */}
           <div className="space-y-6">
-            <Card className="gradient-card card-hover border-purple-200 dark:border-purple-800">
+            <Card className="bg-gray-900 border border-gray-700">
               <CardHeader>
                 <div className="flex items-center space-x-3 mb-2">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                    <Settings className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <Settings className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <CardTitle className="text-slate-900 dark:text-slate-50">Contract Info</CardTitle>
+                  <CardTitle className="text-white">Contract Info</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3 text-sm">
+                <div className="space-y-3 text-sm text-gray-300">
                   <div className="flex items-center justify-between">
                     <span>Staking Contract:</span>
-                    <span className="font-mono text-xs">0x...{account?.substring(38)}</span>
+                    <span className="font-mono text-xs text-gray-100">0x...{account?.substring(38)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Token Contract:</span>
-                    <span className="font-mono text-xs">0x...{account?.substring(38)}</span>
+                    <span className="font-mono text-xs text-gray-100">0x...{account?.substring(38)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -605,36 +616,9 @@ export default function NFTSettingsPage() {
           </div>
         </div>
 
+        {/* Removed global styles as they are now inline or replaced */}
         <style jsx global>{`
-          .gradient-card {
-            background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8));
-          }
-          .dark .gradient-card {
-            background: linear-gradient(to bottom right, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.8));
-          }
-          .card-hover {
-            transition: all 0.3s ease;
-          }
-          .card-hover:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-          }
-          .dark .card-hover:hover {
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-          }
-          .btn-purple {
-            background-color: #8b5cf6;
-            color: white;
-          }
-          .btn-purple:hover {
-            background-color: #7c3aed;
-          }
-          .dark .btn-purple {
-            background-color: #7c3aed;
-          }
-          .dark .btn-purple:hover {
-            background-color: #6d28d9;
-          }
+          /* Removed .gradient-card, .card-hover, .btn-purple as styles are now inline or replaced */
         `}</style>
       </div>
     </AdminGuard>

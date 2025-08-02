@@ -141,6 +141,9 @@ export default function UserDashboardPage() {
         errorMessage = `Insufficient ${nativeCurrencyName} balance for gas fees`
       } else if (error.message?.includes("user rejected")) {
         errorMessage = "Transaction was rejected by user"
+      } else if (error.reason?.includes("Minimum 0.001 ETH balance required to claim")) {
+        // Specific handling for the contract revert message
+        errorMessage = `Minimum 0.001 ${nativeCurrencyName} balance required to claim. Please ensure your wallet has enough ${nativeCurrencyName} for gas.`
       }
 
       setTxMessage(errorMessage)

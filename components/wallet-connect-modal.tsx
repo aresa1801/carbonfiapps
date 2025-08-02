@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Download, ExternalLink } from "lucide-react"
-import { isIOS, isAndroid } from "@/lib/wallet-utils"
+import { isIOS, isAndroid, isMetaMaskInstalled } from "@/lib/wallet-utils"
 import { useWeb3 } from "@/components/web3-provider"
 
 interface WalletConnectModalProps {
@@ -37,7 +37,7 @@ export function WalletConnectModal({ isOpen, onClose }: WalletConnectModalProps)
               MetaMask
             </Button>
 
-            {!window.ethereum && (
+            {!isMetaMaskInstalled() && (
               <div className="mt-4">
                 <p className="text-sm font-medium mb-2">No wallet detected</p>
                 <div className="flex flex-col gap-2">
@@ -45,7 +45,7 @@ export function WalletConnectModal({ isOpen, onClose }: WalletConnectModalProps)
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex items-center justify-start"
+                      className="flex items-center justify-start bg-transparent"
                       onClick={() =>
                         window.open("https://apps.apple.com/us/app/metamask-blockchain-wallet/id1438144202", "_blank")
                       }
@@ -58,7 +58,7 @@ export function WalletConnectModal({ isOpen, onClose }: WalletConnectModalProps)
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex items-center justify-start"
+                      className="flex items-center justify-start bg-transparent"
                       onClick={() => window.open("https://play.google.com/store/apps/details?id=io.metamask", "_blank")}
                     >
                       <Download className="mr-2 h-4 w-4" />
@@ -68,7 +68,7 @@ export function WalletConnectModal({ isOpen, onClose }: WalletConnectModalProps)
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex items-center justify-start"
+                    className="flex items-center justify-start bg-transparent"
                     onClick={() => window.open("https://metamask.io/download/", "_blank")}
                   >
                     <ExternalLink className="mr-2 h-4 w-4" />

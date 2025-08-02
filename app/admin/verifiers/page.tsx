@@ -151,7 +151,7 @@ export default function VerifiersPage() {
       const nextIndex = verifiers.length > 0 ? Math.max(...verifiers.map((v) => v.id)) + 1 : 0
 
       // Add verifier
-      const nftContract = await contractService.getNftContract(true)
+      const nftContract = await contractService.getNftContract(NFT_CONTRACT_ADDRESS, true)
       console.log(`Adding verifier ${verifierName} with wallet ${verifierWallet} at index ${nextIndex}`)
       const tx = await nftContract.setVerifier(nextIndex, verifierName, verifierWallet)
       setTxHash(tx.hash)
@@ -193,7 +193,7 @@ export default function VerifiersPage() {
       setTxMessage(`${currentStatus ? "Deactivating" : "Activating"} verifier...`)
 
       // Toggle verifier status
-      const nftContract = await contractService.getNftContract(true)
+      const nftContract = await contractService.getNftContract(NFT_CONTRACT_ADDRESS, true)
       console.log(`Toggling verifier status for ID ${id} from ${currentStatus} to ${!currentStatus}`)
       const tx = await nftContract.toggleVerifierStatus(id)
       setTxHash(tx.hash)
@@ -237,13 +237,13 @@ export default function VerifiersPage() {
     <AdminGuard>
       <div className="container mx-auto max-w-6xl space-y-6 p-4 md:p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-50">Verifier Management</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Verifier Management</h1>
           <Button
             variant="outline"
             size="sm"
             onClick={handleRefreshData}
             disabled={isLoadingVerifiers || isLoading}
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border-gray-700"
           >
             <RefreshCw className="h-4 w-4" />
             Refresh
@@ -255,22 +255,20 @@ export default function VerifiersPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Add Verifier */}
           <div className="lg:col-span-1">
-            <Card className="gradient-card card-hover border-green-200 dark:border-green-800">
+            <Card className="bg-gray-900 border border-gray-700">
               <CardHeader>
                 <div className="flex items-center space-x-3 mb-2">
-                  <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                    <UserPlus className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <UserPlus className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <CardTitle className="text-slate-900 dark:text-slate-50">Add Verifier</CardTitle>
+                  <CardTitle className="text-white">Add Verifier</CardTitle>
                 </div>
-                <CardDescription className="text-slate-600 dark:text-slate-400">
-                  Add a new verifier to approve NFT minting
-                </CardDescription>
+                <CardDescription className="text-gray-400">Add a new verifier to approve NFT minting</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="verifierName" className="text-slate-700 dark:text-slate-300">
+                    <Label htmlFor="verifierName" className="text-gray-300">
                       Verifier Name
                     </Label>
                     <Input
@@ -278,11 +276,11 @@ export default function VerifiersPage() {
                       placeholder="Enter name"
                       value={verifierName}
                       onChange={(e) => setVerifierName(e.target.value)}
-                      className="border-slate-200 dark:border-slate-700 focus:border-green-500 dark:focus:border-green-400"
+                      className="bg-gray-800 text-white border-gray-700 focus:border-emerald-500"
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="verifierWallet" className="text-slate-700 dark:text-slate-300">
+                    <Label htmlFor="verifierWallet" className="text-gray-300">
                       Wallet Address
                     </Label>
                     <Input
@@ -290,7 +288,7 @@ export default function VerifiersPage() {
                       placeholder="0x..."
                       value={verifierWallet}
                       onChange={(e) => setVerifierWallet(e.target.value)}
-                      className="border-slate-200 dark:border-slate-700 focus:border-green-500 dark:focus:border-green-400"
+                      className="bg-gray-800 text-white border-gray-700 focus:border-emerald-500"
                     />
                   </div>
                 </div>
@@ -299,7 +297,7 @@ export default function VerifiersPage() {
                 <Button
                   onClick={addVerifier}
                   disabled={!isConnected || !verifierName || !verifierWallet || isLoading}
-                  className="w-full btn-green"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   {isLoading ? "Processing..." : "Add Verifier"}
                 </Button>
@@ -309,17 +307,15 @@ export default function VerifiersPage() {
 
           {/* Verifiers List */}
           <div className="lg:col-span-2">
-            <Card className="gradient-card border-slate-200 dark:border-slate-700">
+            <Card className="bg-gray-900 border border-gray-700">
               <CardHeader>
                 <div className="flex items-center space-x-3 mb-2">
-                  <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                    <Users className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                  <div className="p-2 bg-emerald-900/20 rounded-lg">
+                    <Users className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <CardTitle className="text-slate-900 dark:text-slate-50">Verifiers</CardTitle>
+                  <CardTitle className="text-white">Verifiers</CardTitle>
                 </div>
-                <CardDescription className="text-slate-600 dark:text-slate-400">
-                  Manage existing verifiers
-                </CardDescription>
+                <CardDescription className="text-gray-400">Manage existing verifiers</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoadingVerifiers ? (
@@ -327,41 +323,41 @@ export default function VerifiersPage() {
                     {[1, 2, 3].map((i) => (
                       <div
                         key={i}
-                        className="animate-pulse flex items-center justify-between p-4 rounded-lg border border-slate-200 dark:border-slate-700"
+                        className="animate-pulse flex items-center justify-between p-4 rounded-lg border border-gray-700 bg-gray-800"
                       >
                         <div className="space-y-2">
-                          <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div>
-                          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-40"></div>
+                          <div className="h-4 bg-gray-700 rounded w-24"></div>
+                          <div className="h-3 bg-gray-700 rounded w-40"></div>
                         </div>
-                        <div className="h-8 w-20 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                        <div className="h-8 w-20 bg-gray-700 rounded"></div>
                       </div>
                     ))}
                   </div>
                 ) : verifiers.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-slate-600 dark:text-slate-400">No verifiers found</p>
+                    <p className="text-gray-400">No verifiers found</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {verifiers.map((verifier) => (
                       <div
                         key={verifier.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-gray-700 bg-gray-800"
                       >
                         <div className="space-y-1 mb-3 sm:mb-0">
                           <div className="flex items-center space-x-2">
-                            <h3 className="font-medium text-slate-900 dark:text-slate-50">{verifier.name}</h3>
+                            <h3 className="font-medium text-white">{verifier.name}</h3>
                             {verifier.isActive ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-900/50 text-emerald-400">
                                 Active
                               </span>
                             ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/50 text-red-400">
                                 Inactive
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-slate-600 dark:text-slate-400 font-mono">
+                          <p className="text-sm text-gray-400 font-mono">
                             {verifier.wallet.substring(0, 6)}...{verifier.wallet.substring(38)}
                           </p>
                         </div>
@@ -370,7 +366,7 @@ export default function VerifiersPage() {
                           size="sm"
                           onClick={() => toggleVerifierStatus(verifier.id, verifier.isActive)}
                           disabled={isLoading}
-                          className="w-full sm:w-auto"
+                          className={`w-full sm:w-auto ${verifier.isActive ? "bg-red-600 hover:bg-red-700 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}
                         >
                           {verifier.isActive ? (
                             <>
@@ -392,10 +388,10 @@ export default function VerifiersPage() {
         </div>
 
         {/* Verifier Approval Status */}
-        <Card className="gradient-card border-slate-200 dark:border-slate-700">
+        <Card className="bg-gray-900 border border-gray-700">
           <CardHeader>
-            <CardTitle className="text-slate-900 dark:text-slate-50">Verifier Approval Status</CardTitle>
-            <CardDescription className="text-slate-600 dark:text-slate-400">
+            <CardTitle className="text-white">Verifier Approval Status</CardTitle>
+            <CardDescription className="text-gray-400">
               Current status of auto-approval and verifier settings
             </CardDescription>
           </CardHeader>
@@ -404,36 +400,9 @@ export default function VerifiersPage() {
           </CardContent>
         </Card>
 
+        {/* Removed global styles as they are now inline or replaced */}
         <style jsx global>{`
-          .gradient-card {
-            background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8));
-          }
-          .dark .gradient-card {
-            background: linear-gradient(to bottom right, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.8));
-          }
-          .card-hover {
-            transition: all 0.3s ease;
-          }
-          .card-hover:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-          }
-          .dark .card-hover:hover {
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-          }
-          .btn-green {
-            background-color: #10b981;
-            color: white;
-          }
-          .btn-green:hover {
-            background-color: #059669;
-          }
-          .dark .btn-green {
-            background-color: #059669;
-          }
-          .dark .btn-green:hover {
-            background-color: #047857;
-          }
+          /* Removed .gradient-card, .card-hover, .btn-green as styles are now inline or replaced */
         `}</style>
       </div>
     </AdminGuard>
