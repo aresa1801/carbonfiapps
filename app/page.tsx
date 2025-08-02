@@ -75,8 +75,15 @@ export default function HomePage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="h-12 w-12 relative">
-                <Image src="/images/carbonfi-logo.png" alt="CarbonFi Logo" fill className="object-contain" />
+              <div className="h-[72px] w-[72px] relative">
+                <Image
+                  src="/images/carbonfi-logo.png"
+                  alt="CarbonFi Logo"
+                  fill
+                  className="object-contain"
+                  width={72}
+                  height={72}
+                />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">CarbonFi</h1>

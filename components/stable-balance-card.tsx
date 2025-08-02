@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Coins, Droplets } from "lucide-react"
+import { useWeb3 } from "@/components/web3-provider" // Import useWeb3
 
 interface StableBalanceCardProps {
   title?: string
@@ -21,9 +22,19 @@ export function StableBalanceCard({
   type,
   isRefreshing = false,
 }: StableBalanceCardProps) {
+  const { chainId } = useWeb3() // Get chainId from context
+
+  const getNativeTokenSymbol = (id: number | null) => {
+    if (id === 97) return "BNB" // BSC Testnet
+    if (id === 296) return "HBAR" // Hedera Testnet
+    return "ETH" // Default
+  }
+
+  const nativeTokenSymbol = getNativeTokenSymbol(chainId)
+
   const icon =
     type === "eth" ? <Droplets className="h-5 w-5 text-blue-500" /> : <Coins className="h-5 w-5 text-emerald-500" />
-  const defaultTitle = type === "eth" ? "Native Token Balance" : "CAFI Token Balance"
+  const defaultTitle = type === "eth" ? `${nativeTokenSymbol} Balance` : "CAFI Token Balance" // Use nativeTokenSymbol here
 
   return (
     <Card className="bg-gray-900 border-gray-800">
