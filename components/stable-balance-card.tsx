@@ -1,63 +1,62 @@
-"use client" // Added 'use client' directive
+"use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useWeb3 } from "@/components/web3-provider"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Coins, Droplets } from "lucide-react"
-import { useWeb3 } from "@/components/web3-provider" // Import useWeb3
 
 interface StableBalanceCardProps {
-  title?: string
-  balance: string
+  title: string
+  balance: string | number
   symbol: string
-  isLoading: boolean
-  subtitle?: string
-  type: "eth" | "cafi" // This type is used to determine default title and icon
-  isRefreshing?: boolean
+  isLoading?: boolean
 }
 
-export function StableBalanceCard({
-  title,
-  balance,
-  symbol,
-  isLoading,
-  subtitle,
-  type,
-  isRefreshing = false,
-}: StableBalanceCardProps) {
-  const { chainId } = useWeb3() // Get chainId from context
-
-  const getNativeTokenSymbol = (id: number | null) => {
-    if (id === 97) return "BNB" // BSC Testnet Chain ID
-    if (id === 296) return "HBAR" // Hedera Testnet Chain ID
-    return "ETH" // Default for other networks
+// Helper function to get native token symbol based on chainId
+const getNativeTokenSymbol = (chainId: number | null) => {
+  if (chainId === 97) {
+    // BSC Testnet
+    return "BNB"
+  } else if (chainId === 296) {
+    // Hedera Testnet
+    return "HBAR"
   }
+  return "ETH" // Default for other networks
+}
 
+export function StableBalanceCard({ title, balance, symbol, isLoading }: StableBalanceCardProps) {
+  const { chainId, isLoadingBalance } = useWeb3()
+
+  const displayBalance = typeof balance === "number" ? balance.toFixed(4) : balance
   const nativeTokenSymbol = getNativeTokenSymbol(chainId)
 
-  const icon =
-    type === "eth" ? <Droplets className="h-5 w-5 text-blue-500" /> : <Coins className="h-5 w-5 text-emerald-500" />
-  const defaultTitle = type === "eth" ? `${nativeTokenSymbol} Balance` : "CAFI Token Balance" // Use nativeTokenSymbol here
-
   return (
-    <Card className="bg-gray-900 border-gray-800">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-gray-300">{title || defaultTitle}</CardTitle>
-        {icon}
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          className="h-4 w-4 text-muted-foreground"
+        >
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
       </CardHeader>
       <CardContent>
-        {isLoading || isRefreshing ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-          </div>
+        {isLoading || isLoadingBalance ? (
+          <Skeleton className="h-8 w-24" />
         ) : (
-          <>
-            <div className="text-2xl font-bold text-white">
-              {balance} {symbol}
-            </div>
-            {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
-          </>
+          <div className="text-2xl font-bold">
+            {displayBalance} {symbol}
+          </div>
         )}
+        <p className="text-xs text-muted-foreground">
+          {isLoadingBalance ? <Skeleton className="h-4 w-20 mt-1" /> : `Native Token: ${nativeTokenSymbol}`}
+        </p>
       </CardContent>
     </Card>
   )

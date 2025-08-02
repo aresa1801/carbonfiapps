@@ -1,52 +1,68 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { Wallet, Coins } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useWeb3 } from "@/components/web3-provider"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useWeb3 } from "@/components/web3-provider" // Import useWeb3
 
 interface BalanceCardProps {
-  type: "eth" | "cafi"
-  balance: string
-  isLoading: boolean
+  title: string
+  balance: string | number
   symbol: string
-  subtitle: string
+  isLoading?: boolean
 }
 
-export function BalanceCard({ type, balance, isLoading, symbol, subtitle }: BalanceCardProps) {
-  const { chainId } = useWeb3() // Get chainId from context
-
-  const getNativeTokenSymbol = (id: number | null) => {
-    if (id === 97) return "BNB" // BSC Testnet Chain ID
-    if (id === 296) return "HBAR" // Hedera Testnet Chain ID
-    return "ETH" // Default for other networks
+// Helper function to get native token symbol based on chainId
+const getNativeTokenSymbol = (chainId: number | null) => {
+  if (chainId === 97) {
+    // BSC Testnet
+    return "BNB"
+  } else if (chainId === 296) {
+    // Hedera Testnet
+    return "HBAR"
   }
+  return "ETH" // Default for other networks
+}
 
+export function BalanceCard({ title, balance, symbol, isLoading }: BalanceCardProps) {
+  const { chainId, ethBalance, isLoadingBalance } = useWeb3()
+
+  const displayBalance = typeof balance === "number" ? balance.toFixed(4) : balance
   const nativeTokenSymbol = getNativeTokenSymbol(chainId)
 
   return (
-    <Card className="border-gray-700 bg-gray-900 hover:shadow-md transition-shadow">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-medium text-gray-300">
-            {type === "eth" ? `${nativeTokenSymbol} Balance` : "CAFI Balance"}
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          className="h-4 w-4 text-muted-foreground"
+        >
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      </CardHeader>
+      <CardContent>
+        {isLoading || isLoadingBalance ? (
+          <Skeleton className="h-8 w-24" />
+        ) : (
+          <div className="text-2xl font-bold">
+            {displayBalance} {symbol}
           </div>
-          {type === "eth" ? (
-            <Wallet className="h-5 w-5 text-blue-400" />
-          ) : (
-            <Coins className="h-5 w-5 text-emerald-400" />
-          )}
-        </div>
-        <div className="mt-2 flex items-center">
-          {isLoading ? (
-            <Skeleton className="h-8 w-32 bg-gray-700" />
-          ) : (
-            <div className="text-2xl font-bold text-white">
-              {balance} {symbol}
-            </div>
-          )}
-        </div>
-        <div className="mt-1 text-xs text-gray-400">{subtitle}</div>
+        )}
+        {title === "Your Balance" && (
+          <p className="text-xs text-muted-foreground">
+            {isLoadingBalance ? (
+              <Skeleton className="h-4 w-20 mt-1" />
+            ) : (
+              `+${Number.parseFloat(ethBalance).toFixed(4)} ${nativeTokenSymbol}`
+            )}
+          </p>
+        )}
       </CardContent>
     </Card>
   )

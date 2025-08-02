@@ -8,7 +8,7 @@ import { useOptimizedRefresh } from "@/hooks/use-optimized-refresh"
 
 // Import from contract-utils and constants
 import { contractService } from "@/lib/contract-utils"
-import { CONTRACT_ADDRESSES } from "@/lib/constants"
+import { CONTRACT_ADDRESSES, getContractAddresses, getNetworkByChainId, isSupportedNetwork } from "@/lib/constants"
 import { isMobileDevice, isInAppBrowser, getInAppBrowserType } from "@/lib/wallet-utils"
 
 interface Web3ContextType {
@@ -154,7 +154,6 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
 
   const router = useRouter()
   const { toast } = useToast()
-  const { triggerRefresh } = useOptimizedRefresh()
 
   // Enhanced environment detection
   const isPreviewEnvironment = useCallback(() => {
@@ -240,20 +239,25 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
   }, [])
 
   const handleChainChanged = useCallback(
-    (hexChainId: string) => {
+    async (hexChainId: string) => {
       const newChainId = Number.parseInt(hexChainId, 16)
       setChainId(newChainId)
       toast({
         title: "Network Changed",
         description: `Switched to Chain ID: ${newChainId}`,
       })
-      triggerRefresh() // Trigger a refresh on chain change
+      // Re-fetch network info and contract addresses
+      await getNetworkInfo()
+      await checkContractsExistence()
+      if (address) {
+        await fetchBalances(address)
+      }
     },
-    [toast, triggerRefresh],
+    [toast, address], // Added address as dependency
   )
 
   const handleAccountsChanged = useCallback(
-    (accounts: string[]) => {
+    async (accounts: string[]) => {
       if (accounts.length === 0) {
         // User disconnected
         console.log("[Web3Provider] 🔌 Wallet disconnected via accountsChanged event.")
@@ -291,240 +295,74 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         console.log(`[Web3Provider] - Connected Account: ${newAccount}`)
         console.log(`[Web3Provider] - Is Admin: ${isSpecificAdmin}`)
 
-        setProvider(new ethers.BrowserProvider(window.ethereum))
-        setSigner(window.ethereum.getSigner())
-        setAddress(newAccount)
-        setChainId(Number(window.ethereum.chainId))
-        setIsConnected(true)
-        setIsAdmin(isSpecificAdmin) // Set admin status immediately
-        setWalletType("MetaMask")
+        const walletInfo = detectWallet()
+        if (walletInfo?.provider) {
+          const browserProvider = new ethers.BrowserProvider(walletInfo.provider)
+          setProvider(browserProvider)
+          setSigner(await browserProvider.getSigner())
+          setAddress(newAccount)
+          setChainId(Number((await browserProvider.getNetwork()).chainId))
+          setIsConnected(true)
+          setIsAdmin(isSpecificAdmin) // Set admin status immediately
+          setWalletType(walletInfo.type)
 
-        // Save auto-connect preference
-        localStorage.setItem("carbonfi-auto-connect", "true")
+          // Save auto-connect preference
+          localStorage.setItem("carbonfi-auto-connect", "true")
 
-        // Initialize contract service with the provider
-        contractService.provider = new ethers.BrowserProvider(window.ethereum)
-        console.log("[Web3Provider] Contract service provider initialized.")
+          // Initialize contract service with the provider
+          contractService.provider = browserProvider
+          console.log("[Web3Provider] Contract service provider initialized.")
 
-        // Fetch balances and contract data
-        console.log("[Web3Provider] Fetching contract existence and balances...")
-        checkContractsExistence()
-        fetchTokenInfo() // Ensure token info is fetched after contract existence
-        fetchBalances(newAccount)
-        console.log("[Web3Provider] Contract existence and balances fetched.")
+          // Fetch balances and contract data
+          console.log("[Web3Provider] Fetching contract existence and balances...")
+          await checkContractsExistence()
+          await fetchTokenInfo() // Ensure token info is fetched after contract existence
+          await fetchBalances(newAccount)
+          console.log("[Web3Provider] Contract existence and balances fetched.")
 
-        toast({
-          title: "Wallet Connected",
-          description: `Successfully connected MetaMask wallet: ${newAccount.substring(0, 6)}...${newAccount.substring(38)}`,
-        })
+          toast({
+            title: "Wallet Connected",
+            description: `Successfully connected ${walletInfo.type} wallet: ${newAccount.substring(0, 6)}...${newAccount.substring(38)}`,
+          })
+        }
       }
     },
-    [router, toast],
+    [router, toast, detectWallet],
   )
 
-  const connectWallet = useCallback(async () => {
-    setIsConnecting(true)
-    setError(null)
+  const getNetworkInfo = async () => {
     try {
-      if (window.ethereum) {
-        const browserProvider = new ethers.BrowserProvider(window.ethereum)
-        setProvider(browserProvider)
-
-        const accounts = await browserProvider.send("eth_requestAccounts", [])
-        const currentSigner = await browserProvider.getSigner()
-        const currentChainId = (await browserProvider.getNetwork()).chainId
-
-        setAddress(accounts[0])
-        setSigner(currentSigner)
-        setChainId(Number(currentChainId))
-
-        // Add event listeners only once
-        if (!window.ethereum.listenerCount("accountsChanged")) {
-          window.ethereum.on("accountsChanged", handleAccountsChanged)
-        }
-        if (!window.ethereum.listenerCount("chainChanged")) {
-          window.ethereum.on("chainChanged", handleChainChanged)
-        }
-
-        toast({
-          title: "Wallet Connected",
-          description: `Connected to: ${accounts[0].substring(0, 6)}...${accounts[0].substring(38)}`,
-        })
-      } else {
-        setError("MetaMask or a compatible wallet is not installed.")
-        toast({
-          title: "Wallet Not Found",
-          description: "Please install MetaMask or a compatible wallet.",
-          variant: "destructive",
-        })
-      }
-    } catch (err: any) {
-      console.error("Failed to connect wallet:", err)
-      setError(err.message || "Failed to connect wallet.")
-      toast({
-        title: "Connection Failed",
-        description: err.message || "Could not connect to wallet.",
-        variant: "destructive",
-      })
-      clearState()
-    } finally {
-      setIsConnecting(false)
-    }
-  }, [handleAccountsChanged, handleChainChanged, toast])
-
-  const disconnectWallet = useCallback(() => {
-    if (window.ethereum) {
-      window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
-      window.ethereum.removeListener("chainChanged", handleChainChanged)
-    }
-    clearState()
-    toast({
-      title: "Wallet Disconnected",
-      description: "You have successfully disconnected your wallet.",
-    })
-  }, [handleAccountsChanged, handleChainChanged, toast])
-
-  const clearState = useCallback(() => {
-    setProvider(null)
-    setSigner(null)
-    setAddress(null)
-    setChainId(null)
-    setError(null)
-    setIsConnected(false) // Clear isConnected state
-  }, [])
-
-  const fetchBalances = async (address: string) => {
-    try {
-      setIsLoadingBalance(true)
-      console.log("[Web3Provider] 🔄 Fetching ETH and CAFI balances for address:", address)
-
-      // Initialize contract service with the provider if not already done
       const walletInfo = detectWallet()
-      if (walletInfo?.provider && !contractService.provider) {
-        contractService.provider = new ethers.BrowserProvider(walletInfo.provider)
-        console.log("[Web3Provider] ContractService provider re-initialized for balance fetch.")
-      }
+      if (walletInfo?.provider) {
+        console.log("[Web3Provider] Fetching network info...")
+        const browserProvider = new ethers.BrowserProvider(walletInfo.provider)
+        const network = await browserProvider.getNetwork()
+        const chainIdNum = Number(network.chainId)
+        setChainId(chainIdNum)
 
-      // Prepare promises for parallel execution
-      const balancePromises = []
+        // Update contract addresses based on network
+        const networkContracts = getContractAddresses(chainIdNum)
+        setCurrentNetworkContracts(networkContracts)
 
-      // ETH Balance Promise
-      const ethBalancePromise = (async () => {
-        try {
-          const provider = await contractService.getProvider()
-          const ethBalanceWei = await provider.getBalance(address)
-          const ethBalanceFormatted = ethers.formatEther(ethBalanceWei)
-          console.log("✅ ETH Balance fetched:", ethBalanceFormatted)
-          return { type: "eth", balance: Number.parseFloat(ethBalanceFormatted).toFixed(4) }
-        } catch (ethError) {
-          console.error("❌ Error fetching ETH balance:", ethError)
-          return { type: "eth", balance: "0" }
+        // Check if network is supported
+        const isSupported = isSupportedNetwork(chainIdNum)
+        setSupportedNetwork(isSupported)
+
+        // Get network name
+        const networkName = getNetworkByChainId(chainIdNum)?.name || `Chain ID: ${chainIdNum}`
+        setNetworkName(networkName)
+
+        console.log(`[Web3Provider] Connected to ${networkName} (Chain ID: ${chainIdNum})`)
+        console.log(`[Web3Provider] Using contracts:`, networkContracts)
+
+        if (!isSupported) {
+          console.warn(`[Web3Provider] Network ${networkName} is not officially supported`)
         }
-      })()
-
-      // CAFI Balance Promise
-      const cafiBalancePromise = (async () => {
-        try {
-          if (currentNetworkContracts.CAFI_TOKEN && cafiTokenExists) {
-            console.log("Attempting to fetch CAFI balance from:", currentNetworkContracts.CAFI_TOKEN)
-            const tokenContract = await contractService.getTokenContract(currentNetworkContracts.CAFI_TOKEN)
-            const tokenBalance = await tokenContract.balanceOf(address)
-            const tokenBalanceFormatted = ethers.formatUnits(tokenBalance, tokenDecimals)
-            console.log("✅ CAFI Balance fetched:", tokenBalanceFormatted)
-            return { type: "cafi", balance: Number.parseFloat(tokenBalanceFormatted).toFixed(4) }
-          } else {
-            console.log("CAFI token contract not available")
-            return { type: "cafi", balance: "0" }
-          }
-        } catch (tokenError) {
-          console.error("❌ Error fetching CAFI balance:", tokenError)
-          return { type: "cafi", balance: "0" }
-        }
-      })()
-
-      // Execute both promises in parallel
-      balancePromises.push(ethBalancePromise, cafiBalancePromise)
-
-      // Wait for all balance fetches to complete
-      const balanceResults = await Promise.all(balancePromises)
-
-      // Update state with results
-      balanceResults.forEach((result) => {
-        if (result.type === "eth") {
-          setEthBalance(result.balance)
-        } else if (result.type === "cafi") {
-          setBalance(result.balance)
-        }
-      })
-
-      console.log("[Web3Provider] ✅ All balances fetched successfully")
-
-      // Fetch faucet data if connected
-      if (isConnected && faucetContractExists && address) {
-        await fetchFaucetData(address)
+      } else {
+        console.log("[Web3Provider] No wallet provider detected for network info.")
       }
     } catch (error) {
-      console.error("[Web3Provider] ❌ Error in fetchBalances:", error)
-      setBalance("0")
-      setEthBalance("0")
-    } finally {
-      setIsLoadingBalance(false)
-    }
-  }
-
-  // Fetch faucet data from real contract
-  const fetchFaucetData = async (address: string) => {
-    try {
-      setIsLoadingFaucetData(true)
-      console.log("Loading faucet data for account:", address)
-
-      if (!faucetContractExists || !currentNetworkContracts.FAUCET) {
-        console.log("Faucet contract not available")
-        return
-      }
-
-      const faucetContract = await contractService.getFaucetContract()
-
-      // Use Promise.all to fetch all data in parallel
-      const [dailyLimitBN, remainingQuotaBN, todayTotalBN, lastClaimTime] = await Promise.all([
-        faucetContract.DAILY_LIMIT(),
-        faucetContract.getRemainingDailyQuota(),
-        faucetContract.todayTotal(),
-        faucetContract.lastClaimTime(address),
-      ])
-
-      // Check if user has claimed today
-      const lastClaimDate = new Date(Number(lastClaimTime) * 1000)
-      const today = new Date()
-      const hasClaimedToday = lastClaimDate.toDateString() === today.toDateString() && Number(lastClaimTime) > 0
-
-      // Format the values
-      const dailyLimit = ethers.formatEther(dailyLimitBN)
-      const remainingQuota = ethers.formatEther(remainingQuotaBN)
-      const todayTotal = ethers.formatEther(todayTotalBN)
-
-      console.log("Faucet data loaded:", {
-        dailyLimit,
-        remainingQuota,
-        todayTotal,
-        hasClaimedToday,
-      })
-
-      setFaucetStats({
-        dailyLimit,
-        remainingQuota,
-        todayTotal,
-        hasClaimedToday,
-      })
-    } catch (error) {
-      console.error("Error loading faucet data:", error)
-      toast({
-        title: "Failed to load faucet data",
-        description: "Please try refreshing the page",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoadingFaucetData(false)
+      console.error("[Web3Provider] Error getting network info:", error)
     }
   }
 
@@ -599,62 +437,472 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     }
   }
 
-  // Update the refreshBalances function
-  const refreshBalances = async () => {
-    if (address) {
-      setIsRefreshing(true)
-      try {
-        await fetchBalances(address)
-      } catch (error) {
-        console.error("Error refreshing balances:", error)
-      } finally {
-        setIsRefreshing(false)
+  // Enhanced fetch balances - ETH and CAFI together
+  const fetchBalances = async (addr: string) => {
+    try {
+      setIsLoadingBalance(true)
+      console.log("[Web3Provider] 🔄 Fetching ETH and CAFI balances for address:", addr)
+
+      // Initialize contract service with the provider if not already done
+      const walletInfo = detectWallet()
+      if (walletInfo?.provider && !contractService.provider) {
+        contractService.provider = new ethers.BrowserProvider(walletInfo.provider)
+        console.log("[Web3Provider] ContractService provider re-initialized for balance fetch.")
       }
+
+      // Prepare promises for parallel execution
+      const balancePromises = []
+
+      // ETH Balance Promise
+      const ethBalancePromise = (async () => {
+        try {
+          const provider = await contractService.getProvider()
+          const ethBalanceWei = await provider.getBalance(addr)
+          const ethBalanceFormatted = ethers.formatEther(ethBalanceWei)
+          console.log("✅ ETH Balance fetched:", ethBalanceFormatted)
+          return { type: "eth", balance: Number.parseFloat(ethBalanceFormatted).toFixed(4) }
+        } catch (ethError) {
+          console.error("❌ Error fetching ETH balance:", ethError)
+          return { type: "eth", balance: "0" }
+        }
+      })()
+
+      // CAFI Balance Promise
+      const cafiBalancePromise = (async () => {
+        try {
+          if (currentNetworkContracts.CAFI_TOKEN && cafiTokenExists) {
+            console.log("Attempting to fetch CAFI balance from:", currentNetworkContracts.CAFI_TOKEN)
+            const tokenContract = await contractService.getTokenContract(currentNetworkContracts.CAFI_TOKEN)
+            const tokenBalance = await tokenContract.balanceOf(addr)
+            const tokenBalanceFormatted = ethers.formatUnits(tokenBalance, tokenDecimals)
+            console.log("✅ CAFI Balance fetched:", tokenBalanceFormatted)
+            return { type: "cafi", balance: Number.parseFloat(tokenBalanceFormatted).toFixed(4) }
+          } else {
+            console.log("CAFI token contract not available")
+            return { type: "cafi", balance: "0" }
+          }
+        } catch (tokenError) {
+          console.error("❌ Error fetching CAFI balance:", tokenError)
+          return { type: "cafi", balance: "0" }
+        }
+      })()
+
+      // Execute both promises in parallel
+      balancePromises.push(ethBalancePromise, cafiBalancePromise)
+
+      // Wait for all balance fetches to complete
+      const balanceResults = await Promise.all(balancePromises)
+
+      // Update state with results
+      balanceResults.forEach((result) => {
+        if (result.type === "eth") {
+          setEthBalance(result.balance)
+        } else if (result.type === "cafi") {
+          setBalance(result.balance)
+        }
+      })
+
+      console.log("[Web3Provider] ✅ All balances fetched successfully")
+
+      // Fetch faucet data if connected
+      if (isConnected && faucetContractExists && addr) {
+        await fetchFaucetData(addr)
+      }
+    } catch (error) {
+      console.error("[Web3Provider] ❌ Error in fetchBalances:", error)
+      setBalance("0")
+      setEthBalance("0")
+    } finally {
+      setIsLoadingBalance(false)
     }
   }
 
+  // Fetch faucet data from real contract
+  const fetchFaucetData = async (addr: string) => {
+    try {
+      setIsLoadingFaucetData(true)
+      console.log("Loading faucet data for account:", addr)
+
+      if (!faucetContractExists || !currentNetworkContracts.FAUCET) {
+        console.log("Faucet contract not available")
+        return
+      }
+
+      const faucetContract = await contractService.getFaucetContract()
+
+      // Use Promise.all to fetch all data in parallel
+      const [dailyLimitBN, remainingQuotaBN, todayTotalBN, lastClaimTime] = await Promise.all([
+        faucetContract.DAILY_LIMIT(),
+        faucetContract.getRemainingDailyQuota(),
+        faucetContract.todayTotal(),
+        faucetContract.lastClaimTime(addr),
+      ])
+
+      // Check if user has claimed today
+      const lastClaimDate = new Date(Number(lastClaimTime) * 1000)
+      const today = new Date()
+      const hasClaimedToday = lastClaimDate.toDateString() === today.toDateString() && Number(lastClaimTime) > 0
+
+      // Format the values
+      const dailyLimit = ethers.formatEther(dailyLimitBN)
+      const remainingQuota = ethers.formatEther(remainingQuotaBN)
+      const todayTotal = ethers.formatEther(todayTotalBN)
+
+      console.log("Faucet data loaded:", {
+        dailyLimit,
+        remainingQuota,
+        todayTotal,
+        hasClaimedToday,
+      })
+
+      setFaucetStats({
+        dailyLimit,
+        remainingQuota,
+        todayTotal,
+        hasClaimedToday,
+      })
+    } catch (error) {
+      console.error("Error loading faucet data:", error)
+      toast({
+        title: "Failed to load faucet data",
+        description: "Please try refreshing the page",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingFaucetData(false)
+    }
+  }
+
+  // Connect wallet with enhanced error handling
+  const connectWallet = useCallback(async () => {
+    const walletInfo = detectWallet()
+
+    if (!walletInfo) {
+      const errorMsg = "No Ethereum wallet found. Please install MetaMask or another compatible wallet."
+      setError(errorMsg)
+      toast({
+        title: "Wallet Not Found",
+        description: errorMsg,
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsConnecting(true)
+    setError(null)
+
+    try {
+      console.log(`[Web3Provider] Attempting to connect to ${walletInfo.type} wallet...`)
+
+      const browserProvider = new ethers.BrowserProvider(walletInfo.provider)
+      const accounts = await browserProvider.send("eth_requestAccounts", [])
+      const network = await browserProvider.getNetwork()
+
+      const connectedAccount = accounts[0]
+
+      // Check admin status immediately
+      const ADMIN_WALLET_ADDRESS = "0x732eBd7B8c50A8e31EAb04aF774F4160C8c22Dd6"
+      const isSpecificAdmin = connectedAccount.toLowerCase() === ADMIN_WALLET_ADDRESS.toLowerCase()
+
+      console.log("[Web3Provider] 🔗 Connect Function - Admin Check:")
+      console.log(`[Web3Provider] - Connected Account: ${connectedAccount}`)
+      console.log(`[Web3Provider] - Is Admin: ${isSpecificAdmin}`)
+
+      setProvider(browserProvider)
+      setSigner(await browserProvider.getSigner())
+      setAddress(connectedAccount)
+      setChainId(Number(network.chainId))
+      setIsConnected(true)
+      setIsAdmin(isSpecificAdmin) // Set admin status immediately
+      setWalletType(walletInfo.type)
+
+      // Save auto-connect preference
+      localStorage.setItem("carbonfi-auto-connect", "true")
+
+      // Initialize contract service with the provider
+      contractService.provider = browserProvider
+      console.log("[Web3Provider] Contract service provider initialized.")
+
+      // Fetch balances and contract data
+      console.log("[Web3Provider] Fetching contract existence and balances...")
+      await checkContractsExistence()
+      await fetchTokenInfo() // Ensure token info is fetched after contract existence
+      await fetchBalances(connectedAccount)
+      console.log("[Web3Provider] Contract existence and balances fetched.")
+
+      toast({
+        title: "Wallet Connected",
+        description: `Successfully connected ${walletInfo.type} wallet: ${connectedAccount.substring(0, 6)}...${connectedAccount.substring(38)}`,
+      })
+    } catch (error: any) {
+      console.error("[Web3Provider] Failed to connect wallet:", error)
+
+      let errorMessage = "Failed to connect wallet"
+      if (error.code === 4001) {
+        errorMessage = "Connection rejected by user"
+      } else if (error.code === -32002) {
+        errorMessage = "Connection request already pending"
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+
+      setError(errorMessage)
+
+      toast({
+        title: "Connection Failed",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsConnecting(false)
+    }
+  }, [toast, detectWallet])
+
+  // Disconnect wallet
+  const disconnectWallet = useCallback(() => {
+    setAddress(null)
+    setIsConnected(false)
+    setProvider(null)
+    setSigner(null)
+    localStorage.removeItem("carbonfi-auto-connect")
+    sessionStorage.removeItem("dashboard-choice") // Clear dashboard choice
+
+    // Reset balances and faucet data
+    setBalance("0")
+    setEthBalance("0")
+    setFaucetStats({
+      dailyLimit: "0",
+      remainingQuota: "0",
+      todayTotal: "0",
+      hasClaimedToday: false,
+    })
+
+    toast({
+      title: "Wallet Disconnected",
+      description: "Your wallet has been disconnected.",
+    })
+
+    // Redirect to home page
+    router.push("/")
+  }, [toast, router])
+
+  const reinitializeMetaMask = useCallback(async () => {
+    const walletInfo = detectWallet()
+
+    if (walletInfo?.provider) {
+      try {
+        console.log("🔄 Re-initializing wallet connection...")
+        setIsRefreshing(true)
+
+        // Initialize contract service with the provider
+        contractService.provider = new ethers.BrowserProvider(walletInfo.provider)
+
+        // Check if already connected
+        const accounts = await walletInfo.provider.request({ method: "eth_accounts" })
+        if (accounts.length > 0) {
+          await handleAccountsChanged(accounts)
+        }
+
+        // Get network info
+        await getNetworkInfo()
+
+        console.log("✅ Wallet re-initialization complete")
+
+        toast({
+          title: "Wallet Refreshed",
+          description: "Your wallet data has been refreshed.",
+        })
+      } catch (error) {
+        console.error("❌ Error re-initializing wallet:", error)
+
+        toast({
+          title: "Refresh Failed",
+          description: "Failed to refresh wallet data. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsRefreshing(false)
+      }
+    } else {
+      console.log("❌ No wallet detected during re-initialization")
+
+      toast({
+        title: "Wallet Not Found",
+        description: "No Ethereum wallet detected. Please install a compatible wallet.",
+        variant: "destructive",
+      })
+    }
+  }, [detectWallet, handleAccountsChanged, getNetworkInfo, toast])
+
+  // Set auto-connect preference
+  const setAutoConnect = useCallback((enabled: boolean) => {
+    if (enabled) {
+      localStorage.setItem("carbonfi-auto-connect", "true")
+    } else {
+      localStorage.removeItem("carbonfi-auto-connect")
+    }
+  }, [])
+
+  // Auto-refresh logic using useOptimizedRefresh
+  const handleAutoRefresh = useCallback(async () => {
+    if (address) {
+      console.log("[Web3Provider] Auto-refreshing balances and faucet data...")
+      await fetchBalances(address)
+      if (faucetContractExists) {
+        await fetchFaucetData(address)
+      }
+    }
+  }, [address])
+
+  const { isRefreshing: isAutoRefreshing, manualRefresh } = useOptimizedRefresh({
+    onRefresh: handleAutoRefresh,
+    enabled: isConnected && !!address, // Only enable if connected and address exists
+    initialDelay: 2000, // Shorter initial delay for quicker first refresh
+    regularInterval: 30000, // Refresh every 30 seconds
+    dependencies: [isConnected, address, faucetContractExists], // Dependencies for the hook
+  })
+
+  // Update the refreshBalances function to use manualRefresh from the hook
+  const refreshBalances = useCallback(async () => {
+    if (address) {
+      setIsRefreshing(true) // Set local refreshing state
+      try {
+        await manualRefresh() // Use the manualRefresh from the hook
+      } catch (error) {
+        console.error("Error refreshing balances:", error)
+      } finally {
+        setIsRefreshing(false) // Clear local refreshing state
+      }
+    }
+  }, [address, manualRefresh])
+
   // Setup event listeners and check connection
   useEffect(() => {
-    const initWallet = async () => {
-      if (window.ethereum) {
-        try {
-          const browserProvider = new ethers.BrowserProvider(window.ethereum)
-          const accounts = await browserProvider.listAccounts()
-          if (accounts.length > 0) {
-            const currentSigner = await browserProvider.getSigner()
-            const currentChainId = (await browserProvider.getNetwork()).chainId
-            setProvider(browserProvider)
-            setSigner(currentSigner)
-            setAddress(accounts[0])
-            setChainId(Number(currentChainId))
-            setIsConnected(true) // Set isConnected state
+    if (!isClient) return
 
-            // Add event listeners
-            if (!window.ethereum.listenerCount("accountsChanged")) {
-              window.ethereum.on("accountsChanged", handleAccountsChanged)
+    const setupWeb3 = async () => {
+      try {
+        const isPreview = isPreviewEnvironment()
+        const walletInfo = detectWallet()
+
+        if (walletInfo && !isPreview) {
+          try {
+            console.log(`[Web3Provider] Detected wallet: ${walletInfo.type}. Setting up provider...`)
+            const browserProvider = new ethers.BrowserProvider(walletInfo.provider)
+            contractService.provider = browserProvider
+            setWalletType(walletInfo.type)
+
+            // Check if user has previously connected
+            const shouldAutoConnect = localStorage.getItem("carbonfi-auto-connect") === "true"
+            console.log(`[Web3Provider] Auto-connect preference: ${shouldAutoConnect}`)
+
+            // Check if already connected
+            try {
+              const accounts = await walletInfo.provider.request({ method: "eth_accounts" })
+              if (accounts && accounts.length > 0) {
+                console.log(`[Web3Provider] Existing accounts found: ${accounts[0]}. Handling account change...`)
+                await handleAccountsChanged(accounts)
+              } else {
+                console.log("[Web3Provider] No existing accounts found.")
+              }
+            } catch (accountError) {
+              console.warn("[Web3Provider] Error checking existing accounts:", accountError)
             }
-            if (!window.ethereum.listenerCount("chainChanged")) {
-              window.ethereum.on("chainChanged", handleChainChanged)
+
+            // Get network info
+            await getNetworkInfo()
+
+            // Auto connect if enabled
+            if (autoConnect && shouldAutoConnect && !isConnected) {
+              // Only auto-connect if not already connected
+              setIsAutoConnecting(true)
+              console.log("[Web3Provider] Attempting auto-connect in 1 second...")
+              setTimeout(async () => {
+                await connectWallet()
+                setIsAutoConnecting(false)
+              }, 1000) // Delay to ensure everything is initialized
+            } else {
+              setIsLoading(false) // If no auto-connect, stop loading
             }
+
+            // Setup event listeners with error handling
+            try {
+              console.log("[Web3Provider] Setting up wallet event listeners...")
+              walletInfo.provider.on("accountsChanged", handleAccountsChanged)
+              walletInfo.provider.on("chainChanged", handleChainChanged)
+              // walletInfo.provider.on("disconnect", handleDisconnect); // Removed as handleAccountsChanged covers this
+              console.log("[Web3Provider] Wallet event listeners set up.")
+            } catch (listenerError) {
+              console.warn("[Web3Provider] Error setting up event listeners:", listenerError)
+            }
+          } catch (error) {
+            console.error("[Web3Provider] Error during wallet setup:", error)
+            setIsLoading(false)
           }
-        } catch (err) {
-          console.error("Error initializing wallet:", err)
-          setError("Error initializing wallet.")
+        } else {
+          console.log("[Web3Provider] No wallet detected or running in preview mode. Setting up fallback provider.")
+
+          // Set up a fallback provider for read-only operations
+          try {
+            const fallbackRPCs = [
+              process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545", // Use env var
+              process.env.NEXT_PUBLIC_HEDERA_TESTNET_RPC_URL || "https://testnet.hashio.io/api", // Use env var
+              "https://eth-sepolia.public.blastapi.io",
+              "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+              "https://rpc.sepolia.org",
+            ]
+
+            for (const rpc of fallbackRPCs) {
+              try {
+                const fallbackProvider = new ethers.JsonRpcProvider(rpc)
+                await fallbackProvider.getNetwork() // Test connection
+                contractService.provider = fallbackProvider
+                console.log(`[Web3Provider] Set up fallback provider: ${rpc}`)
+                break
+              } catch (rpcError) {
+                console.warn(`[Web3Provider] Failed to connect to ${rpc}:`, rpcError)
+                continue
+              }
+            }
+          } catch (fallbackError) {
+            console.error("[Web3Provider] Could not set up any fallback provider:", fallbackError)
+          } finally {
+            setIsLoading(false)
+          }
+        }
+      } catch (setupError) {
+        console.error("[Web3Provider] Critical error in setupWeb3:", setupError)
+        setIsLoading(false)
+      }
+    }
+
+    setupWeb3()
+
+    // Cleanup function
+    return () => {
+      const walletInfo = detectWallet()
+      if (walletInfo?.provider) {
+        try {
+          console.log("[Web3Provider] Cleaning up wallet event listeners...")
+          walletInfo.provider.removeListener("accountsChanged", handleAccountsChanged)
+          walletInfo.provider.removeListener("chainChanged", handleChainChanged)
+          // walletInfo.provider.removeListener("disconnect", handleDisconnect); // Removed
+          console.log("[Web3Provider] Wallet event listeners cleaned up.")
+        } catch (cleanupError) {
+          console.warn("[Web3Provider] Error during cleanup:", cleanupError)
         }
       }
-      setIsLoading(false)
     }
-
-    initWallet()
-
-    // Cleanup event listeners on component unmount
-    return () => {
-      if (window.ethereum) {
-        window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
-        window.ethereum.removeListener("chainChanged", handleChainChanged)
-      }
-    }
-  }, [handleAccountsChanged, handleChainChanged])
+  }, [
+    isClient,
+    autoConnect,
+    isPreviewEnvironment,
+    isConnected,
+    detectWallet,
+    handleAccountsChanged,
+    handleChainChanged,
+    connectWallet,
+  ])
 
   // NFT Contract Methods - Real implementations
   const getMintFee = async (): Promise<string> => {
@@ -782,79 +1030,80 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
   }
 
   // Staking Contract Methods - Real implementations
-  const approveTokens: (spender: string, amount: string) => Promise<ethers.ContractTransactionResponse> = async (
-    spender: string,
-    amount: string,
-  ) => {
-    try {
-      if (!cafiTokenExists) {
-        throw new Error("CAFI token contract not available")
+  const approveTokens: (spender: string, amount: string) => Promise<ethers.ContractTransactionResponse> = useCallback(
+    async (spender: string, amount: string) => {
+      try {
+        if (!cafiTokenExists) {
+          throw new Error("CAFI token contract not available")
+        }
+        console.log(`Approving ${amount} tokens for spender ${spender}`)
+        const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN, true)
+        const amountInWei = contractService.parseTokenAmount(amount)
+        return await tokenContract.approve(spender, amountInWei)
+      } catch (error) {
+        console.error("Error approving tokens:", error)
+        throw error
       }
-      console.log(`Approving ${amount} tokens for spender ${spender}`)
-      const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN, true)
-      const amountInWei = contractService.parseTokenAmount(amount)
-      return await tokenContract.approve(spender, amountInWei)
-    } catch (error) {
-      console.error("Error approving tokens:", error)
-      throw error
-    }
-  }
+    },
+    [cafiTokenExists],
+  )
 
-  const checkAllowance: (owner: string, spender: string) => Promise<string> = async (
-    owner: string,
-    spender: string,
-  ) => {
-    try {
-      if (!cafiTokenExists) {
-        throw new Error("CAFI token contract not available")
+  const checkAllowance: (owner: string, spender: string) => Promise<string> = useCallback(
+    async (owner: string, spender: string) => {
+      try {
+        if (!cafiTokenExists) {
+          throw new Error("CAFI token contract not available")
+        }
+        console.log(`Checking allowance for owner ${owner} and spender ${spender}`)
+        const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN)
+        const allowance = await tokenContract.allowance(owner, spender)
+        return contractService.formatTokenAmount(allowance)
+      } catch (error) {
+        console.error("Error checking allowance:", error)
+        return "0"
       }
-      console.log(`Checking allowance for owner ${owner} and spender ${spender}`)
-      const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN)
-      const allowance = await tokenContract.allowance(owner, spender)
-      return contractService.formatTokenAmount(allowance)
-    } catch (error) {
-      console.error("Error checking allowance:", error)
-      return "0"
-    }
-  }
+    },
+    [cafiTokenExists],
+  )
 
-  const addRewardPoolFunds: (amount: string) => Promise<ethers.ContractTransactionResponse> = async (
-    amount: string,
-  ) => {
-    try {
-      if (!stakingContractExists) {
-        throw new Error("Staking contract not available")
+  const addRewardPoolFunds: (amount: string) => Promise<ethers.ContractTransactionResponse> = useCallback(
+    async (amount: string) => {
+      try {
+        if (!stakingContractExists) {
+          throw new Error("Staking contract not available")
+        }
+        console.log(`Adding ${amount} tokens to reward pool`)
+        const stakingContract = await contractService.getStakingContract(true)
+        const amountInWei = contractService.parseTokenAmount(amount)
+        return await stakingContract.addRewardPoolFunds(amountInWei)
+      } catch (error) {
+        console.error("Error adding reward pool funds:", error)
+        throw error
       }
-      console.log(`Adding ${amount} tokens to reward pool`)
-      const stakingContract = await contractService.getStakingContract(true)
-      const amountInWei = contractService.parseTokenAmount(amount)
-      return await stakingContract.addRewardPoolFunds(amountInWei)
-    } catch (error) {
-      console.error("Error adding reward pool funds:", error)
-      throw error
-    }
-  }
+    },
+    [stakingContractExists],
+  )
 
-  const setAPY: (periodIndex: number, apy: string) => Promise<ethers.ContractTransactionResponse> = async (
-    periodIndex: number,
-    apy: string,
-  ) => {
-    try {
-      if (!stakingContractExists) {
-        throw new Error("Staking contract not available")
+  const setAPY: (periodIndex: number, apy: string) => Promise<ethers.ContractTransactionResponse> = useCallback(
+    async (periodIndex: number, apy: string) => {
+      try {
+        if (!stakingContractExists) {
+          throw new Error("Staking contract not available")
+        }
+        console.log(`Setting APY for period ${periodIndex} to ${apy}`)
+        const stakingContract = await contractService.getStakingContract(true)
+        // Convert APY percentage to basis points (e.g., 5% = 500)
+        const apyInBasisPoints = Math.round(Number.parseFloat(apy) * 100)
+        return await stakingContract.setAPY(periodIndex, apyInBasisPoints)
+      } catch (error) {
+        console.error("Error setting APY:", error)
+        throw error
       }
-      console.log(`Setting APY for period ${periodIndex} to ${apy}`)
-      const stakingContract = await contractService.getStakingContract(true)
-      // Convert APY percentage to basis points (e.g., 5% = 500)
-      const apyInBasisPoints = Math.round(Number.parseFloat(apy) * 100)
-      return await stakingContract.setAPY(periodIndex, apyInBasisPoints)
-    } catch (error) {
-      console.error("Error setting APY:", error)
-      throw error
-    }
-  }
+    },
+    [stakingContractExists],
+  )
 
-  const getRewardPoolBalance: () => Promise<string> = async () => {
+  const getRewardPoolBalance: () => Promise<string> = useCallback(async () => {
     try {
       if (!stakingContractExists) {
         throw new Error("Staking contract not available")
@@ -878,9 +1127,9 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       console.error("Error getting reward pool balance:", error)
       throw error
     }
-  }
+  }, [stakingContractExists])
 
-  const getTotalStaked: () => Promise<string> = async () => {
+  const getTotalStaked: () => Promise<string> = useCallback(async () => {
     try {
       if (!stakingContractExists) {
         throw new Error("Staking contract not available")
@@ -893,7 +1142,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       console.error("Error getting total staked:", error)
       throw error
     }
-  }
+  }, [stakingContractExists])
 
   // Context value
   const contextValue: Web3ContextType = {
@@ -915,7 +1164,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     inAppBrowser,
     walletType,
     isAutoConnecting,
-    isRefreshing,
+    isRefreshing: isRefreshing || isAutoRefreshing, // Combine manual and auto refreshing states
 
     // Contract state
     cafiTokenExists,
@@ -936,8 +1185,8 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
 
     // Methods
     refreshBalances,
-    reinitializeMetaMask: async () => {},
-    setAutoConnect: (enabled: boolean) => {},
+    reinitializeMetaMask,
+    setAutoConnect,
     fetchFaucetData,
 
     // Faucet data
