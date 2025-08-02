@@ -14,8 +14,8 @@ interface WalletDetectionResult {
   canConnect: boolean
 }
 
-// Export as both named export and default export
-export function MetaMaskDetector() {
+export default function MetaMaskDetector() {
+  // Changed to default export
   const [detection, setDetection] = useState<WalletDetectionResult>({
     hasMetaMask: false,
     hasOtherWallets: false,
@@ -64,15 +64,21 @@ export function MetaMaskDetector() {
             }
             if (provider.isCoinbaseWallet) {
               result.hasOtherWallets = true
-              result.detectedWallets.push("Coinbase Wallet")
+              if (!result.detectedWallets.includes("Coinbase Wallet")) {
+                result.detectedWallets.push("Coinbase Wallet")
+              }
             }
             if (provider.isRabby) {
               result.hasOtherWallets = true
-              result.detectedWallets.push("Rabby")
+              if (!result.detectedWallets.includes("Rabby")) {
+                result.detectedWallets.push("Rabby")
+              }
             }
             if (provider.isTrust) {
               result.hasOtherWallets = true
-              result.detectedWallets.push("Trust Wallet")
+              if (!result.detectedWallets.includes("Trust Wallet")) {
+                result.detectedWallets.push("Trust Wallet")
+              }
             }
           })
         }
@@ -268,7 +274,7 @@ export function MetaMaskDetector() {
               {ios && (
                 <Button
                   variant="outline"
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 bg-transparent"
                   onClick={() =>
                     window.open("https://apps.apple.com/us/app/metamask-blockchain-wallet/id1438144202", "_blank")
                   }
@@ -280,7 +286,7 @@ export function MetaMaskDetector() {
               {android && (
                 <Button
                   variant="outline"
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 bg-transparent"
                   onClick={() => window.open("https://play.google.com/store/apps/details?id=io.metamask", "_blank")}
                 >
                   <Download className="h-4 w-4" />
@@ -289,7 +295,7 @@ export function MetaMaskDetector() {
               )}
               <Button
                 variant="outline"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 bg-transparent"
                 onClick={() => window.open("https://metamask.io/download/", "_blank")}
               >
                 <ExternalLink className="h-4 w-4" />
@@ -303,17 +309,17 @@ export function MetaMaskDetector() {
             <div className="flex flex-col sm:flex-row gap-2 mt-3">
               <Button
                 variant="outline"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 bg-transparent"
                 onClick={() => window.open("https://metamask.io/download/", "_blank")}
               >
                 <Download className="h-4 w-4" />
                 Install MetaMask
               </Button>
-              <Button variant="outline" className="flex items-center gap-2" onClick={handleRefresh}>
+              <Button variant="outline" className="flex items-center gap-2 bg-transparent" onClick={handleRefresh}>
                 <RefreshCw className="h-4 w-4" />
                 Check Again
               </Button>
-              <Button variant="outline" className="flex items-center gap-2" onClick={handleForceRefresh}>
+              <Button variant="outline" className="flex items-center gap-2 bg-transparent" onClick={handleForceRefresh}>
                 <RefreshCw className="h-4 w-4" />
                 Refresh Page
               </Button>
@@ -356,6 +362,3 @@ export function MetaMaskDetector() {
     </Alert>
   )
 }
-
-// Also export as default
-export default MetaMaskDetector

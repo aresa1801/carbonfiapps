@@ -1,116 +1,141 @@
 "use client"
 
 import Image from "next/image"
-import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConnectWalletButton } from "@/components/connect-wallet-button"
-import { MetamaskDetector } from "@/components/metamask-detector"
-import { MobileOptimizedLayout } from "@/components/mobile-optimized-layout"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { AdminDashboardChoice } from "@/components/admin-dashboard-choice"
+import { MetaMaskDetector } from "@/components/metamask-detector" // This import is not used here, but kept for consistency if needed elsewhere.
 import { useWeb3 } from "@/components/web3-provider"
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { BalanceCard } from "@/components/balance-card"
+import { StableBalanceCard } from "@/components/stable-balance-card"
+import { FaucetStatCard } from "@/components/faucet-stat-card"
+import { ClaimStatusCard } from "@/components/claim-status-card"
+import { ContractStatus } from "@/components/contract-status"
+import { ContractMigrationNotice } from "@/components/contract-migration-notice"
+import { ContractAddressesDisplay } from "@/components/contract-addresses-display"
+import { TransactionAlert } from "@/components/transaction-alert"
+import { VerifierApprovalStatus } from "@/components/verifier-approval-status"
+import { AdminDashboardChoice } from "@/components/admin-dashboard-choice"
+import { MobileOptimizedLayout } from "@/components/mobile-optimized-layout"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
+import { DashboardHeader } from "@/components/dashboard-header"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { AdminGuard } from "@/components/admin-guard"
+import { useMobile } from "@/hooks/use-mobile"
+import { useEffect, useState } from "react"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function HomePage() {
-  const { isConnected, isAdmin, isClient, isMobile, inAppBrowser, walletType, chainId } = useWeb3()
-  const router = useRouter()
+  const {
+    address,
+    isConnected,
+    chainId,
+    isLoading,
+    error,
+    connectWallet,
+    disconnectWallet,
+    refreshBalances,
+    isRefreshing,
+  } = useWeb3()
   const { toast } = useToast()
+  const isMobileView = useMobile()
+  const [showMetaMaskDetector, setShowMetaMaskDetector] = useState(false)
 
   useEffect(() => {
-    if (isClient && isConnected) {
-      const dashboardChoice = sessionStorage.getItem("dashboard-choice")
-      if (isAdmin && dashboardChoice === "admin") {
-        router.push("/admin")
-      } else {
-        router.push("/user")
-      }
+    if (!isLoading && !isConnected && !error) {
+      setShowMetaMaskDetector(true)
+    } else {
+      setShowMetaMaskDetector(false)
     }
-  }, [isClient, isConnected, isAdmin, router])
+  }, [isLoading, isConnected, error])
 
   useEffect(() => {
-    if (isClient && inAppBrowser && walletType === "Unknown") {
+    if (error) {
       toast({
-        title: "Unsupported Browser",
-        description: "Please open this dApp in a Web3 enabled browser like MetaMask or Trust Wallet.",
+        title: "Wallet Error",
+        description: error.message,
         variant: "destructive",
-        duration: 8000,
       })
     }
-  }, [isClient, inAppBrowser, walletType, toast])
+  }, [error, toast])
+
+  const getNativeTokenSymbol = (chainId: number | null) => {
+    switch (chainId) {
+      case 97: // BSC Testnet
+        return "BNB"
+      case 296: // Hedera Testnet
+        return "HBAR"
+      default:
+        return "ETH"
+    }
+  }
 
   return (
-    <MobileOptimizedLayout
-      header={<DashboardHeader />}
-      sidebar={<DashboardSidebar />}
-      showSidebar={isConnected}
-      showMobileNav={isConnected}
-    >
-      <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-8">
-        <div className="w-full max-w-4xl text-center">
-          <Image src="/images/carbonfi-logo.png" alt="CarbonFi Logo" width={72} height={72} className="mx-auto mb-6" />
-          <h1 className="mb-4 text-4xl font-bold tracking-tight lg:text-5xl">Welcome to CarbonFi DApps</h1>
-          <p className="mb-8 text-lg text-gray-600 dark:text-gray-400">
-            Your gateway to decentralized carbon credit management and sustainable finance.
-          </p>
+    <MobileOptimizedLayout>
+      <div className="flex flex-col min-h-screen">
+        <DashboardHeader />
+        <main className="flex-1 p-4 md:p-6">
+          <div className="container mx-auto">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-4">
+                <Image
+                  src="/images/carbonfi-logo.png"
+                  alt="CarbonFi Logo"
+                  width={72} // Updated size
+                  height={72} // Updated size
+                  className="rounded-full"
+                />
+                <h1 className="text-3xl font-bold">CarbonFi Dashboard</h1>
+              </div>
+              <div className="flex items-center gap-4">
+                <ThemeToggle />
+                <ConnectWalletButton />
+              </div>
+            </div>
 
-          {!isClient && (
-            <Card className="mx-auto max-w-md">
-              <CardHeader>
-                <CardTitle>Loading DApp</CardTitle>
-                <CardDescription>Please wait while the application loads...</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-gray-50" />
+            {showMetaMaskDetector && <MetaMaskDetector />}
+
+            {isConnected && (
+              <>
+                <TransactionAlert />
+                <ContractMigrationNotice />
+                <ContractAddressesDisplay />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                  <BalanceCard />
+                  <StableBalanceCard />
+                  <FaucetStatCard />
                 </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {isClient && !isConnected && (
-            <div className="space-y-4">
-              <Card className="mx-auto max-w-md">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <ClaimStatusCard />
+                  <ContractStatus />
+                </div>
+
+                <VerifierApprovalStatus />
+
+                <AdminGuard>
+                  <AdminDashboardChoice />
+                </AdminGuard>
+              </>
+            )}
+
+            {!isConnected && !isLoading && !showMetaMaskDetector && (
+              <Card className="w-full max-w-md mx-auto text-center py-8">
                 <CardHeader>
                   <CardTitle>Connect Your Wallet</CardTitle>
-                  <CardDescription>Connect your MetaMask wallet to access the CarbonFi DApps.</CardDescription>
+                  <CardDescription>
+                    Please connect your wallet to access the CarbonFi dashboard and its features.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ConnectWalletButton />
-                  <MetamaskDetector />
                 </CardContent>
               </Card>
-              <div className="mt-8 text-sm text-gray-500 dark:text-gray-400">
-                <p>
-                  New to Web3? Learn more about{" "}
-                  <Link
-                    href="https://metamask.io/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline dark:text-blue-400"
-                  >
-                    MetaMask
-                  </Link>{" "}
-                  or{" "}
-                  <Link
-                    href="https://trustwallet.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline dark:text-blue-400"
-                  >
-                    Trust Wallet
-                  </Link>
-                  .
-                </p>
-              </div>
-            </div>
-          )}
-
-          {isClient && isConnected && isAdmin && <AdminDashboardChoice onChoice={() => router.push("/admin")} />}
-        </div>
-      </main>
+            )}
+          </div>
+        </main>
+        {isMobileView && <MobileBottomNav />}
+      </div>
     </MobileOptimizedLayout>
   )
 }
