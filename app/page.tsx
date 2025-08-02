@@ -1,106 +1,115 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { useWeb3 } from "@/components/web3-provider"
-import { ConnectWalletButton } from "@/components/connect-wallet-button"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Leaf, Coins, Shield, TrendingUp } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { ConnectWalletButton } from "@/components/connect-wallet-button"
+import { ContractAddressesDisplay } from "@/components/contract-addresses-display"
+import { NetworkSelector } from "@/components/network-selector"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { CONTRACT_ADDRESSES } from "@/lib/constants"
+import { contractService } from "@/services/contract-service"
+import { Shield, Coins, Leaf, TrendingUp, Users } from "lucide-react"
+import Link from "next/link"
 import Image from "next/image"
 
-// Admin wallet address
-const ADMIN_WALLET_ADDRESS = "0x732eBd7B8c50A8e31EAb04aF774F4160C8c22Dd6"
-
 export default function HomePage() {
-  const { isConnected, account, isClient, isAdmin } = useWeb3()
-  const router = useRouter()
-  const [mounted, setMounted] = useState(false)
-  const [isRedirecting, setIsRedirecting] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
+  const [account, setAccount] = useState<string>("")
+  const [contractsStatus, setContractsStatus] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
-    setMounted(true)
+    checkWalletConnection()
+    checkContractsStatus()
   }, [])
 
-  // Handle redirect logic after wallet connection
-  useEffect(() => {
-    if (mounted && isClient && isConnected && account && !isRedirecting) {
-      console.log("🚀 Redirect Logic Triggered:")
-      console.log("- Account:", account)
-      console.log("- Is Admin from Context:", isAdmin)
-
-      // Double check admin status locally
-      const ADMIN_WALLET_ADDRESS = "0x732eBd7B8c50A8e31EAb04aF774F4160C8c22Dd6"
-      const isAdminWallet = account.toLowerCase() === ADMIN_WALLET_ADDRESS.toLowerCase()
-
-      console.log("- Local Admin Check:", isAdminWallet)
-      console.log("- Final Admin Status:", isAdmin || isAdminWallet)
-
-      setIsRedirecting(true)
-
-      // Use both context isAdmin and local check for safety
-      const finalIsAdmin = isAdmin || isAdminWallet
-
-      if (finalIsAdmin) {
-        // Admin wallet - redirect to admin dashboard
-        console.log("✅ Redirecting to Admin Dashboard...")
-        setTimeout(() => {
-          router.push("/admin")
-        }, 2000)
-      } else {
-        // Regular user wallet - redirect to user dashboard
-        console.log("✅ Redirecting to User Dashboard...")
-        setTimeout(() => {
-          router.push("/user")
-        }, 2000)
+  const checkWalletConnection = async () => {
+    if (typeof window !== "undefined" && window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" })
+        if (accounts.length > 0) {
+          setIsConnected(true)
+          setAccount(accounts[0])
+        }
+      } catch (error) {
+        console.error("Error checking wallet connection:", error)
       }
     }
-  }, [isConnected, account, isAdmin, mounted, isClient, router, isRedirecting])
-
-  if (!mounted || !isClient) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    )
   }
 
-  // Check if connected wallet is admin
-  const isAdminWallet = account?.toLowerCase() === ADMIN_WALLET_ADDRESS.toLowerCase()
+  const checkContractsStatus = async () => {
+    const status: Record<string, boolean> = {}
+
+    try {
+      for (const [name, address] of Object.entries(CONTRACT_ADDRESSES)) {
+        if (name !== "ADMIN") {
+          status[name] = await contractService.contractExists(address)
+        }
+      }
+      setContractsStatus(status)
+    } catch (error) {
+      console.error("Error checking contracts status:", error)
+    }
+  }
+
+  const features = [
+    {
+      icon: Coins,
+      title: "CAFI Token Faucet",
+      description: "Get test CAFI tokens for development and testing",
+      href: "/user",
+      color: "text-blue-500",
+    },
+    {
+      icon: TrendingUp,
+      title: "Staking Platform",
+      description: "Stake CAFI tokens and earn rewards with flexible lock periods",
+      href: "/user/staking",
+      color: "text-green-500",
+    },
+    {
+      icon: Leaf,
+      title: "Carbon NFT Marketplace",
+      description: "Mint, trade, and retire carbon credit NFTs",
+      href: "/user/marketplace",
+      color: "text-emerald-500",
+    },
+    {
+      icon: Users,
+      title: "Farming Pools",
+      description: "Participate in yield farming with various token pairs",
+      href: "/user/farming",
+      color: "text-purple-500",
+    },
+    {
+      icon: Shield,
+      title: "Admin Dashboard",
+      description: "Manage contracts, verifiers, and system settings",
+      href: "/admin",
+      color: "text-red-500",
+    },
+  ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       {/* Header */}
-      <header className="border-b border-gray-700 bg-gray-900/80 backdrop-blur-sm">
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="h-[72px] w-[72px] relative">
-                <Image
-                  src="/images/carbonfi-logo.png"
-                  alt="CarbonFi Logo"
-                  fill
-                  className="object-contain"
-                  width={72}
-                  height={72}
-                />
+              <div className="relative h-10 w-10">
+                <Image src="/images/carbonfi-logo.png" alt="CarbonFi Logo" fill className="object-contain" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">CarbonFi</h1>
-                <p className="text-sm text-gray-400">Sustainable Finance Platform</p>
+                <h1 className="text-2xl font-bold">CarbonFi DApps</h1>
+                <p className="text-sm text-muted-foreground">Smart Contract Testing Platform</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              {isConnected && account && (
-                <div className="text-sm text-gray-400">
-                  Connected: {account.substring(0, 6)}...{account.substring(38)}
-                  {isAdminWallet && (
-                    <Badge variant="secondary" className="ml-2 bg-emerald-600 text-white">
-                      Admin
-                    </Badge>
-                  )}
-                </div>
-              )}
+              <NetworkSelector />
+              <ThemeToggle />
               <ConnectWalletButton />
             </div>
           </div>
@@ -108,112 +117,131 @@ export default function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="text-center max-w-4xl mx-auto">
-          <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
-            Revolutionizing{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-400">
-              Carbon Finance
-            </span>
-          </h2>
-          <p className="text-xl text-gray-300 mb-8 leading-relaxed">
-            Join the future of sustainable finance with blockchain-powered carbon credit trading, NFT minting, and DeFi
-            staking rewards.
-          </p>
-
-          {!isConnected && (
-            <div className="mb-12">
-              <ConnectWalletButton />
-              <p className="text-sm text-gray-400 mt-2">Connect your wallet to get started</p>
+      <section className="py-20">
+        <div className="container mx-auto px-4 text-center">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="text-4xl font-bold tracking-tight sm:text-6xl">Test CarbonFi Smart Contracts</h2>
+            <p className="mt-6 text-lg leading-8 text-muted-foreground">
+              A comprehensive testing platform for CarbonFi's ecosystem of smart contracts including token faucets,
+              staking, NFT marketplace, and carbon retirement systems.
+            </p>
+            <div className="mt-10 flex items-center justify-center gap-x-6">
+              {isConnected ? (
+                <Link href="/user">
+                  <Button size="lg" className="text-lg px-8 py-3">
+                    Launch App
+                  </Button>
+                </Link>
+              ) : (
+                <ConnectWalletButton />
+              )}
+              <Link href="/admin">
+                <Button variant="outline" size="lg" className="text-lg px-8 py-3 bg-transparent">
+                  Admin Panel
+                </Button>
+              </Link>
             </div>
-          )}
-
-          {isConnected && (
-            <div className="mb-12 p-6 bg-emerald-900/20 rounded-lg border border-emerald-800">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Shield className="h-5 w-5 text-emerald-400" />
-                <span className="text-emerald-200 font-semibold">Wallet Connected Successfully</span>
-              </div>
-              <p className="text-emerald-300 text-sm">
-                {(() => {
-                  const ADMIN_WALLET_ADDRESS = "0x732eBd7B8c50A8e31EAb04aF774F4160C8c22Dd6"
-                  const isAdminWallet = account?.toLowerCase() === ADMIN_WALLET_ADDRESS.toLowerCase()
-                  const finalIsAdmin = isAdmin || isAdminWallet
-
-                  return finalIsAdmin
-                    ? "Admin wallet detected! Redirecting to Admin Dashboard..."
-                    : "Redirecting to User Dashboard..."
-                })()}
-              </p>
-              <div className="mt-2 text-xs text-emerald-400">
-                Address: {account?.substring(0, 10)}...{account?.substring(account.length - 8)}
-              </div>
-              <div className="mt-3 flex justify-center">
-                <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mt-16">
-          <Card className="border-0 shadow-lg bg-gray-800/60 backdrop-blur-sm border border-gray-700">
-            <CardHeader className="text-center">
-              <div className="mx-auto w-12 h-12 bg-emerald-900/50 rounded-lg flex items-center justify-center mb-4">
-                <Leaf className="h-6 w-6 text-emerald-400" />
-              </div>
-              <CardTitle className="text-lg text-white">Carbon Credits</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-center text-gray-300">
-                Trade verified carbon credits with blockchain transparency and real-time tracking.
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg bg-gray-800/60 backdrop-blur-sm border border-gray-700">
-            <CardHeader className="text-center">
-              <div className="mx-auto w-12 h-12 bg-blue-900/50 rounded-lg flex items-center justify-center mb-4">
-                <Shield className="h-6 w-6 text-blue-400" />
-              </div>
-              <CardTitle className="text-lg text-white">NFT Minting</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-center text-gray-300">
-                Mint unique NFTs representing your carbon offset contributions and achievements.
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg bg-gray-800/60 backdrop-blur-sm border border-gray-700">
-            <CardHeader className="text-center">
-              <div className="mx-auto w-12 h-12 bg-purple-900/50 rounded-lg flex items-center justify-center mb-4">
-                <Coins className="h-6 w-6 text-purple-400" />
-              </div>
-              <CardTitle className="text-lg text-white">DeFi Staking</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-center text-gray-300">
-                Stake CAFI tokens and earn rewards while supporting sustainable finance initiatives.
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg bg-gray-800/60 backdrop-blur-sm border border-gray-700">
-            <CardHeader className="text-center">
-              <div className="mx-auto w-12 h-12 bg-orange-900/50 rounded-lg flex items-center justify-center mb-4">
-                <TrendingUp className="h-6 w-6 text-orange-400" />
-              </div>
-              <CardTitle className="text-lg text-white">Yield Farming</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-center text-gray-300">
-                Participate in yield farming programs and maximize your returns on green investments.
-              </CardDescription>
-            </CardContent>
-          </Card>
+          </div>
         </div>
       </section>
+
+      {/* Features Grid */}
+      <section className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h3 className="text-3xl font-bold">Platform Features</h3>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Explore all the smart contract functionalities available for testing
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <Card key={index} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex items-center space-x-3">
+                    <feature.icon className={`h-8 w-8 ${feature.color}`} />
+                    <CardTitle className="text-xl">{feature.title}</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-base mb-4">{feature.description}</CardDescription>
+                  <Link href={feature.href}>
+                    <Button variant="outline" className="w-full bg-transparent">
+                      Explore
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Contract Status */}
+      <section className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h3 className="text-3xl font-bold">Contract Status</h3>
+            <p className="mt-4 text-lg text-muted-foreground">Real-time status of deployed smart contracts</p>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Shield className="h-5 w-5" />
+                  <span>Smart Contract Deployment Status</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.entries(CONTRACT_ADDRESSES).map(([name, address]) => {
+                    if (name === "ADMIN") return null
+                    const isDeployed = contractsStatus[name]
+                    return (
+                      <div key={name} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{name.replace(/_/g, " ")}</p>
+                          <p className="text-sm text-muted-foreground font-mono">
+                            {address.slice(0, 10)}...{address.slice(-8)}
+                          </p>
+                        </div>
+                        <Badge variant={isDeployed ? "default" : "destructive"}>
+                          {isDeployed ? "Deployed" : "Not Found"}
+                        </Badge>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="mt-8">
+              <ContractAddressesDisplay />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            <div className="flex items-center space-x-4 mb-4 md:mb-0">
+              <div className="relative h-8 w-8">
+                <Image src="/images/carbonfi-logo.png" alt="CarbonFi Logo" fill className="object-contain" />
+              </div>
+              <span className="text-lg font-semibold">CarbonFi DApps</span>
+            </div>
+            <div className="flex items-center space-x-6 text-sm text-muted-foreground">
+              <span>Smart Contract Testing Platform</span>
+              <Separator orientation="vertical" className="h-4" />
+              <span>Built with Next.js & ethers.js</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
