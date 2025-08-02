@@ -1,112 +1,191 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useWeb3 } from "@/components/web3-provider"
-import { toast } from "@/hooks/use-toast"
+import { formatEther, parseEther } from "ethers"
+import { toast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
-import { parseEther, formatEther } from "ethers"
 
 export function TokenConfig() {
-  const { signer, cafiTokenContract, isAdmin, isRefreshing, refreshBalances, chainId } = useWeb3()
-  const [newSupply, setNewSupply] = useState("")
-  const [currentSupply, setCurrentSupply] = useState("Loading...")
-  const [isUpdatingSupply, setIsUpdatingSupply] = useState(false)
+  const { cafiTokenContract, signer, address, isConnected, refreshBalances } = useWeb3()
+  const [cafiTokenName, setCafiTokenName] = useState("")
+  const [cafiTokenSymbol, setCafiTokenSymbol] = useState("")
+  const [cafiTokenTotalSupply, setCafiTokenTotalSupply] = useState("0")
+  const [mintAmount, setMintAmount] = useState("")
+  const [transferAmount, setTransferAmount] = useState("")
+  const [transferRecipient, setTransferRecipient] = useState("")
+  const [isMinting, setIsMinting] = useState(false)
+  const [isTransferring, setIsTransferring] = useState(false)
 
   useEffect(() => {
-    const fetchSupply = async () => {
+    const fetchTokenDetails = async () => {
       if (cafiTokenContract) {
         try {
-          const supply = await cafiTokenContract.totalSupply()
-          setCurrentSupply(formatEther(supply))
+          const name = await cafiTokenContract.name()
+          const symbol = await cafiTokenContract.symbol()
+          const totalSupply = await cafiTokenContract.totalSupply()
+          setCafiTokenName(name)
+          setCafiTokenSymbol(symbol)
+          setCafiTokenTotalSupply(formatEther(totalSupply))
         } catch (error) {
-          console.error("Error fetching total supply:", error)
-          setCurrentSupply("Error")
+          console.error("Error fetching token details:", error)
           toast({
             title: "Error",
-            description: "Failed to fetch total supply.",
+            description: "Failed to fetch CAFI token details.",
             variant: "destructive",
           })
         }
       }
     }
-    fetchSupply()
-  }, [cafiTokenContract, isRefreshing, toast])
+    fetchTokenDetails()
+  }, [cafiTokenContract])
 
-  const handleUpdateSupply = async () => {
-    if (!signer || !cafiTokenContract || !isAdmin) {
+  const handleMint = async () => {
+    if (!cafiTokenContract || !signer || !address || !mintAmount) {
       toast({
-        title: "Unauthorized",
-        description: "You are not authorized to perform this action or wallet not connected.",
+        title: "Error",
+        description: "Please connect wallet and enter mint amount.",
         variant: "destructive",
       })
       return
     }
 
+    setIsMinting(true)
     try {
-      setIsUpdatingSupply(true)
-      const amount = parseEther(newSupply)
-      const tx = await cafiTokenContract.mint(signer.address, amount)
+      const amount = parseEther(mintAmount)
+      const tx = await cafiTokenContract.mint(address, amount)
       await tx.wait()
       toast({
-        title: "Supply Updated",
-        description: "Token supply has been successfully updated.",
+        title: "Mint Successful",
+        description: `${mintAmount} CAFI tokens minted to your address.`,
       })
-      setNewSupply("")
-      refreshBalances() // Refresh balances to show updated supply
+      setMintAmount("")
+      refreshBalances()
     } catch (error: any) {
-      console.error("Error updating supply:", error)
+      console.error("Error minting tokens:", error)
       toast({
-        title: "Update Failed",
-        description: error.message || "Failed to update token supply.",
+        title: "Mint Failed",
+        description: `Failed to mint tokens: ${error.reason || error.message}`,
         variant: "destructive",
       })
     } finally {
-      setIsUpdatingSupply(false)
+      setIsMinting(false)
     }
   }
 
-  if (!isAdmin) {
-    return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle>Token Configuration</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-red-500">You do not have admin privileges to view this section.</p>
-        </CardContent>
-      </Card>
-    )
+  const handleTransfer = async () => {
+    if (!cafiTokenContract || !signer || !transferAmount || !transferRecipient) {
+      toast({
+        title: "Error",
+        description: "Please connect wallet, enter amount and recipient.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsTransferring(true)
+    try {
+      const amount = parseEther(transferAmount)
+      const tx = await cafiTokenContract.transfer(transferRecipient, amount)
+      await tx.wait()
+      toast({
+        title: "Transfer Successful",
+        description: `${transferAmount} CAFI tokens transferred to ${transferRecipient}.`,
+      })
+      setTransferAmount("")
+      setTransferRecipient("")
+      refreshBalances()
+    } catch (error: any) {
+      console.error("Error transferring tokens:", error)
+      toast({
+        title: "Transfer Failed",
+        description: `Failed to transfer tokens: ${error.reason || error.message}`,
+        variant: "destructive",
+      })
+    } finally {
+      setIsTransferring(false)
+    }
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card>
       <CardHeader>
-        <CardTitle>Token Configuration</CardTitle>
+        <CardTitle>CAFI Token Configuration</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <Label htmlFor="current-supply">Current Total Supply</Label>
-          <Input id="current-supply" value={currentSupply} readOnly className="mt-1" />
+      <CardContent className="grid gap-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="token-name">Token Name</Label>
+            <Input id="token-name" value={cafiTokenName} readOnly />
+          </div>
+          <div>
+            <Label htmlFor="token-symbol">Token Symbol</Label>
+            <Input id="token-symbol" value={cafiTokenSymbol} readOnly />
+          </div>
         </div>
         <div>
-          <Label htmlFor="new-supply">Mint New Tokens (CAFI)</Label>
-          <Input
-            id="new-supply"
-            type="number"
-            placeholder="e.g., 1000.0"
-            value={newSupply}
-            onChange={(e) => setNewSupply(e.target.value)}
-            className="mt-1"
-          />
+          <Label htmlFor="total-supply">Total Supply</Label>
+          <Input id="total-supply" value={cafiTokenTotalSupply} readOnly />
         </div>
-        <Button onClick={handleUpdateSupply} disabled={isUpdatingSupply || !newSupply}>
-          {isUpdatingSupply && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Mint Tokens
-        </Button>
+
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">Mint Tokens</h3>
+          <div className="flex gap-2">
+            <Input
+              id="mint-amount"
+              type="number"
+              placeholder="Amount to mint"
+              value={mintAmount}
+              onChange={(e) => setMintAmount(e.target.value)}
+              disabled={!isConnected || isMinting}
+            />
+            <Button onClick={handleMint} disabled={!isConnected || isMinting}>
+              {isMinting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Minting
+                </>
+              ) : (
+                "Mint"
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">Transfer Tokens</h3>
+          <div className="grid gap-2">
+            <Input
+              id="transfer-recipient"
+              placeholder="Recipient Address"
+              value={transferRecipient}
+              onChange={(e) => setTransferRecipient(e.target.value)}
+              disabled={!isConnected || isTransferring}
+            />
+            <div className="flex gap-2">
+              <Input
+                id="transfer-amount"
+                type="number"
+                placeholder="Amount to transfer"
+                value={transferAmount}
+                onChange={(e) => setTransferAmount(e.target.value)}
+                disabled={!isConnected || isTransferring}
+              />
+              <Button onClick={handleTransfer} disabled={!isConnected || isTransferring}>
+                {isTransferring ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Transferring
+                  </>
+                ) : (
+                  "Transfer"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   )

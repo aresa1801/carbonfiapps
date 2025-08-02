@@ -3,51 +3,42 @@
 import type React from "react"
 
 import { useWeb3 } from "@/components/web3-provider"
-import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { toast } from "@/hooks/use-toast"
-import { Loader2 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect } from "react"
+import { toast } from "@/components/ui/use-toast"
 
-export function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { isAdmin, isLoading, isConnected, address } = useWeb3()
+interface AdminGuardProps {
+  children: React.ReactNode
+}
+
+export function AdminGuard({ children }: AdminGuardProps) {
+  const { isAdmin, isLoading, isConnected } = useWeb3()
   const router = useRouter()
 
   useEffect(() => {
     if (!isLoading) {
-      if (!isConnected || !address) {
+      if (!isConnected) {
         toast({
-          title: "Wallet Not Connected",
-          description: "Please connect your wallet to access the admin dashboard.",
+          title: "Access Denied",
+          description: "Please connect your wallet to access this page.",
           variant: "destructive",
         })
-        router.push("/")
+        router.push("/") // Redirect to home or login if not connected
       } else if (!isAdmin) {
         toast({
           title: "Access Denied",
-          description: "You do not have admin privileges to access this page.",
+          description: "You do not have administrative privileges.",
           variant: "destructive",
         })
-        router.push("/user") // Redirect to user dashboard or home
+        router.push("/user") // Redirect to user dashboard if not admin
       }
     }
-  }, [isAdmin, isLoading, isConnected, address, router, toast])
+  }, [isAdmin, isLoading, isConnected, router])
 
-  if (isLoading || !isConnected || !address || !isAdmin) {
+  if (isLoading || !isConnected || !isAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950 p-4">
-        <Card className="w-full max-w-md bg-gray-900 text-white">
-          <CardHeader>
-            <CardTitle className="text-blue-400">Loading Admin Panel</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center space-y-4 py-8">
-            <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-            <p className="text-lg text-gray-300">Checking admin privileges...</p>
-            <p className="text-sm text-gray-400 text-center">
-              Please ensure your wallet is connected and you have the necessary permissions.
-            </p>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
+        <p className="text-muted-foreground">Loading or redirecting...</p>
       </div>
     )
   }

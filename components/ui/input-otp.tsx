@@ -24,28 +24,25 @@ const InputOTPGroup = React.forwardRef<React.ElementRef<"div">, React.HTMLAttrib
 InputOTPGroup.displayName = "InputOTPGroup"
 
 const InputOTPSlot = React.forwardRef<
-  React.ElementRef<"div">,
-  React.HTMLAttributes<HTMLDivElement> & { index: number }
+  React.ElementRef<typeof Slot>,
+  React.ComponentPropsWithoutRef<typeof Slot> & { index: number }
 >(({ index, className, ...props }, ref) => (
-  <div
+  <Slot
     ref={ref}
+    index={index}
     className={cn(
-      "relative flex h-9 w-9 items-center justify-center border border-input text-sm shadow-sm transition-all focus-within:z-10 group-data-[first]:rounded-l-md group-data-[last]:rounded-r-md group-data-[focused]:ring-1 group-data-[focused]:ring-ring group-data-[filled]:bg-accent group-data-[filled]:text-accent-foreground group-data-[selected]:bg-accent/50 group-data-[highlighted]:bg-accent-foreground/20 disabled:cursor-not-allowed disabled:opacity-50",
+      "relative flex h-9 w-9 items-center justify-center border-y border-r border-input text-sm shadow-sm transition-all first:rounded-l-md first:border-l last:rounded-r-md",
+      "focus:z-10 focus:border-primary focus:ring-2 focus:ring-ring",
       className,
     )}
     {...props}
-  >
-    {/* <div className="absolute inset-0 flex items-center justify-center">
-      {value}
-    </div> */}
-    <Slot className="h-full w-full text-center" index={index} />
-  </div>
+  />
 ))
 InputOTPSlot.displayName = "InputOTPSlot"
 
 const InputOTPSeparator = React.forwardRef<React.ElementRef<"div">, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex items-center", className)} {...props}>
+    <div ref={ref} className={cn("-mx-2 flex items-center", className)} {...props}>
       <Minus />
     </div>
   ),

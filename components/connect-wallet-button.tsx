@@ -1,211 +1,84 @@
 "use client"
 
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useWeb3 } from "@/components/web3-provider"
-import { Wallet, LogOut, RefreshCw, Loader2 } from "lucide-react"
+import { formatAddress } from "@/lib/wallet-utils"
+import { Loader2, Wallet } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { useToast } from "@/hooks/use-toast"
-import { WalletConnectModal } from "@/components/wallet-connect-modal"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { useState } from "react"
+import { MetaMaskDetector } from "@/components/metamask-detector"
 
-interface ConnectWalletButtonProps {
-  variant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive"
-  size?: "default" | "sm" | "lg" | "icon"
-  showAddress?: boolean
-  showBalance?: boolean
-  showNetwork?: boolean
-  className?: string
-}
-
-export function ConnectWalletButton({
-  variant = "default",
-  size = "default",
-  showAddress = true,
-  showBalance = false,
-  showNetwork = false,
-  className = "",
-}: ConnectWalletButtonProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export function ConnectWalletButton() {
+  const { isConnected, address, connectWallet, disconnectWallet, isLoading, chainId } = useWeb3()
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const { toast } = useToast()
 
-  const {
-    connect,
-    disconnect,
-    isConnected,
-    isConnecting,
-    account,
-    balance,
-    tokenSymbol,
-    networkName,
-    refreshBalances,
-    isRefreshing,
-    reinitializeMetaMask,
-    isLoading,
-  } = useWeb3()
-
-  const handleConnect = async () => {
-    if (window.ethereum) {
-      try {
-        await connect()
-      } catch (error: any) {
-        toast({
-          title: "Connection Failed",
-          description: error.message || "Failed to connect wallet",
-          variant: "destructive",
-        })
-      }
+  const handleConnectClick = async () => {
+    if (!window.ethereum) {
+      setIsModalOpen(true)
     } else {
-      setIsModalOpen(true) // Open modal if MetaMask is not detected
+      await connectWallet()
     }
   }
 
-  const handleDisconnect = () => {
-    disconnect()
-    setIsOpen(false)
-  }
-
-  const handleRefresh = async () => {
-    try {
-      await refreshBalances()
-      toast({
-        title: "Wallet Refreshed",
-        description: "Your wallet data has been refreshed",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Refresh Failed",
-        description: error.message || "Failed to refresh wallet data",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleReinitialize = async () => {
-    try {
-      await reinitializeMetaMask()
-    } catch (error: any) {
-      toast({
-        title: "Reinitialization Failed",
-        description: error.message || "Failed to reinitialize wallet connection",
-        variant: "destructive",
-      })
-    }
+  const handleDisconnectClick = () => {
+    disconnectWallet()
   }
 
   if (isLoading) {
     return (
-      <Button disabled variant={variant} size={size} className={className}>
+      <Button disabled>
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         Loading...
       </Button>
     )
   }
 
-  if (!isConnected) {
+  if (isConnected && address) {
     return (
-      <>
-        <Button variant={variant} size={size} onClick={handleConnect} disabled={isConnecting} className={className}>
-          {isConnecting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Connecting...
-            </>
-          ) : (
-            <>
-              <Wallet className="mr-2 h-4 w-4" />
-              Connect Wallet
-            </>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+            <Wallet className="h-4 w-4" />
+            {formatAddress(address)}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem className="flex flex-col items-start">
+            <span className="text-sm font-medium">Connected Account:</span>
+            <span className="text-xs text-muted-foreground">{address}</span>
+          </DropdownMenuItem>
+          {chainId && (
+            <DropdownMenuItem className="flex flex-col items-start">
+              <span className="text-sm font-medium">Chain ID:</span>
+              <span className="text-xs text-muted-foreground">{chainId}</span>
+            </DropdownMenuItem>
           )}
-        </Button>
-        <WalletConnectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-      </>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={handleDisconnectClick}>Disconnect Wallet</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     )
   }
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant={variant} size={size} className={className}>
-          <Wallet className="mr-2 h-4 w-4" />
-          {showAddress && account
-            ? `${account.substring(0, 6)}...${account.substring(account.length - 4)}`
-            : "Connected"}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Wallet</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {showAddress && account && (
-          <DropdownMenuItem
-            onClick={() => {
-              navigator.clipboard.writeText(account)
-              toast({
-                title: "Address Copied",
-                description: "Wallet address copied to clipboard",
-              })
-            }}
-            className="cursor-pointer"
-          >
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">Address</span>
-              <span className="text-xs text-gray-500 truncate">
-                {account.substring(0, 10)}...{account.substring(account.length - 8)}
-              </span>
-            </div>
-          </DropdownMenuItem>
-        )}
-        {showBalance && (
-          <DropdownMenuItem className="cursor-default">
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">Balance</span>
-              <span className="text-xs text-gray-500">
-                {balance} {tokenSymbol}
-              </span>
-            </div>
-          </DropdownMenuItem>
-        )}
-        {showNetwork && networkName && (
-          <DropdownMenuItem className="cursor-default">
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">Network</span>
-              <span className="text-xs text-gray-500">{networkName}</span>
-            </div>
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleRefresh} className="cursor-pointer">
-          {isRefreshing ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              <span>Refreshing...</span>
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              <span>Refresh Wallet</span>
-            </>
-          )}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleReinitialize} className="cursor-pointer">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          <span>Reinitialize Connection</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleDisconnect} className="cursor-pointer text-red-600">
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Disconnect</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <Button onClick={handleConnectClick}>Connect Wallet</Button>
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Connect Wallet</DialogTitle>
+            <DialogDescription>Please install MetaMask or a compatible browser wallet to connect.</DialogDescription>
+          </DialogHeader>
+          <MetaMaskDetector />
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
-
-export default ConnectWalletButton

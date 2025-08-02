@@ -1,3 +1,5 @@
+import { formatEther } from "ethers"
+
 export function isMobileDevice(): boolean {
   if (typeof window === "undefined") return false
   const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera
@@ -68,4 +70,14 @@ export function getInAppBrowserType(): string {
   if (userAgent.includes("HuaweiBrowser")) return "Huawei Browser"
 
   return "Generic In-App Browser"
+}
+
+export const formatAddress = (address: string | null | undefined) => {
+  if (!address) return "N/A"
+  return `${address.substring(0, 6)}...${address.slice(-4)}`
+}
+
+export const formatBalance = (balance: bigint | null) => {
+  if (balance === null) return "0.00"
+  return Number.parseFloat(formatEther(balance)).toFixed(2)
 }

@@ -35,17 +35,9 @@ function useChart() {
   return context
 }
 
-const ChartContainer = React.forwardRef<HTMLDivElement, RechartsChartContainerProps>(
-  ({ className, children, ...props }, ref) => (
-    <RechartsChartContainer
-      ref={ref}
-      className={cn("flex aspect-video items-center justify-center", className)}
-      {...props}
-    >
-      {children}
-    </RechartsChartContainer>
-  ),
-)
+const ChartContainer = React.forwardRef<HTMLDivElement, RechartsChartContainerProps>(({ className, ...props }, ref) => (
+  <RechartsChartContainer ref={ref} className={cn("flex aspect-video w-full", className)} {...props} />
+))
 ChartContainer.displayName = "ChartContainer"
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {

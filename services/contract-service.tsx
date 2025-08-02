@@ -1,22 +1,20 @@
-import { ethers } from "ethers"
-import { CONTRACT_ADDRESSES } from "@/lib/constants"
-import cafiTokenAbi from "@/contracts/cafi-token-abi.json"
-import stakingAbi from "@/contracts/staking-abi.json"
-import nftAbi from "@/contracts/nft-abi.json"
-import faucetAbi from "@/contracts/faucet-abi.json"
-import marketplaceAbi from "@/contracts/marketplace-abi.json"
-import carbonRetireAbi from "@/contracts/carbon-retire-abi.json"
-
-// Import the NFT_ABI, STAKING_ABI, etc. from lib/contract-utils
+import { ethers, type Contract } from "ethers"
+import CAFITokenABI from "@/contracts/cafi-token-abi.json"
+import FaucetABI from "@/contracts/faucet-abi.json"
+import StakingABI from "@/contracts/staking-abi.json"
+import FarmingABI from "@/contracts/farming-abi.json"
+import NFTABI from "@/contracts/nft-abi.json"
+import CarbonRetireABI from "@/contracts/carbon-retire-abi.json"
+import MarketplaceABI from "@/contracts/marketplace-abi.json"
 import {
-  NFT_ABI,
-  STAKING_ABI,
-  ERC20_ABI,
-  FAUCET_ABI,
-  MARKETPLACE_ABI,
-  CARBON_RETIRE_ABI,
-  FARMING_ABI,
-} from "@/lib/contract-utils"
+  CAFI_TOKEN_ADDRESS,
+  FAUCET_ADDRESS,
+  STAKING_ADDRESS,
+  FARMING_ADDRESS,
+  NFT_ADDRESS,
+  CARBON_RETIRE_ADDRESS,
+  MARKETPLACE_ADDRESS,
+} from "@/lib/constants"
 
 export interface StakeInfo {
   amount: bigint
@@ -77,14 +75,6 @@ export interface UserStake {
 
 class ContractService {
   provider: ethers.BrowserProvider | null = null
-  ERC20_ABI = ERC20_ABI
-  STAKING_ABI = STAKING_ABI
-  NFT_ABI = NFT_ABI
-  FAUCET_ABI = FAUCET_ABI
-  MARKETPLACE_ABI = MARKETPLACE_ABI
-  CARBON_RETIRE_ABI = CARBON_RETIRE_ABI
-  FARMING_ABI = FARMING_ABI
-  CONTRACT_ADDRESSES = CONTRACT_ADDRESSES
 
   // Get provider with error handling
   async getProvider(): Promise<ethers.BrowserProvider> {
@@ -163,8 +153,9 @@ class ContractService {
   }
 
   // Get token contract with error handling
-  async getTokenContract(address = CONTRACT_ADDRESSES.CAFI_TOKEN, requireSigner = false): Promise<ethers.Contract> {
+  async getTokenContract(chainId: number, requireSigner = false): Promise<Contract> {
     try {
+      let address = CAFI_TOKEN_ADDRESS[chainId]
       if (!address || address === "0x0000000000000000000000000000000000000000") {
         throw new Error("Invalid token contract address")
       }
@@ -182,13 +173,8 @@ class ContractService {
         throw new Error(`No contract found at address: ${address}`)
       }
 
-      if (requireSigner) {
-        const signer = await this.getSigner(true)
-        return new ethers.Contract(address, cafiTokenAbi, signer)
-      } else {
-        const provider = await this.getProvider()
-        return new ethers.Contract(address, cafiTokenAbi, provider)
-      }
+      const signerOrProvider = requireSigner ? await this.getSigner(true) : await this.getProvider()
+      return new ethers.Contract(address, CAFITokenABI, signerOrProvider)
     } catch (error) {
       console.error("Error getting token contract:", error)
       throw error
@@ -196,24 +182,20 @@ class ContractService {
   }
 
   // Get staking contract with error handling
-  async getStakingContract(requireSigner = false): Promise<ethers.Contract> {
+  async getStakingContract(chainId: number, requireSigner = false): Promise<Contract> {
     try {
-      if (!CONTRACT_ADDRESSES.STAKING || CONTRACT_ADDRESSES.STAKING === "0x0000000000000000000000000000000000000000") {
+      const address = STAKING_ADDRESS[chainId]
+      if (!address || address === "0x0000000000000000000000000000000000000000") {
         throw new Error("Invalid staking contract address")
       }
 
-      const exists = await this.contractExists(CONTRACT_ADDRESSES.STAKING)
+      const exists = await this.contractExists(address)
       if (!exists) {
-        throw new Error(`No contract found at address: ${CONTRACT_ADDRESSES.STAKING}`)
+        throw new Error(`No contract found at address: ${address}`)
       }
 
-      if (requireSigner) {
-        const signer = await this.getSigner(true)
-        return new ethers.Contract(CONTRACT_ADDRESSES.STAKING, stakingAbi, signer)
-      } else {
-        const provider = await this.getProvider()
-        return new ethers.Contract(CONTRACT_ADDRESSES.STAKING, stakingAbi, provider)
-      }
+      const signerOrProvider = requireSigner ? await this.getSigner(true) : await this.getProvider()
+      return new ethers.Contract(address, StakingABI, signerOrProvider)
     } catch (error) {
       console.error("Error getting staking contract:", error)
       throw error
@@ -221,24 +203,20 @@ class ContractService {
   }
 
   // Get NFT contract with error handling
-  async getNftContract(requireSigner = false): Promise<ethers.Contract> {
+  async getNftContract(chainId: number, requireSigner = false): Promise<Contract> {
     try {
-      if (!CONTRACT_ADDRESSES.NFT || CONTRACT_ADDRESSES.NFT === "0x0000000000000000000000000000000000000000") {
+      const address = NFT_ADDRESS[chainId]
+      if (!address || address === "0x0000000000000000000000000000000000000000") {
         throw new Error("Invalid NFT contract address")
       }
 
-      const exists = await this.contractExists(CONTRACT_ADDRESSES.NFT)
+      const exists = await this.contractExists(address)
       if (!exists) {
-        throw new Error(`No contract found at address: ${CONTRACT_ADDRESSES.NFT}`)
+        throw new Error(`No contract found at address: ${address}`)
       }
 
-      if (requireSigner) {
-        const signer = await this.getSigner(true)
-        return new ethers.Contract(CONTRACT_ADDRESSES.NFT, nftAbi, signer)
-      } else {
-        const provider = await this.getProvider()
-        return new ethers.Contract(CONTRACT_ADDRESSES.NFT, nftAbi, provider)
-      }
+      const signerOrProvider = requireSigner ? await this.getSigner(true) : await this.getProvider()
+      return new ethers.Contract(address, NFTABI, signerOrProvider)
     } catch (error) {
       console.error("Error getting NFT contract:", error)
       throw error
@@ -246,24 +224,20 @@ class ContractService {
   }
 
   // Get faucet contract with error handling
-  async getFaucetContract(requireSigner = false): Promise<ethers.Contract> {
+  async getFaucetContract(chainId: number, requireSigner = false): Promise<Contract> {
     try {
-      if (!CONTRACT_ADDRESSES.FAUCET || CONTRACT_ADDRESSES.FAUCET === "0x0000000000000000000000000000000000000000") {
+      const address = FAUCET_ADDRESS[chainId]
+      if (!address || address === "0x0000000000000000000000000000000000000000") {
         throw new Error("Invalid faucet contract address")
       }
 
-      const exists = await this.contractExists(CONTRACT_ADDRESSES.FAUCET)
+      const exists = await this.contractExists(address)
       if (!exists) {
-        throw new Error(`No contract found at address: ${CONTRACT_ADDRESSES.FAUCET}`)
+        throw new Error(`No contract found at address: ${address}`)
       }
 
-      if (requireSigner) {
-        const signer = await this.getSigner(true)
-        return new ethers.Contract(CONTRACT_ADDRESSES.FAUCET, faucetAbi, signer)
-      } else {
-        const provider = await this.getProvider()
-        return new ethers.Contract(CONTRACT_ADDRESSES.FAUCET, faucetAbi, provider)
-      }
+      const signerOrProvider = requireSigner ? await this.getSigner(true) : await this.getProvider()
+      return new ethers.Contract(address, FaucetABI, signerOrProvider)
     } catch (error) {
       console.error("Error getting faucet contract:", error)
       throw error
@@ -271,27 +245,20 @@ class ContractService {
   }
 
   // Get marketplace contract with error handling
-  async getMarketplaceContract(requireSigner = false): Promise<ethers.Contract> {
+  async getMarketplaceContract(chainId: number, requireSigner = false): Promise<Contract> {
     try {
-      if (
-        !CONTRACT_ADDRESSES.MARKETPLACE ||
-        CONTRACT_ADDRESSES.MARKETPLACE === "0x0000000000000000000000000000000000000000"
-      ) {
+      const address = MARKETPLACE_ADDRESS[chainId]
+      if (!address || address === "0x0000000000000000000000000000000000000000") {
         throw new Error("Invalid marketplace contract address")
       }
 
-      const exists = await this.contractExists(CONTRACT_ADDRESSES.MARKETPLACE)
+      const exists = await this.contractExists(address)
       if (!exists) {
-        throw new Error(`No contract found at address: ${CONTRACT_ADDRESSES.MARKETPLACE}`)
+        throw new Error(`No contract found at address: ${address}`)
       }
 
-      if (requireSigner) {
-        const signer = await this.getSigner(true)
-        return new ethers.Contract(CONTRACT_ADDRESSES.MARKETPLACE, marketplaceAbi, signer)
-      } else {
-        const provider = await this.getProvider()
-        return new ethers.Contract(CONTRACT_ADDRESSES.MARKETPLACE, marketplaceAbi, provider)
-      }
+      const signerOrProvider = requireSigner ? await this.getSigner(true) : await this.getProvider()
+      return new ethers.Contract(address, MarketplaceABI, signerOrProvider)
     } catch (error) {
       console.error("Error getting marketplace contract:", error)
       throw error
@@ -299,27 +266,20 @@ class ContractService {
   }
 
   // Get carbon retire contract with error handling
-  async getCarbonRetireContract(requireSigner = false): Promise<ethers.Contract> {
+  async getCarbonRetireContract(chainId: number, requireSigner = false): Promise<Contract> {
     try {
-      if (
-        !CONTRACT_ADDRESSES.CARBON_RETIRE ||
-        CONTRACT_ADDRESSES.CARBON_RETIRE === "0x0000000000000000000000000000000000000000"
-      ) {
+      const address = CARBON_RETIRE_ADDRESS[chainId]
+      if (!address || address === "0x0000000000000000000000000000000000000000") {
         throw new Error("Invalid carbon retire contract address")
       }
 
-      const exists = await this.contractExists(CONTRACT_ADDRESSES.CARBON_RETIRE)
+      const exists = await this.contractExists(address)
       if (!exists) {
-        throw new Error(`No contract found at address: ${CONTRACT_ADDRESSES.CARBON_RETIRE}`)
+        throw new Error(`No contract found at address: ${address}`)
       }
 
-      if (requireSigner) {
-        const signer = await this.getSigner(true)
-        return new ethers.Contract(CONTRACT_ADDRESSES.CARBON_RETIRE, carbonRetireAbi, signer)
-      } else {
-        const provider = await this.getProvider()
-        return new ethers.Contract(CONTRACT_ADDRESSES.CARBON_RETIRE, carbonRetireAbi, provider)
-      }
+      const signerOrProvider = requireSigner ? await this.getSigner(true) : await this.getProvider()
+      return new ethers.Contract(address, CarbonRetireABI, signerOrProvider)
     } catch (error) {
       console.error("Error getting carbon retire contract:", error)
       throw error
@@ -327,24 +287,20 @@ class ContractService {
   }
 
   // Get farming contract with error handling
-  async getFarmingContract(requireSigner = false): Promise<ethers.Contract> {
+  async getFarmingContract(chainId: number, requireSigner = false): Promise<Contract> {
     try {
-      if (!CONTRACT_ADDRESSES.FARMING || CONTRACT_ADDRESSES.FARMING === "0x0000000000000000000000000000000000000000") {
+      const address = FARMING_ADDRESS[chainId]
+      if (!address || address === "0x0000000000000000000000000000000000000000") {
         throw new Error("Invalid farming contract address")
       }
 
-      const exists = await this.contractExists(CONTRACT_ADDRESSES.FARMING)
+      const exists = await this.contractExists(address)
       if (!exists) {
-        throw new Error(`No contract found at address: ${CONTRACT_ADDRESSES.FARMING}`)
+        throw new Error(`No contract found at address: ${address}`)
       }
 
-      if (requireSigner) {
-        const signer = await this.getSigner(true)
-        return new ethers.Contract(CONTRACT_ADDRESSES.FARMING, FARMING_ABI, signer)
-      } else {
-        const provider = await this.getProvider()
-        return new ethers.Contract(CONTRACT_ADDRESSES.FARMING, FARMING_ABI, provider)
-      }
+      const signerOrProvider = requireSigner ? await this.getSigner(true) : await this.getProvider()
+      return new ethers.Contract(address, FarmingABI, signerOrProvider)
     } catch (error) {
       console.error("Error getting farming contract:", error)
       throw error
@@ -352,9 +308,9 @@ class ContractService {
   }
 
   // Check if auto-approve is enabled
-  async isAutoApproveEnabled(): Promise<boolean> {
+  async isAutoApproveEnabled(chainId: number): Promise<boolean> {
     try {
-      const nftContract = await this.getNftContract()
+      const nftContract = await this.getNftContract(chainId)
       return await nftContract.autoApproveEnabled()
     } catch (error) {
       console.error("Error checking auto-approve status:", error)
