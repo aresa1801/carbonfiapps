@@ -1,3 +1,5 @@
+"use client" // Added 'use client' directive
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Coins, Droplets } from "lucide-react"
@@ -25,9 +27,9 @@ export function StableBalanceCard({
   const { chainId } = useWeb3() // Get chainId from context
 
   const getNativeTokenSymbol = (id: number | null) => {
-    if (id === 97) return "BNB" // BSC Testnet
-    if (id === 296) return "HBAR" // Hedera Testnet
-    return "ETH" // Default
+    if (id === 97) return "BNB" // BSC Testnet Chain ID
+    if (id === 296) return "HBAR" // Hedera Testnet Chain ID
+    return "ETH" // Default for other networks
   }
 
   const nativeTokenSymbol = getNativeTokenSymbol(chainId)

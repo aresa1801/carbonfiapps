@@ -17,9 +17,9 @@ export function BalanceCard({ type, balance, isLoading, symbol, subtitle }: Bala
   const { chainId } = useWeb3() // Get chainId from context
 
   const getNativeTokenSymbol = (id: number | null) => {
-    if (id === 97) return "BNB" // BSC Testnet
-    if (id === 296) return "HBAR" // Hedera Testnet
-    return "ETH" // Default
+    if (id === 97) return "BNB" // BSC Testnet Chain ID
+    if (id === 296) return "HBAR" // Hedera Testnet Chain ID
+    return "ETH" // Default for other networks
   }
 
   const nativeTokenSymbol = getNativeTokenSymbol(chainId)
