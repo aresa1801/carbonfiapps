@@ -21,7 +21,17 @@ interface FaucetStats {
 }
 
 export default function AdminDashboardPage() {
-  const { isConnected, isAdmin, account, faucetContractExists, cafiTokenExists, currentNetworkContracts } = useWeb3()
+  const {
+    isConnected,
+    isAdmin,
+    account,
+    faucetContractExists,
+    cafiTokenExists,
+    currentNetworkContracts,
+    provider, // Added provider from context
+    chainId, // Added chainId from context
+    networkCurrencySymbol, // Added networkCurrencySymbol from context
+  } = useWeb3()
 
   const [faucetStats, setFaucetStats] = useState<FaucetStats>({
     dailyLimit: "0",
@@ -39,7 +49,7 @@ export default function AdminDashboardPage() {
 
   // Fetch faucet statistics
   const fetchFaucetStats = async () => {
-    if (!faucetContractExists || !currentNetworkContracts.FAUCET) {
+    if (!faucetContractExists || !currentNetworkContracts.FAUCET || !provider) {
       setIsLoading(false)
       return
     }
@@ -55,13 +65,7 @@ export default function AdminDashboardPage() {
         faucetContract.DAILY_LIMIT(),
         faucetContract.getRemainingDailyQuota(),
         faucetContract.todayTotal(),
-        contractService
-          .getProvider()
-          .then((provider) =>
-            contractService
-              .getTokenContract(currentNetworkContracts.CAFI_TOKEN)
-              .then((tokenContract) => tokenContract.balanceOf(currentNetworkContracts.FAUCET)),
-          ),
+        provider.getBalance(currentNetworkContracts.FAUCET), // Fetch native balance of faucet contract
       ])
 
       // Format the values
@@ -137,39 +141,61 @@ export default function AdminDashboardPage() {
 
   // Fund faucet contract
   const fundFaucet = async () => {
-    if (!fundAmount || !cafiTokenExists || !faucetContractExists) return
+    if (!fundAmount || !faucetContractExists || !provider || !account) return
 
     try {
       setIsFunding(true)
-      console.log(`Funding faucet with ${fundAmount} CAFI`)
+      console.log(`Funding faucet with ${fundAmount} ${cafiTokenExists ? "CAFI" : networkCurrencySymbol}`)
 
-      // First approve the tokens
-      const tokenContract = await contractService.getTokenContract(currentNetworkContracts.CAFI_TOKEN, true)
-      const amountInWei = ethers.parseEther(fundAmount)
+      if (cafiTokenExists && currentNetworkContracts.CAFI_TOKEN) {
+        // Fund with CAFI token
+        const tokenContract = await contractService.getTokenContract(currentNetworkContracts.CAFI_TOKEN, true)
+        const amountInWei = ethers.parseEther(fundAmount)
 
-      const approveTx = await tokenContract.approve(currentNetworkContracts.FAUCET, amountInWei)
+        const approveTx = await tokenContract.approve(currentNetworkContracts.FAUCET, amountInWei)
 
-      toast({
-        title: "Approval Submitted",
-        description: "Token approval transaction submitted. Please wait for confirmation.",
-      })
+        toast({
+          title: "Approval Submitted",
+          description: "Token approval transaction submitted. Please wait for confirmation.",
+        })
 
-      await approveTx.wait()
+        await approveTx.wait()
 
-      // Then transfer the tokens to the faucet
-      const transferTx = await tokenContract.transfer(currentNetworkContracts.FAUCET, amountInWei)
+        const transferTx = await tokenContract.transfer(currentNetworkContracts.FAUCET, amountInWei)
 
-      toast({
-        title: "Transfer Submitted",
-        description: "Token transfer transaction submitted. Please wait for confirmation.",
-      })
+        toast({
+          title: "Transfer Submitted",
+          description: "Token transfer transaction submitted. Please wait for confirmation.",
+        })
 
-      await transferTx.wait()
+        await transferTx.wait()
 
-      toast({
-        title: "Success",
-        description: `Faucet funded with ${fundAmount} CAFI tokens`,
-      })
+        toast({
+          title: "Success",
+          description: `Faucet funded with ${fundAmount} CAFI tokens`,
+        })
+      } else {
+        // Fund with native currency (e.g., HBAR, ETH, BNB)
+        const signer = await provider.getSigner(account)
+        const amountInWei = ethers.parseEther(fundAmount)
+
+        const tx = await signer.sendTransaction({
+          to: currentNetworkContracts.FAUCET,
+          value: amountInWei,
+        })
+
+        toast({
+          title: "Transaction Submitted",
+          description: `Native currency transfer transaction submitted. Please wait for confirmation.`,
+        })
+
+        await tx.wait()
+
+        toast({
+          title: "Success",
+          description: `Faucet funded with ${fundAmount} ${networkCurrencySymbol}`,
+        })
+      }
 
       setFundAmount("")
       await fetchFaucetStats()
@@ -187,10 +213,10 @@ export default function AdminDashboardPage() {
 
   // Load data on component mount
   useEffect(() => {
-    if (isConnected && isAdmin && faucetContractExists) {
+    if (isConnected && isAdmin && faucetContractExists && provider) {
       fetchFaucetStats()
     }
-  }, [isConnected, isAdmin, faucetContractExists])
+  }, [isConnected, isAdmin, faucetContractExists, provider]) // Added provider to dependencies
 
   if (!isConnected || !isAdmin) {
     return (
@@ -317,7 +343,8 @@ export default function AdminDashboardPage() {
                     <Skeleton className="h-8 w-24 bg-gray-700" />
                   ) : (
                     <p className="text-2xl font-bold text-white">
-                      {Number.parseFloat(faucetStats.contractBalance).toFixed(0)} CAFI
+                      {Number.parseFloat(faucetStats.contractBalance).toFixed(4)} {networkCurrencySymbol}{" "}
+                      {/* Use networkCurrencySymbol here */}
                     </p>
                   )}
                 </div>
@@ -374,18 +401,19 @@ export default function AdminDashboardPage() {
           <CardHeader>
             <CardTitle className="text-white">Fund Faucet</CardTitle>
             <CardDescription className="text-gray-400">
-              Add CAFI tokens to the faucet contract for distribution
+              Add {cafiTokenExists ? "CAFI tokens" : `${networkCurrencySymbol} (native currency)`} to the faucet
+              contract for distribution
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="fundAmount" className="text-gray-300">
-                Amount to Fund (CAFI)
+                Amount to Fund ({cafiTokenExists ? "CAFI" : networkCurrencySymbol})
               </Label>
               <Input
                 id="fundAmount"
                 type="number"
-                placeholder="Enter amount"
+                placeholder={`Enter amount in ${cafiTokenExists ? "CAFI" : networkCurrencySymbol}`}
                 value={fundAmount}
                 onChange={(e) => setFundAmount(e.target.value)}
                 className="bg-gray-800 border-gray-600 text-white placeholder-gray-400"

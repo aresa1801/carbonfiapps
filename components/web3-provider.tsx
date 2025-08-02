@@ -7,8 +7,13 @@ import { toast } from "@/hooks/use-toast"
 
 // Import from contract-utils and constants
 import { contractService } from "@/lib/contract-utils"
-import { CONTRACT_ADDRESSES, getContractAddresses, getNetworkByChainId, isSupportedNetwork } from "@/lib/constants"
-import { isMobileDevice, isInAppBrowser, getInAppBrowserType } from "@/lib/wallet-utils"
+import {
+  CONTRACT_ADDRESSES,
+  getContractAddresses,
+  getNetworkByChainId,
+  isSupportedNetwork,
+  NETWORK_CONFIG,
+} from "@/lib/constants" // Added NETWORK_CONFIG
 
 interface Web3ContextType {
   provider: ethers.BrowserProvider | null
@@ -21,8 +26,8 @@ interface Web3ContextType {
   error: string | null
   // Connection state
   isAdmin: boolean
-  balance: string
-  ethBalance: string
+  balance: string // CAFI token balance
+  nativeBalance: string // Native currency balance (ETH, HBAR, BNB, etc.)
   isClient: boolean
   isMobile: boolean
   inAppBrowser: boolean
@@ -42,6 +47,7 @@ interface Web3ContextType {
   // Token info
   tokenSymbol: string
   tokenDecimals: number
+  networkCurrencySymbol: string // Symbol for the native currency of the connected network
 
   // Network info
   networkName: string
@@ -106,7 +112,7 @@ const Web3Context = createContext<Web3ContextType>({
   error: null,
   isAdmin: false,
   balance: "0",
-  ethBalance: "0",
+  nativeBalance: "0", // Changed from ethBalance
   isClient: false,
   isMobile: false,
   inAppBrowser: false,
@@ -122,6 +128,7 @@ const Web3Context = createContext<Web3ContextType>({
   farmingContractExists: false,
   tokenSymbol: "CAFI",
   tokenDecimals: 18,
+  networkCurrencySymbol: "ETH", // Default native currency symbol
   networkName: "",
   isLoadingBalance: false,
   refreshBalances: async () => {},
@@ -189,8 +196,8 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
   const [error, setError] = useState<string | null>(null)
   const [hasAttemptedAutoConnect, setHasAttemptedAutoConnect] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [balance, setBalance] = useState("0")
-  const [ethBalance, setEthBalance] = useState("0")
+  const [balance, setBalance] = useState("0") // CAFI token balance
+  const [nativeBalance, setNativeBalance] = useState("0") // Native currency balance
   const [isClient, setIsClient] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [inAppBrowser, setInAppBrowser] = useState(false)
@@ -204,6 +211,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
   const [farmingContractExists, setFarmingContractExists] = useState(false)
   const [tokenSymbol, setTokenSymbol] = useState("CAFI")
   const [tokenDecimals, setTokenDecimals] = useState(18)
+  const [networkCurrencySymbol, setNetworkCurrencySymbol] = useState("ETH") // State for native currency symbol
   const [networkName, setNetworkName] = useState("")
   const [isLoadingBalance, setIsLoadingBalance] = useState(false)
   const [isAutoConnecting, setIsAutoConnecting] = useState(false)
@@ -292,18 +300,6 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     }
   }, [])
 
-  // Initialize client-side flag and device detection
-  useEffect(() => {
-    setIsClient(true)
-    if (typeof window !== "undefined") {
-      setIsMobile(isMobileDevice())
-      setInAppBrowser(isInAppBrowser())
-      if (isInAppBrowser()) {
-        setWalletType(getInAppBrowserType())
-      }
-    }
-  }, [])
-
   const handleChainChanged = useCallback(() => {
     console.log("Chain changed, refreshing...")
     getNetworkInfo()
@@ -332,12 +328,15 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         const isSupported = isSupportedNetwork(chainIdNum)
         setSupportedNetwork(isSupported)
 
-        // Get network name
+        // Get network name and currency symbol
         const network = getNetworkByChainId(chainIdNum)
         const networkName = network?.name || `Chain ID: ${chainIdNum}`
+        const networkCurrencySymbol = network?.currency?.symbol || "ETH" // Default to ETH
         setNetworkName(networkName)
+        setNetworkCurrencySymbol(networkCurrencySymbol)
 
         console.log(`[Web3Provider] Connected to ${networkName} (Chain ID: ${chainIdNum})`)
+        console.log(`[Web3Provider] Native currency: ${networkCurrencySymbol}`)
         console.log(`[Web3Provider] Using contracts:`, networkContracts)
 
         if (!isSupported) {
@@ -422,11 +421,11 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     }
   }
 
-  // Enhanced fetch balances - ETH and CAFI together
+  // Enhanced fetch balances - Native and CAFI together
   const fetchBalances = async (address: string) => {
     try {
       setIsLoadingBalance(true)
-      console.log("[Web3Provider] 🔄 Fetching ETH and CAFI balances for address:", address)
+      console.log("[Web3Provider] 🔄 Fetching native and CAFI balances for address:", address)
 
       // Initialize contract service with the provider if not already done
       const walletInfo = detectWallet()
@@ -438,17 +437,17 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       // Prepare promises for parallel execution
       const balancePromises = []
 
-      // ETH Balance Promise
-      const ethBalancePromise = (async () => {
+      // Native Balance Promise
+      const nativeBalancePromise = (async () => {
         try {
           const provider = await contractService.getProvider()
-          const ethBalanceWei = await provider.getBalance(address)
-          const ethBalanceFormatted = ethers.formatEther(ethBalanceWei)
-          console.log("✅ ETH Balance fetched:", ethBalanceFormatted)
-          return { type: "eth", balance: Number.parseFloat(ethBalanceFormatted).toFixed(4) }
-        } catch (ethError) {
-          console.error("❌ Error fetching ETH balance:", ethError)
-          return { type: "eth", balance: "0" }
+          const nativeBalanceWei = await provider.getBalance(address)
+          const nativeBalanceFormatted = ethers.formatEther(nativeBalanceWei)
+          console.log(`✅ ${networkCurrencySymbol} Balance fetched:`, nativeBalanceFormatted)
+          return { type: "native", balance: Number.parseFloat(nativeBalanceFormatted).toFixed(4) }
+        } catch (nativeError) {
+          console.error(`❌ Error fetching ${networkCurrencySymbol} balance:`, nativeError)
+          return { type: "native", balance: "0" }
         }
       })()
 
@@ -473,15 +472,15 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       })()
 
       // Execute both promises in parallel
-      balancePromises.push(ethBalancePromise, cafiBalancePromise)
+      balancePromises.push(nativeBalancePromise, cafiBalancePromise)
 
       // Wait for all balance fetches to complete
       const balanceResults = await Promise.all(balancePromises)
 
       // Update state with results
       balanceResults.forEach((result) => {
-        if (result.type === "eth") {
-          setEthBalance(result.balance)
+        if (result.type === "native") {
+          setNativeBalance(result.balance)
         } else if (result.type === "cafi") {
           setBalance(result.balance)
         }
@@ -496,7 +495,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     } catch (error) {
       console.error("[Web3Provider] ❌ Error in fetchBalances:", error)
       setBalance("0")
-      setEthBalance("0")
+      setNativeBalance("0")
     } finally {
       setIsLoadingBalance(false)
     }
@@ -566,7 +565,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       setAccount(null)
       setIsConnected(false)
       setBalance("0")
-      setEthBalance("0")
+      setNativeBalance("0") // Changed from ethBalance
       setIsAdmin(false)
       console.log("🔌 Wallet disconnected")
       localStorage.removeItem("carbonfi-auto-connect")
@@ -712,7 +711,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
 
     // Reset balances and faucet data
     setBalance("0")
-    setEthBalance("0")
+    setNativeBalance("0") // Changed from ethBalance
     setFaucetStats({
       dailyLimit: "0",
       remainingQuota: "0",
@@ -861,13 +860,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
 
           // Set up a fallback provider for read-only operations
           try {
-            const fallbackRPCs = [
-              process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545", // Use env var
-              process.env.NEXT_PUBLIC_HEDERA_TESTNET_RPC_URL || "https://testnet.hashio.io/api", // Use env var
-              "https://eth-sepolia.public.blastapi.io",
-              "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
-              "https://rpc.sepolia.org",
-            ]
+            const fallbackRPCs = Object.values(NETWORK_CONFIG).map((net) => net.rpcUrl) // Use RPCs from NETWORK_CONFIG
 
             for (const rpc of fallbackRPCs) {
               try {
@@ -907,7 +900,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         }
       }
     }
-  }, [isClient, autoConnect, hasAttemptedAutoConnect, isPreviewEnvironment])
+  }, [isClient, autoConnect, hasAttemptedAutoConnect, isPreviewEnvironment, detectWallet]) // Removed dependencies
 
   // NFT Contract Methods - Real implementations
   const getMintFee = async (): Promise<string> => {
@@ -1044,7 +1037,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         throw new Error("CAFI token contract not available")
       }
       console.log(`Approving ${amount} tokens for spender ${spender}`)
-      const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN, true)
+      const tokenContract = await contractService.getTokenContract(currentNetworkContracts.CAFI_TOKEN, true) // Use currentNetworkContracts
       const amountInWei = contractService.parseTokenAmount(amount)
       return await tokenContract.approve(spender, amountInWei)
     } catch (error) {
@@ -1062,7 +1055,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         throw new Error("CAFI token contract not available")
       }
       console.log(`Checking allowance for owner ${owner} and spender ${spender}`)
-      const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN)
+      const tokenContract = await contractService.getTokenContract(currentNetworkContracts.CAFI_TOKEN) // Use currentNetworkContracts
       const allowance = await tokenContract.allowance(owner, spender)
       return contractService.formatTokenAmount(allowance)
     } catch (error) {
@@ -1161,7 +1154,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     // Connection state
     isAdmin,
     balance,
-    ethBalance,
+    nativeBalance, // Changed from ethBalance
     isClient,
     isMobile,
     inAppBrowser,
@@ -1181,6 +1174,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     // Token info
     tokenSymbol,
     tokenDecimals,
+    networkCurrencySymbol, // Added
 
     // Network info
     networkName,
