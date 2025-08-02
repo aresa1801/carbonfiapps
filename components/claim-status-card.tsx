@@ -1,52 +1,195 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircle, Clock, AlertCircle } from "lucide-react"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { useWeb3 } from "@/components/web3-provider"
+import { useEffect, useState } from "react"
+import { formatEther } from "ethers"
+import { Loader2 } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
 
-interface ClaimStatusCardProps {
-  isLoading: boolean
-  hasClaimedToday: boolean
-  remainingQuota: string
-}
+export function ClaimStatusCard() {
+  const { faucetContract, address, isConnected, refreshBalances, setTransactionStatus } = useWeb3()
+  const [lastClaimTime, setLastClaimTime] = useState<number | null>(null)
+  const [claimInterval, setClaimInterval] = useState<number | null>(null)
+  const [claimAmount, setClaimAmount] = useState<string | null>(null)
+  const [canClaim, setCanClaim] = useState(false)
+  const [timeUntilNextClaim, setTimeUntilNextClaim] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isClaiming, setIsClaiming] = useState(false)
 
-export function ClaimStatusCard({ isLoading, hasClaimedToday, remainingQuota }: ClaimStatusCardProps) {
-  const canClaim = !hasClaimedToday && Number(remainingQuota) > 0
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null
+
+    const fetchClaimStatus = async () => {
+      if (isConnected && faucetContract && address) {
+        setIsLoading(true)
+        try {
+          const lastTime = await faucetContract.lastClaimTime(address)
+          const interval = await faucetContract.claimInterval()
+          const amount = await faucetContract.claimAmount()
+
+          setLastClaimTime(Number(lastTime))
+          setClaimInterval(Number(interval))
+          setClaimAmount(formatEther(amount))
+
+          const currentTime = Math.floor(Date.now() / 1000)
+          const nextClaimTimestamp = Number(lastTime) + Number(interval)
+          const remainingTime = nextClaimTimestamp - currentTime
+
+          if (remainingTime <= 0) {
+            setCanClaim(true)
+            setTimeUntilNextClaim("Ready to claim!")
+          } else {
+            setCanClaim(false)
+            const hours = Math.floor(remainingTime / 3600)
+            const minutes = Math.floor((remainingTime % 3600) / 60)
+            const seconds = remainingTime % 60
+            setTimeUntilNextClaim(`${hours}h ${minutes}m ${seconds}s`)
+
+            // Set up a countdown timer
+            if (timer) clearInterval(timer)
+            timer = setInterval(() => {
+              const newRemainingTime = nextClaimTimestamp - Math.floor(Date.now() / 1000)
+              if (newRemainingTime <= 0) {
+                setCanClaim(true)
+                setTimeUntilNextClaim("Ready to claim!")
+                if (timer) clearInterval(timer)
+                refreshBalances() // Refresh balances when claim becomes available
+              } else {
+                const h = Math.floor(newRemainingTime / 3600)
+                const m = Math.floor((newRemainingTime % 3600) / 60)
+                const s = newRemainingTime % 60
+                setTimeUntilNextClaim(`${h}h ${m}m ${s}s`)
+              }
+            }, 1000)
+          }
+        } catch (error) {
+          console.error("Error fetching claim status:", error)
+          toast({
+            title: "Error",
+            description: "Failed to fetch claim status.",
+            variant: "destructive",
+          })
+          setLastClaimTime(null)
+          setClaimInterval(null)
+          setClaimAmount(null)
+          setCanClaim(false)
+          setTimeUntilNextClaim("Error fetching status.")
+        } finally {
+          setIsLoading(false)
+        }
+      } else {
+        setLastClaimTime(null)
+        setClaimInterval(null)
+        setClaimAmount(null)
+        setCanClaim(false)
+        setTimeUntilNextClaim(null)
+        setIsLoading(false)
+      }
+    }
+
+    fetchClaimStatus()
+
+    return () => {
+      if (timer) clearInterval(timer)
+    }
+  }, [isConnected, faucetContract, address, refreshBalances])
+
+  const handleClaim = async () => {
+    if (!faucetContract || !canClaim) {
+      toast({
+        title: "Error",
+        description: "Cannot claim tokens at this time.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsClaiming(true)
+    setTransactionStatus({ hash: null, status: "pending", message: "Claiming tokens..." })
+    try {
+      const tx = await faucetContract.claim()
+      await tx.wait()
+      setTransactionStatus({ hash: tx.hash, status: "success", message: "Tokens claimed successfully!" })
+      toast({
+        title: "Claim Successful",
+        description: `${claimAmount} CAFI tokens claimed.`,
+      })
+      refreshBalances() // Trigger a full refresh after successful claim
+    } catch (error: any) {
+      console.error("Error claiming tokens:", error)
+      setTransactionStatus({
+        hash: error.hash || null,
+        status: "failed",
+        message: `Claim failed: ${error.reason || error.message}`,
+      })
+      toast({
+        title: "Claim Failed",
+        description: `Failed to claim tokens: ${error.reason || error.message}`,
+        variant: "destructive",
+      })
+    } finally {
+      setIsClaiming(false)
+    }
+  }
+
+  if (!isConnected) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Claim CAFI Tokens</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">Connect your wallet to claim CAFI tokens.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Claim CAFI Tokens</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center gap-2">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading claim status...</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
-    <Card className="border-gray-700 bg-gray-900 hover:shadow-md transition-shadow">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-medium text-gray-300">Claim Status</div>
-          <Clock className="h-5 w-5 text-gray-400" />
+    <Card>
+      <CardHeader>
+        <CardTitle>Claim CAFI Tokens</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div>
+          <p className="text-sm font-medium">Last Claim:</p>
+          <p className="text-lg font-bold">
+            {lastClaimTime ? new Date(lastClaimTime * 1000).toLocaleString() : "Never"}
+          </p>
         </div>
-        <div className="mt-2">
-          {isLoading ? (
-            <Skeleton className="h-8 w-32 bg-gray-700" />
+        <div>
+          <p className="text-sm font-medium">Next Claim Available In:</p>
+          <p className="text-lg font-bold">{timeUntilNextClaim}</p>
+        </div>
+        <div>
+          <p className="text-sm font-medium">Claim Amount:</p>
+          <p className="text-lg font-bold">{claimAmount || "N/A"} CAFI</p>
+        </div>
+        <Button onClick={handleClaim} disabled={!canClaim || isClaiming}>
+          {isClaiming ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Claiming...
+            </>
           ) : (
-            <div className="flex items-center">
-              {canClaim ? (
-                <>
-                  <CheckCircle className="mr-2 h-5 w-5 text-emerald-500" />
-                  <span className="text-lg font-medium text-emerald-400">Ready to claim</span>
-                </>
-              ) : hasClaimedToday ? (
-                <>
-                  <Clock className="mr-2 h-5 w-5 text-orange-500" />
-                  <span className="text-lg font-medium text-orange-400">Already claimed today</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="mr-2 h-5 w-5 text-red-500" />
-                  <span className="text-lg font-medium text-red-400">No tokens available</span>
-                </>
-              )}
-            </div>
+            "Claim CAFI"
           )}
-        </div>
-        <div className="mt-1 text-xs text-gray-400">
-          {canClaim ? "Daily limit available" : hasClaimedToday ? "Try again tomorrow" : "Faucet depleted"}
-        </div>
+        </Button>
       </CardContent>
     </Card>
   )

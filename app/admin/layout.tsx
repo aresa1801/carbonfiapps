@@ -3,19 +3,25 @@
 import type React from "react"
 import { useWeb3 } from "@/components/web3-provider"
 import { AdminGuard } from "@/components/admin-guard"
-import { AdminDashboardNav } from "@/components/admin-dashboard-nav"
-import { ConnectWalletButton } from "@/components/connect-wallet-button"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { DashboardSidebar } from "@/components/dashboard-sidebar"
+import { DashboardHeader } from "@/components/dashboard-header"
+import { Toaster } from "@/components/ui/toaster"
+import { TransactionStatus } from "@/components/transaction-status"
+import { ThemeProvider } from "@/components/theme-provider"
+import { Web3Provider } from "@/components/web3-provider"
+import { cookies } from "next/headers"
+import { SidebarProvider } from "@/components/ui/sidebar"
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const cookieStore = cookies()
+  const defaultOpen = cookieStore.get("sidebar:state")?.value === "true"
+
   const { isConnected, isAdmin, account, isClient, balance, ethBalance, networkName, refreshBalances, isRefreshing } =
     useWeb3()
   const router = useRouter()
@@ -96,101 +102,22 @@ export default function AdminLayout({
   }
 
   return (
-    <AdminGuard>
-      <div className="min-h-screen bg-gray-950">
-        {/* Header with User Dashboard Colors */}
-        <header className="bg-gray-900 border-b border-gray-800 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="h-12 w-12 relative">
-                <Image src="/images/carbonfi-logo.png" alt="Carbon Finance Logo" fill className="object-contain" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-white">Carbon Finance</h1>
-                <p className="text-xs text-emerald-400 -mt-1">Admin Dashboard</p>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <Web3Provider>
+        <AdminGuard>
+          <SidebarProvider defaultOpen={defaultOpen}>
+            <div className="flex min-h-screen w-full flex-col bg-muted/40 md:grid md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+              <DashboardSidebar />
+              <div className="flex flex-col">
+                <DashboardHeader />
+                <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">{children}</main>
               </div>
             </div>
-
-            {/* Wallet Info Section with User Dashboard Colors */}
-            <div className="flex items-center space-x-6">
-              {/* Balance Display */}
-              <div className="hidden md:flex items-center space-x-4 text-sm">
-                <div className="text-gray-300">
-                  <span className="text-gray-400">ETH:</span> {ethBalance}
-                </div>
-                <div className="text-gray-300">
-                  <span className="text-gray-400">CAFI:</span> {balance}
-                </div>
-                {networkName && (
-                  <div className="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">{networkName}</div>
-                )}
-              </div>
-
-              {/* Manual Refresh Button */}
-              <Button
-                onClick={handleManualRefresh}
-                disabled={isRefreshing}
-                variant="outline"
-                size="sm"
-                className="border-gray-600 bg-gray-700/50 text-gray-200 hover:bg-gray-600 hover:text-gray-100"
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-              </Button>
-
-              {/* Admin Badge */}
-              <div className="px-3 py-1 bg-emerald-900/50 border border-emerald-700/50 rounded-full text-xs text-emerald-300 font-medium">
-                Admin Access
-              </div>
-
-              {/* Account Info */}
-              {account && (
-                <div className="text-sm text-gray-300">
-                  <span className="text-gray-400">Admin:</span>
-                  <span className="ml-1 font-mono">
-                    {account.substring(0, 6)}...{account.substring(38)}
-                  </span>
-                </div>
-              )}
-
-              {/* Connect Wallet Button */}
-              <ConnectWalletButton
-                showAddress={false}
-                showBalance={true}
-                showNetwork={true}
-                variant="outline"
-                className="border-emerald-800 bg-emerald-900/50 text-emerald-400 hover:bg-emerald-800 hover:text-emerald-100"
-              />
-            </div>
-          </div>
-
-          {/* Mobile Balance Display */}
-          <div className="md:hidden mt-3 pt-3 border-t border-gray-800">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center space-x-4">
-                <div className="text-gray-300">
-                  <span className="text-gray-400">ETH:</span> {ethBalance}
-                </div>
-                <div className="text-gray-300">
-                  <span className="text-gray-400">CAFI:</span> {balance}
-                </div>
-              </div>
-              {networkName && <div className="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">{networkName}</div>}
-            </div>
-          </div>
-        </header>
-
-        <div className="flex h-[calc(100vh-80px)] md:h-[calc(100vh-120px)]">
-          {/* Sidebar Navigation with User Dashboard Colors */}
-          <aside className="w-64 bg-gray-900 border-r border-gray-800">
-            <AdminDashboardNav />
-          </aside>
-
-          {/* Main Content */}
-          <main className="flex-1 overflow-auto bg-gray-950">
-            <div className="p-6">{children}</div>
-          </main>
-        </div>
-      </div>
-    </AdminGuard>
+            <Toaster />
+            <TransactionStatus />
+          </SidebarProvider>
+        </AdminGuard>
+      </Web3Provider>
+    </ThemeProvider>
   )
 }

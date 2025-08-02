@@ -1,12 +1,20 @@
 import { ethers } from "ethers"
-import { CONTRACT_ADDRESSES } from "./constants"
-import CAFI_TOKEN_ABI from "../contracts/cafi-token-abi.json"
-import FAUCET_ABI from "../contracts/faucet-abi.json"
-import STAKING_ABI from "../contracts/staking-abi.json"
-import NFT_ABI from "../contracts/nft-abi.json"
-import MARKETPLACE_ABI from "../contracts/marketplace-abi.json"
-import CARBON_RETIRE_ABI from "../contracts/carbon-retire-abi.json"
-import FARMING_ABI from "../contracts/farming-abi.json"
+import {
+  CAFI_TOKEN_ADDRESS,
+  FAUCET_ADDRESS,
+  STAKING_ADDRESS,
+  FARMING_ADDRESS,
+  NFT_ADDRESS,
+  CARBON_RETIRE_ADDRESS,
+  MARKETPLACE_ADDRESS,
+} from "./constants"
+import CAFITokenABI from "../contracts/cafi-token-abi.json"
+import FaucetABI from "../contracts/faucet-abi.json"
+import StakingABI from "../contracts/staking-abi.json"
+import FarmingABI from "../contracts/farming-abi.json"
+import NFTABI from "../contracts/nft-abi.json"
+import CarbonRetireABI from "../contracts/carbon-retire-abi.json"
+import MarketplaceABI from "../contracts/marketplace-abi.json"
 
 // Define minimal ERC20 ABI for fallback
 const ERC20_ABI = [
@@ -191,13 +199,13 @@ class ContractService {
   // Get token contract (using CAFI token ABI)
   async getTokenContract(address?: string, withSigner = false) {
     try {
-      const contractAddress = address || CONTRACT_ADDRESSES.CAFI_TOKEN
+      const contractAddress = address || CAFI_TOKEN_ADDRESS[await this.getChainId()]
       const provider = await this.getProvider()
       if (withSigner) {
         const signer = await this.getSigner()
-        return new ethers.Contract(contractAddress, CAFI_TOKEN_ABI, signer)
+        return new ethers.Contract(contractAddress, CAFITokenABI, signer)
       }
-      return new ethers.Contract(contractAddress, CAFI_TOKEN_ABI, provider)
+      return new ethers.Contract(contractAddress, CAFITokenABI, provider)
     } catch (error) {
       console.error("Error getting token contract:", error)
       throw error
@@ -205,15 +213,15 @@ class ContractService {
   }
 
   // Get CAFI token contract
-  async getCAFITokenContract(address?: string, withSigner = false) {
+  async getCAFITokenContract(chainId: number, withSigner = false) {
     try {
-      const contractAddress = address || CONTRACT_ADDRESSES.CAFI_TOKEN
+      const contractAddress = CAFI_TOKEN_ADDRESS[chainId]
       const provider = await this.getProvider()
       if (withSigner) {
         const signer = await this.getSigner()
-        return new ethers.Contract(contractAddress, CAFI_TOKEN_ABI, signer)
+        return new ethers.Contract(contractAddress, CAFITokenABI, signer)
       }
-      return new ethers.Contract(contractAddress, CAFI_TOKEN_ABI, provider)
+      return new ethers.Contract(contractAddress, CAFITokenABI, provider)
     } catch (error) {
       console.error("Error getting CAFI token contract:", error)
       throw error
@@ -221,15 +229,15 @@ class ContractService {
   }
 
   // Get faucet contract
-  async getFaucetContract(address?: string, withSigner = false) {
+  async getFaucetContract(chainId: number, withSigner = false) {
     try {
-      const contractAddress = address || CONTRACT_ADDRESSES.FAUCET
+      const contractAddress = FAUCET_ADDRESS[chainId]
       const provider = await this.getProvider()
       if (withSigner) {
         const signer = await this.getSigner()
-        return new ethers.Contract(contractAddress, FAUCET_ABI, signer)
+        return new ethers.Contract(contractAddress, FaucetABI, signer)
       }
-      return new ethers.Contract(contractAddress, FAUCET_ABI, provider)
+      return new ethers.Contract(contractAddress, FaucetABI, provider)
     } catch (error) {
       console.error("Error getting faucet contract:", error)
       throw error
@@ -237,15 +245,15 @@ class ContractService {
   }
 
   // Get staking contract
-  async getStakingContract(address?: string, withSigner = false) {
+  async getStakingContract(chainId: number, withSigner = false) {
     try {
-      const contractAddress = address || CONTRACT_ADDRESSES.STAKING
+      const contractAddress = STAKING_ADDRESS[chainId]
       const provider = await this.getProvider()
       if (withSigner) {
         const signer = await this.getSigner()
-        return new ethers.Contract(contractAddress, STAKING_ABI, signer)
+        return new ethers.Contract(contractAddress, StakingABI, signer)
       }
-      return new ethers.Contract(contractAddress, STAKING_ABI, provider)
+      return new ethers.Contract(contractAddress, StakingABI, provider)
     } catch (error) {
       console.error("Error getting staking contract:", error)
       throw error
@@ -253,15 +261,15 @@ class ContractService {
   }
 
   // Get NFT contract
-  async getNftContract(address?: string, withSigner = false) {
+  async getNftContract(chainId: number, withSigner = false) {
     try {
-      const contractAddress = address || CONTRACT_ADDRESSES.NFT
+      const contractAddress = NFT_ADDRESS[chainId]
       const provider = await this.getProvider()
       if (withSigner) {
         const signer = await this.getSigner()
-        return new ethers.Contract(contractAddress, NFT_ABI, signer)
+        return new ethers.Contract(contractAddress, NFTABI, signer)
       }
-      return new ethers.Contract(contractAddress, NFT_ABI, provider)
+      return new ethers.Contract(contractAddress, NFTABI, provider)
     } catch (error) {
       console.error("Error getting NFT contract:", error)
       throw error
@@ -269,15 +277,15 @@ class ContractService {
   }
 
   // Get marketplace contract
-  async getMarketplaceContract(address?: string, withSigner = false) {
+  async getMarketplaceContract(chainId: number, withSigner = false) {
     try {
-      const contractAddress = address || CONTRACT_ADDRESSES.MARKETPLACE
+      const contractAddress = MARKETPLACE_ADDRESS[chainId]
       const provider = await this.getProvider()
       if (withSigner) {
         const signer = await this.getSigner()
-        return new ethers.Contract(contractAddress, MARKETPLACE_ABI, signer)
+        return new ethers.Contract(contractAddress, MarketplaceABI, signer)
       }
-      return new ethers.Contract(contractAddress, MARKETPLACE_ABI, provider)
+      return new ethers.Contract(contractAddress, MarketplaceABI, provider)
     } catch (error) {
       console.error("Error getting marketplace contract:", error)
       throw error
@@ -285,15 +293,15 @@ class ContractService {
   }
 
   // Get carbon retire contract
-  async getCarbonRetireContract(address?: string, withSigner = false) {
+  async getCarbonRetireContract(chainId: number, withSigner = false) {
     try {
-      const contractAddress = address || CONTRACT_ADDRESSES.CARBON_RETIRE
+      const contractAddress = CARBON_RETIRE_ADDRESS[chainId]
       const provider = await this.getProvider()
       if (withSigner) {
         const signer = await this.getSigner()
-        return new ethers.Contract(contractAddress, CARBON_RETIRE_ABI, signer)
+        return new ethers.Contract(contractAddress, CarbonRetireABI, signer)
       }
-      return new ethers.Contract(contractAddress, CARBON_RETIRE_ABI, provider)
+      return new ethers.Contract(contractAddress, CarbonRetireABI, provider)
     } catch (error) {
       console.error("Error getting carbon retire contract:", error)
       throw error
@@ -301,15 +309,15 @@ class ContractService {
   }
 
   // Get farming contract
-  async getFarmingContract(address?: string, withSigner = false) {
+  async getFarmingContract(chainId: number, withSigner = false) {
     try {
-      const contractAddress = address || CONTRACT_ADDRESSES.FARMING
+      const contractAddress = FARMING_ADDRESS[chainId]
       const provider = await this.getProvider()
       if (withSigner) {
         const signer = await this.getSigner()
-        return new ethers.Contract(contractAddress, FARMING_ABI, signer)
+        return new ethers.Contract(contractAddress, FarmingABI, signer)
       }
-      return new ethers.Contract(contractAddress, FARMING_ABI, provider)
+      return new ethers.Contract(contractAddress, FarmingABI, provider)
     } catch (error) {
       console.error("Error getting farming contract:", error)
       throw error
@@ -337,7 +345,7 @@ class ContractService {
   // Staking contract helpers
   async getStakingPackages() {
     try {
-      const stakingContract = await this.getStakingContract()
+      const stakingContract = await this.getStakingContract(await this.getChainId())
       const packages = []
 
       // Get lock periods and APY rates for standard packages (0, 1, 2)
@@ -370,7 +378,7 @@ class ContractService {
   // NFT contract helpers
   async getVerifiers() {
     try {
-      const nftContract = await this.getNftContract()
+      const nftContract = await this.getNftContract(await this.getChainId())
       const verifiers = []
 
       // Try to load verifiers from index 0 to 9
@@ -401,7 +409,7 @@ class ContractService {
   // Farming contract helpers
   async getFarmingPackages() {
     try {
-      const farmingContract = await this.getFarmingContract()
+      const farmingContract = await this.getFarmingContract(await this.getChainId())
       const packageCount = await farmingContract.getActivePackageCount()
       const packages = []
 
@@ -435,7 +443,7 @@ class ContractService {
   // Marketplace helpers
   async getMarketplaceListing(tokenId: number, seller: string) {
     try {
-      const marketplaceContract = await this.getMarketplaceContract()
+      const marketplaceContract = await this.getMarketplaceContract(await this.getChainId())
       const listing = await marketplaceContract.listings(tokenId, seller)
 
       if (listing.seller === ethers.ZeroAddress) {
@@ -463,7 +471,7 @@ class ContractService {
   // Get marketplace constants
   async getMarketplaceConstants() {
     try {
-      const marketplaceContract = await this.getMarketplaceContract()
+      const marketplaceContract = await this.getMarketplaceContract(await this.getChainId())
 
       const [feePercent, feeDenominator, minAmount, minPrice] = await Promise.all([
         marketplaceContract.FEE_PERCENT(),
@@ -505,13 +513,19 @@ class ContractService {
       return BigInt(0)
     }
   }
+
+  // Get chain ID
+  async getChainId() {
+    const provider = await this.getProvider()
+    return await provider.getNetwork().then((network) => network.chainId)
+  }
 }
 
 // Create a singleton instance
 export const contractService = new ContractService()
 
 // Export ABIs directly as named exports
-export { ERC20_ABI, NFT_ABI, STAKING_ABI, FAUCET_ABI, MARKETPLACE_ABI, CARBON_RETIRE_ABI, FARMING_ABI }
+export { ERC20_ABI, NFTABI, StakingABI, FaucetABI, MarketplaceABI, CarbonRetireABI, FarmingABI }
 
 // Export utility functions
 export const formatTokenAmount = contractService.formatTokenAmount.bind(contractService)
@@ -519,7 +533,7 @@ export const parseTokenAmount = contractService.parseTokenAmount.bind(contractSe
 
 // Export contract getter functions
 export const getTokenContract = contractService.getTokenContract.bind(contractService)
-export const getCAFITokenContract = contractService.getCAFITokenContract.bind(contractService)
+export const getCafiTokenContract = contractService.getCAFITokenContract.bind(contractService)
 export const getFaucetContract = contractService.getFaucetContract.bind(contractService)
 export const getStakingContract = contractService.getStakingContract.bind(contractService)
 export const getNftContract = contractService.getNftContract.bind(contractService)
@@ -528,4 +542,12 @@ export const getCarbonRetireContract = contractService.getCarbonRetireContract.b
 export const getFarmingContract = contractService.getFarmingContract.bind(contractService)
 
 // Re-export CONTRACT_ADDRESSES for convenience
-export { CONTRACT_ADDRESSES }
+export {
+  CAFI_TOKEN_ADDRESS,
+  FAUCET_ADDRESS,
+  STAKING_ADDRESS,
+  FARMING_ADDRESS,
+  NFT_ADDRESS,
+  CARBON_RETIRE_ADDRESS,
+  MARKETPLACE_ADDRESS,
+}

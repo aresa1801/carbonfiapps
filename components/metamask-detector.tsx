@@ -1,12 +1,11 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { AlertCircle, Download, ExternalLink, RefreshCw, CheckCircle } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import Link from "next/link"
-import { isMobile as isMobileDevice, isIOS, isAndroid, isInAppBrowser } from "@/lib/wallet-utils"
+import { ExternalLink } from "lucide-react"
+import { isMobile as isMobileDevice, isInAppBrowser, getInAppBrowserType } from "@/lib/wallet-utils"
+import Image from "next/image"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface WalletDetectionResult {
   hasMetaMask: boolean
@@ -30,6 +29,10 @@ export default function MetaMaskDetector() {
   const [showDebugInfo, setShowDebugInfo] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [isClient, setIsClient] = useState(false)
+  const [hasMetaMask, setHasMetaMask] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [inAppBrowser, setInAppBrowser] = useState(false)
+  const [inAppBrowserType, setInAppBrowserType] = useState("Unknown")
 
   // Enhanced wallet detection
   const detectWallets = useCallback((): WalletDetectionResult => {
@@ -166,6 +169,10 @@ export default function MetaMaskDetector() {
         const result = detectWallets()
         setDetection(result)
         setIsChecking(false)
+        setHasMetaMask(result.hasMetaMask)
+        setIsMobile(isMobileDevice())
+        setInAppBrowser(isInAppBrowser())
+        setInAppBrowserType(getInAppBrowserType())
         return result
       }
 
@@ -239,184 +246,65 @@ export default function MetaMaskDetector() {
     setIsOpen(false)
   }
 
-  const isMobile = isClient ? isMobileDevice() : false
+  const handleInstallClick = () => {
+    if (isMobile && !inAppBrowser) {
+      // Deep link for mobile if not in an in-app browser
+      window.open("https://metamask.app.link/dapp/your-dapp-url.com", "_blank") // Replace with your DApp URL
+    } else {
+      // Direct to MetaMask download page for desktop or in-app browsers
+      window.open("https://metamask.io/download/", "_blank")
+    }
+  }
 
   // Don't show anything while checking or in preview mode
   if (isChecking || isPreviewMode) {
     return null
   }
 
-  // If we have MetaMask, don't show anything
-  if (detection.hasMetaMask) {
-    return null
+  if (hasMetaMask) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>MetaMask Detected</CardTitle>
+          <CardDescription>Your browser has MetaMask installed. You can now connect your wallet.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={() => window.ethereum?.request({ method: "eth_requestAccounts" })}>Connect MetaMask</Button>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>MetaMask Not Detected</DialogTitle>
-            <DialogDescription>
-              {isMobile
-                ? "It looks like you're on a mobile device and MetaMask is not detected. Please open this page in the MetaMask app's browser or install MetaMask Mobile."
-                : "It looks like MetaMask is not installed in your browser. Please install MetaMask to connect your wallet."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            {isMobile ? (
-              <>
-                <Button asChild>
-                  <Link href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer">
-                    Get MetaMask Mobile
-                  </Link>
-                </Button>
-                <Button onClick={handleClose} variant="outline">
-                  Close
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button asChild>
-                  <Link href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer">
-                    Install MetaMask Extension
-                  </Link>
-                </Button>
-                <Button onClick={handleClose} variant="outline">
-                  Close
-                </Button>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-      <Alert variant={detection.hasOtherWallets ? "default" : "destructive"} className="mb-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>{detection.hasOtherWallets ? "MetaMask Recommended" : "MetaMask Not Detected"}</AlertTitle>
-        <AlertDescription className="mt-2">
-          {detection.hasOtherWallets ? (
-            <div>
-              <p className="mb-2">
-                We detected other wallets ({detection.detectedWallets.join(", ")}), but MetaMask is recommended for the
-                best experience with CarbonFi.
-              </p>
-              <div className="flex items-center gap-2 p-2 bg-green-50 rounded text-sm text-green-700 mb-2">
-                <CheckCircle className="h-4 w-4" />
-                <span>You can still connect with your existing wallet</span>
-              </div>
-            </div>
-          ) : (
-            <p className="mb-2">
-              To interact with the CarbonFi platform, you need to have MetaMask or another Ethereum wallet installed.
-            </p>
-          )}
-
-          {isMobile ? (
-            <div className="mt-3">
-              <p className="mb-2">You're on a mobile device. Please use a wallet mobile app:</p>
-              <div className="flex flex-col sm:flex-row gap-2 mt-3">
-                {isIOS() && (
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2 bg-transparent"
-                    onClick={() =>
-                      window.open("https://apps.apple.com/us/app/metamask-blockchain-wallet/id1438144202", "_blank")
-                    }
-                  >
-                    <Download className="h-4 w-4" />
-                    MetaMask for iOS
-                  </Button>
-                )}
-                {isAndroid() && (
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2 bg-transparent"
-                    onClick={() => window.open("https://play.google.com/store/apps/details?id=io.metamask", "_blank")}
-                  >
-                    <Download className="h-4 w-4" />
-                    MetaMask for Android
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2 bg-transparent"
-                  onClick={() => window.open("https://metamask.io/download/", "_blank")}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Visit MetaMask
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-3">
-              <p className="mb-2">Please install MetaMask extension for your browser:</p>
-              <div className="flex flex-col sm:flex-row gap-2 mt-3">
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2 bg-transparent"
-                  onClick={() => window.open("https://metamask.io/download/", "_blank")}
-                >
-                  <Download className="h-4 w-4" />
-                  Install MetaMask
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2 bg-transparent"
-                  onClick={() => setIsChecking(true)}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Check Again
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2 bg-transparent"
-                  onClick={() => window.location.reload()}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh Page
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-3 p-3 bg-gray-50 rounded text-xs">
-            <div className="flex items-center justify-between mb-2">
-              <p className="font-medium">Troubleshooting:</p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDebugInfo(!showDebugInfo)}
-                className="text-xs h-6"
-              >
-                {showDebugInfo ? "Hide" : "Show"} Debug Info
-              </Button>
-            </div>
-
-            <ul className="list-disc list-inside space-y-1">
-              <li>Make sure MetaMask extension is enabled in your browser</li>
-              <li>Try refreshing the page after installing</li>
-              <li>Check if other wallet extensions are conflicting</li>
-              <li>Disable ad blockers that might block wallet detection</li>
-              <li>Try opening in an incognito/private window</li>
-            </ul>
-
-            {showDebugInfo && (
-              <div className="mt-3 p-2 bg-gray-100 rounded text-xs">
-                <p className="font-medium mb-1">Debug Information:</p>
-                <ul className="space-y-1">
-                  <li>Ethereum Injected: {detection.isInjected ? "✅" : "❌"}</li>
-                  <li>MetaMask Detected: {detection.hasMetaMask ? "✅" : "❌"}</li>
-                  <li>Other Wallets: {detection.hasOtherWallets ? "✅" : "❌"}</li>
-                  <li>Detected Wallets: {detection.detectedWallets.join(", ") || "None"}</li>
-                  <li>Can Connect: {detection.canConnect ? "✅" : "❌"}</li>
-                  <li>Check Attempts: {checkAttempts}</li>
-                  <li>User Agent: {navigator.userAgent.substring(0, 50)}...</li>
-                </ul>
-              </div>
-            )}
-          </div>
-        </AlertDescription>
-      </Alert>
-    </>
+    <Card>
+      <CardHeader>
+        <CardTitle>MetaMask Not Detected</CardTitle>
+        <CardDescription>
+          {isMobile
+            ? inAppBrowser
+              ? `You are using a ${inAppBrowserType}. Please open this DApp in a DApp browser like MetaMask Mobile or Trust Wallet, or use a desktop browser.`
+              : "It looks like you're on a mobile device. Please install MetaMask Mobile or open this DApp in a DApp browser."
+            : "MetaMask is not installed in your browser. Please install it to connect your wallet."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center gap-4">
+        <Image
+          src="/placeholder.svg?height=100&width=100&text=MetaMask"
+          alt="MetaMask logo"
+          width={100}
+          height={100}
+          className="rounded-lg"
+        />
+        <Button onClick={handleInstallClick} className="w-full">
+          <ExternalLink className="mr-2 h-4 w-4" />
+          {isMobile && !inAppBrowser ? "Open in MetaMask App" : "Install MetaMask"}
+        </Button>
+        {isMobile && inAppBrowser && (
+          <p className="text-sm text-muted-foreground text-center">
+            If you already have MetaMask Mobile, try opening this page directly in its in-app browser.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   )
 }

@@ -1,108 +1,81 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
-import { ChevronDown, Loader2 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useWeb3 } from "@/components/web3-provider"
-import { NETWORKS } from "@/lib/constants"
-import { toast } from "@/hooks/use-toast"
+import { SUPPORTED_NETWORKS, getNetworkByChainId } from "@/lib/constants"
+import { toast } from "@/components/ui/use-toast"
+import { Loader2 } from "lucide-react"
 
 export function NetworkSelector() {
-  const { chainId, networkName, switchNetwork, isConnected, isLoading } = useWeb3()
+  const { chainId, switchNetwork, isConnected, isLoading } = useWeb3()
+  const [selectedNetwork, setSelectedNetwork] = useState<string | undefined>(chainId ? String(chainId) : undefined)
   const [isSwitching, setIsSwitching] = useState(false)
 
-  const handleNetworkSwitch = async (targetChainId: number) => {
+  useEffect(() => {
+    if (chainId) {
+      setSelectedNetwork(String(chainId))
+    } else {
+      setSelectedNetwork(undefined)
+    }
+  }, [chainId])
+
+  const handleNetworkChange = async (newChainId: string) => {
     if (!isConnected) {
       toast({
         title: "Wallet Not Connected",
-        description: "Please connect your wallet first to switch networks.",
+        description: "Please connect your wallet first.",
         variant: "destructive",
-      })
-      return
-    }
-    if (chainId === targetChainId) {
-      toast({
-        title: "Already Connected",
-        description: `You are already connected to ${NETWORKS[Object.keys(NETWORKS).find((key) => NETWORKS[key].chainId === targetChainId) || ""]?.name || "this network"}.`,
       })
       return
     }
 
     setIsSwitching(true)
     try {
-      await switchNetwork(targetChainId)
-    } catch (error) {
+      await switchNetwork(Number(newChainId))
+      toast({
+        title: "Network Switched",
+        description: `Successfully switched to ${getNetworkByChainId(Number(newChainId))?.name}.`,
+      })
+    } catch (error: any) {
       console.error("Failed to switch network:", error)
       toast({
         title: "Network Switch Failed",
-        description: "Could not switch network. Please try again or add the network manually to your wallet.",
+        description: `Could not switch network: ${error.message || error}`,
         variant: "destructive",
       })
+      // Revert select back to current chainId if switch fails
+      setSelectedNetwork(chainId ? String(chainId) : undefined)
     } finally {
       setIsSwitching(false)
     }
   }
 
-  if (isLoading) {
-    return (
-      <Button variant="outline" disabled>
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Loading Networks...
-      </Button>
-    )
-  }
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+    <div className="flex items-center space-x-2">
+      <span className="text-sm font-medium">Network:</span>
+      <Select
+        value={selectedNetwork}
+        onValueChange={handleNetworkChange}
+        disabled={!isConnected || isLoading || isSwitching}
+      >
+        <SelectTrigger className="w-[180px]">
           {isSwitching ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Switching...
-            </>
+            <span className="flex items-center">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Switching...
+            </span>
           ) : (
-            <>
-              {networkName || "Select Network"}
-              <ChevronDown className="h-4 w-4" />
-            </>
+            <SelectValue placeholder="Select Network" />
           )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {Object.values(NETWORKS).map((network) => (
-          <DropdownMenuItem
-            key={network.chainId}
-            onClick={() => handleNetworkSwitch(network.chainId)}
-            disabled={isSwitching || chainId === network.chainId}
-          >
-            {network.name}
-            {chainId === network.chainId && <Check className="ml-2 h-4 w-4" />}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-function Check(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
+        </SelectTrigger>
+        <SelectContent>
+          {SUPPORTED_NETWORKS.map((network) => (
+            <SelectItem key={network.chainId} value={String(network.chainId)}>
+              {network.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }

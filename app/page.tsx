@@ -3,84 +3,88 @@
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConnectWalletButton } from "@/components/connect-wallet-button"
 import { useWeb3 } from "@/components/web3-provider"
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
-export default function HomePage() {
-  const { isConnected, isAdmin, isLoading, address } = useWeb3()
-  const router = useRouter()
-  const [showRedirectMessage, setShowRedirectMessage] = useState(false)
-
-  useEffect(() => {
-    if (!isLoading && isConnected && address) {
-      setShowRedirectMessage(true)
-      const timer = setTimeout(() => {
-        if (isAdmin) {
-          router.push("/admin")
-        } else {
-          router.push("/user")
-        }
-      }, 2000) // Redirect after 2 seconds
-      return () => clearTimeout(timer)
-    }
-  }, [isConnected, isAdmin, isLoading, address, router])
+export default function LandingPage() {
+  const { isConnected, isLoading } = useWeb3()
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-950 p-4 text-gray-50 dark:bg-gray-950 dark:text-gray-50">
-      <div className="w-full max-w-md space-y-8 text-center">
-        <div className="flex flex-col items-center space-y-4">
-          <Image
-            src="/images/carbonfi-logo.png"
-            alt="CarbonFi Logo"
-            width={72} // 1.5x of 48
-            height={72} // 1.5x of 48
-            className="rounded-full"
-          />
-          <h1 className="text-5xl font-bold tracking-tight text-white">CarbonFi</h1>
-          <p className="text-lg text-gray-400">Decentralized Carbon Credit Management</p>
+    <div className="flex flex-col min-h-screen">
+      <header className="px-4 lg:px-6 h-14 flex items-center">
+        <Link href="#" className="flex items-center justify-center">
+          <Image src="/public/images/carbonfi-logo.png" alt="CarbonFi Logo" width={120} height={30} priority />
+          <span className="sr-only">CarbonFi</span>
+        </Link>
+        <nav className="ml-auto flex gap-4 sm:gap-6">
+          <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
+            Features
+          </Link>
+          <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
+            Pricing
+          </Link>
+          <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
+            About
+          </Link>
+          <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
+            Contact
+          </Link>
+        </nav>
+        <div className="ml-4">
+          <ConnectWalletButton />
         </div>
-
-        {isLoading ? (
-          <Card className="w-full bg-gray-900 text-white">
-            <CardContent className="flex flex-col items-center justify-center space-y-4 py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-              <p className="text-lg text-gray-300">Loading Web3 Provider...</p>
-              <p className="text-sm text-gray-400 text-center">
-                Please ensure your MetaMask is unlocked and connected.
-              </p>
-            </CardContent>
-          </Card>
-        ) : showRedirectMessage ? (
-          <Card className="w-full bg-gray-900 text-white">
-            <CardContent className="flex flex-col items-center justify-center space-y-4 py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-green-500" />
-              <p className="text-lg font-semibold text-green-400">Wallet Connected!</p>
-              <p className="text-sm text-gray-300">Redirecting to {isAdmin ? "Admin" : "User"} Dashboard...</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="w-full bg-gray-900 text-white">
-            <CardHeader>
-              <CardTitle className="text-blue-400">Connect Your Wallet</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-gray-300">Connect your MetaMask wallet to access the CarbonFi DApp.</p>
-              <ConnectWalletButton />
-              <div className="flex justify-center space-x-4">
-                <Link href="/user" passHref>
-                  <Button variant="link" className="text-gray-400 hover:text-gray-50">
-                    Continue as Guest (View Only)
-                  </Button>
-                </Link>
+      </header>
+      <main className="flex-1">
+        <section className="w-full pt-12 md:pt-24 lg:pt-32 border-y">
+          <div className="px-4 md:px-6 space-y-10 xl:space-y-16">
+            <div className="grid max-w-[1300px] mx-auto gap-4 px-4 sm:px-6 md:grid-cols-2 md:gap-16">
+              <div>
+                <h1 className="lg:leading-tighter text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl xl:text-[3.4rem] 2xl:text-[3.75rem]">
+                  Decentralized Carbon Credit Management
+                </h1>
+                <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl dark:text-gray-400">
+                  Trade, retire, and manage carbon credits on the blockchain. Transparent, secure, and efficient.
+                </p>
+                <div className="space-x-4 mt-6">
+                  {isLoading ? (
+                    <Button disabled>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
+                    </Button>
+                  ) : isConnected ? (
+                    <Link href="/user" passHref>
+                      <Button>Go to Dashboard</Button>
+                    </Link>
+                  ) : (
+                    <ConnectWalletButton />
+                  )}
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+              <div className="flex flex-col items-start space-y-4">
+                <Image
+                  src="/public/images/carbonfi-header.jpeg"
+                  width="550"
+                  height="550"
+                  alt="Hero"
+                  className="mx-auto aspect-video overflow-hidden rounded-xl object-cover"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
+        <p className="text-xs text-gray-500 dark:text-gray-400">&copy; 2024 CarbonFi. All rights reserved.</p>
+        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
+          <Link href="#" className="text-xs hover:underline underline-offset-4">
+            Terms of Service
+          </Link>
+          <Link href="#" className="text-xs hover:underline underline-offset-4">
+            Privacy
+          </Link>
+        </nav>
+      </footer>
     </div>
   )
 }

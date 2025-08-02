@@ -14,9 +14,19 @@ import { ImageIcon, Settings, RefreshCw, Plus, AlertCircle } from "lucide-react"
 import { contractService, CONTRACT_ADDRESSES, type Verifier } from "@/lib/contract-utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { Loader2 } from "lucide-react"
 
 export default function NFTSettingsPage() {
-  const { isConnected, account, tokenSymbol, nftContractExists } = useWeb3()
+  const {
+    isConnected,
+    account,
+    tokenSymbol,
+    nftContractExists,
+    nftContract,
+    isAdmin,
+    refreshBalances,
+    setTransactionStatus,
+  } = useWeb3()
 
   const [mintFee, setMintFee] = useState("0")
   const [newMintFee, setNewMintFee] = useState("")
@@ -26,6 +36,10 @@ export default function NFTSettingsPage() {
   const [taxWallet, setTaxWallet] = useState("")
   const [managementWallet, setManagementWallet] = useState("")
   const [currentTokenId, setCurrentTokenId] = useState("0")
+  const [baseURI, setBaseURI] = useState("")
+  const [newBaseURI, setNewBaseURI] = useState("")
+  const [isUpdatingBaseURI, setIsUpdatingBaseURI] = useState(false)
+  const [isTogglingAutoApproval, setIsTogglingAutoApproval] = useState(false)
 
   const [txStatus, setTxStatus] = useState<"loading" | "success" | "error" | null>(null)
   const [txHash, setTxHash] = useState("")
@@ -100,6 +114,11 @@ export default function NFTSettingsPage() {
 
       // Load verifiers
       await loadVerifiers()
+
+      // Load base URI
+      const currentBaseURI = await nftContract.baseURI()
+      setBaseURI(currentBaseURI)
+      setNewBaseURI(currentBaseURI)
 
       console.log("NFT contract data loaded successfully")
     } catch (error) {
@@ -424,6 +443,101 @@ export default function NFTSettingsPage() {
     })
   }
 
+  const handleUpdateBaseURI = async () => {
+    if (!nftContract || !newBaseURI || !isAdmin) {
+      toast({
+        title: "Error",
+        description: "Please connect wallet, ensure you are an admin, and enter a new base URI.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsUpdatingBaseURI(true)
+    setTransactionStatus({ hash: null, status: "pending", message: "Updating base URI..." })
+    try {
+      const tx = await nftContract.setBaseURI(newBaseURI)
+      await tx.wait()
+      setTransactionStatus({ hash: tx.hash, status: "success", message: "NFT Base URI updated successfully!" })
+      toast({
+        title: "Success",
+        description: "NFT Base URI updated.",
+      })
+      setBaseURI(newBaseURI)
+      refreshBalances()
+    } catch (error: any) {
+      console.error("Error updating base URI:", error)
+      setTransactionStatus({
+        hash: error.hash || null,
+        status: "failed",
+        message: `Failed to update base URI: ${error.reason || error.message}`,
+      })
+      toast({
+        title: "Update Failed",
+        description: `Failed to update base URI: ${error.reason || error.message}`,
+        variant: "destructive",
+      })
+    } finally {
+      setIsUpdatingBaseURI(false)
+    }
+  }
+
+  const handleToggleAutoApproval = async () => {
+    if (!nftContract || !isAdmin) {
+      toast({
+        title: "Error",
+        description: "Please connect wallet and ensure you are an admin.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsTogglingAutoApproval(true)
+    setTransactionStatus({ hash: null, status: "pending", message: "Toggling auto-approval..." })
+    try {
+      // Assuming a toggleAutoApprove function exists on your NFT contract
+      const tx = await nftContract.toggleAutoApprove()
+      await tx.wait()
+      setTransactionStatus({ hash: tx.hash, status: "success", message: "NFT auto-approval toggled successfully!" })
+      toast({
+        title: "Success",
+        description: `NFT auto-approval ${autoApproveEnabled ? "disabled" : "enabled"}.`,
+      })
+      setAutoApproveEnabled((prev) => !prev)
+      refreshBalances()
+    } catch (error: any) {
+      console.error("Error toggling auto-approval:", error)
+      setTransactionStatus({
+        hash: error.hash || null,
+        status: "failed",
+        message: `Failed to toggle auto-approval: ${error.reason || error.message}`,
+      })
+      toast({
+        title: "Toggle Failed",
+        description: `Failed to toggle auto-approval: ${error.reason || error.message}`,
+        variant: "destructive",
+      })
+    } finally {
+      setIsTogglingAutoApproval(false)
+    }
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
+        <p className="text-muted-foreground">You do not have administrative privileges to view this page.</p>
+      </div>
+    )
+  }
+
+  if (!isConnected) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
+        <p className="text-muted-foreground">Please connect your wallet to manage NFT settings.</p>
+      </div>
+    )
+  }
+
   return (
     <AdminGuard>
       <div className="container mx-auto max-w-6xl space-y-6 p-4 md:p-6">
@@ -586,6 +700,54 @@ export default function NFTSettingsPage() {
                   Add Verifier
                 </Button>
               </CardFooter>
+            </Card>
+
+            {/* Base URI Management */}
+            <Card className="bg-gray-900 border border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white">Base URI Management</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div>
+                  <Label htmlFor="current-base-uri">Current Base URI</Label>
+                  <Input id="current-base-uri" value={baseURI} readOnly />
+                </div>
+                <div>
+                  <Label htmlFor="new-base-uri">New Base URI</Label>
+                  <Input
+                    id="new-base-uri"
+                    placeholder="Enter new base URI"
+                    value={newBaseURI}
+                    onChange={(e) => setNewBaseURI(e.target.value)}
+                    disabled={isUpdatingBaseURI}
+                  />
+                </div>
+                <Button onClick={handleUpdateBaseURI} disabled={isUpdatingBaseURI}>
+                  {isUpdatingBaseURI ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...
+                    </>
+                  ) : (
+                    "Update Base URI"
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* NFT Auto-Approval for Marketplace */}
+            <Card className="bg-gray-900 border border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white">NFT Auto-Approval for Marketplace</CardTitle>
+              </CardHeader>
+              <CardContent className="flex items-center justify-between">
+                <Label htmlFor="auto-approval-switch">Enable Auto-Approval for Marketplace</Label>
+                <Switch
+                  id="auto-approval-switch"
+                  checked={autoApproveEnabled}
+                  onCheckedChange={handleToggleAutoApproval}
+                  disabled={isTogglingAutoApproval}
+                />
+              </CardContent>
             </Card>
           </div>
 
