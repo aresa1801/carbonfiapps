@@ -12,10 +12,6 @@ import { toast } from "@/hooks/use-toast"
 import { ethers } from "ethers"
 import { contractService } from "@/lib/contract-utils"
 import { Droplets, Coins, TrendingUp, RefreshCw, AlertCircle, DollarSign, Activity } from "lucide-react"
-import { AdminDashboardChoice } from "@/components/admin-dashboard-choice"
-import { ContractAddressesDisplay } from "@/components/contract-addresses-display"
-import { ContractMigrationNotice } from "@/components/contract-migration-notice"
-import { ContractStatus } from "@/components/contract-status"
 
 interface FaucetStats {
   dailyLimit: string
@@ -196,15 +192,7 @@ export default function AdminDashboardPage() {
     }
   }, [isConnected, isAdmin, faucetContractExists])
 
-  if (!isConnected) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-        <p className="text-muted-foreground">Please connect your wallet to access the admin dashboard.</p>
-      </div>
-    )
-  }
-
-  if (!isAdmin) {
+  if (!isConnected || !isAdmin) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center space-y-4">
@@ -239,37 +227,26 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-      <ContractStatus />
-      <ContractMigrationNotice />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <AdminDashboardChoice
-          title="NFT Settings"
-          description="Manage NFT contract parameters like base URI and auto-approval."
-          href="/admin/nft-settings"
-        />
-        <AdminDashboardChoice
-          title="Retirement Settings"
-          description="Configure carbon retirement fees and NFT contract address."
-          href="/admin/retire-settings"
-        />
-        <AdminDashboardChoice
-          title="Staking Pool"
-          description="Adjust staking APY and duration for CAFI tokens."
-          href="/admin/staking-pool"
-        />
-        <AdminDashboardChoice
-          title="Farming Pools"
-          description="Create and manage farming packages."
-          href="/admin/farming"
-        />
-        <AdminDashboardChoice
-          title="Verifiers"
-          description="Manage approved verifiers for the faucet contract."
-          href="/admin/verifiers"
-        />
-        {/* Statistics Cards */}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Faucet Management</h1>
+          <p className="text-gray-400">Manage the CAFI token faucet</p>
+        </div>
+        <Button
+          onClick={fetchFaucetStats}
+          disabled={isRefreshing}
+          variant="outline"
+          className="border-gray-600 bg-gray-700/50 text-gray-200 hover:bg-gray-600"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="border-gray-700 bg-gray-900">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -458,7 +435,6 @@ export default function AdminDashboardPage() {
           </div>
         </CardContent>
       </Card>
-      <ContractAddressesDisplay />
     </div>
   )
 }

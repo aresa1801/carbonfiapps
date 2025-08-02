@@ -1,98 +1,82 @@
 "use client"
 
-import { CardContent } from "@/components/ui/card"
-
-import { CardDescription } from "@/components/ui/card"
-
-import { CardTitle } from "@/components/ui/card"
-
-import { CardHeader } from "@/components/ui/card"
-
-import { Card } from "@/components/ui/card"
-
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { MetaMaskDetector } from "@/components/metamask-detector"
+import { Download, ExternalLink } from "lucide-react"
+import { isIOS, isAndroid, isMetaMaskInstalled } from "@/lib/wallet-utils"
 import { useWeb3 } from "@/components/web3-provider"
-import { isMobileDevice, isInAppBrowser } from "@/lib/wallet-utils"
-import { ExternalLink } from "lucide-react"
 
-export function WalletConnectModal() {
-  const { isConnected, connectWallet } = useWeb3()
-  const [isOpen, setIsOpen] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-  const [inAppBrowser, setInAppBrowser] = useState(false)
+interface WalletConnectModalProps {
+  isOpen: boolean
+  onClose: () => void
+}
 
-  useEffect(() => {
-    setIsMobile(isMobileDevice())
-    setInAppBrowser(isInAppBrowser())
-  }, [])
+export function WalletConnectModal({ isOpen, onClose }: WalletConnectModalProps) {
+  const { connect } = useWeb3()
+  const ios = isIOS()
+  const android = isAndroid()
 
-  useEffect(() => {
-    if (!isConnected) {
-      setIsOpen(true)
-    } else {
-      setIsOpen(false)
-    }
-  }, [isConnected])
-
-  const handleConnectMetaMask = async () => {
-    if (window.ethereum) {
-      await connectWallet()
-    } else {
-      // This case should ideally be handled by MetaMaskDetector,
-      // but as a fallback, direct to install.
-      window.open("https://metamask.io/download/", "_blank")
-    }
+  const handleConnect = () => {
+    connect()
+    onClose()
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Connect Your Wallet</DialogTitle>
-          <DialogDescription>Connect your MetaMask wallet to access the CarbonFi DApp.</DialogDescription>
+          <DialogTitle>Connect Wallet</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          {isMobile && !inAppBrowser && (
-            <Card className="text-center">
-              <CardHeader>
-                <CardTitle>Open in MetaMask Mobile</CardTitle>
-                <CardDescription>
-                  It looks like you're on a mobile device. For the best experience, please open this DApp directly in
-                  the MetaMask Mobile browser.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  onClick={() => window.open(`https://metamask.app.link/dapp/${window.location.host}`, "_blank")}
-                  className="w-full"
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Open in MetaMask App
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Connect your wallet to interact with the CarbonFi platform.
+          </p>
 
-          {(!isMobile || inAppBrowser) && <MetaMaskDetector />}
+          <div className="grid gap-2">
+            <Button onClick={handleConnect} className="w-full">
+              MetaMask
+            </Button>
 
-          <div className="text-center text-sm text-muted-foreground">Or if you prefer, you can manually connect:</div>
-          <Button onClick={handleConnectMetaMask} disabled={isConnected}>
-            {isConnected ? "Wallet Connected" : "Connect MetaMask"}
-          </Button>
-          <div className="text-center text-sm text-muted-foreground">
-            Don't have MetaMask?{" "}
-            <a
-              href="https://metamask.io/download/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline"
-            >
-              Install it here
-            </a>
-            .
+            {!isMetaMaskInstalled() && (
+              <div className="mt-4">
+                <p className="text-sm font-medium mb-2">No wallet detected</p>
+                <div className="flex flex-col gap-2">
+                  {ios && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center justify-start bg-transparent"
+                      onClick={() =>
+                        window.open("https://apps.apple.com/us/app/metamask-blockchain-wallet/id1438144202", "_blank")
+                      }
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download MetaMask for iOS
+                    </Button>
+                  )}
+                  {android && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center justify-start bg-transparent"
+                      onClick={() => window.open("https://play.google.com/store/apps/details?id=io.metamask", "_blank")}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download MetaMask for Android
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center justify-start bg-transparent"
+                    onClick={() => window.open("https://metamask.io/download/", "_blank")}
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Visit MetaMask Website
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>
