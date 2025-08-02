@@ -15,9 +15,6 @@ import { useToast } from "@/hooks/use-toast"
 import { useEventRefresh } from "@/hooks/use-event-refresh"
 import { contractService } from "@/lib/contract-utils"
 import Link from "next/link"
-import { BalanceCard } from "@/components/balance-card"
-import { ContractStatus } from "@/components/contract-status"
-import { ContractMigrationNotice } from "@/components/contract-migration-notice"
 
 export default function UserDashboardPage() {
   const [isClient, setIsClient] = useState(false)
@@ -408,13 +405,6 @@ export default function UserDashboardPage() {
               </div>
             </div>
           </div>
-
-          {/* Contract Status and Migration Notice */}
-          <ContractStatus />
-          <ContractMigrationNotice />
-
-          {/* Balance Card */}
-          <BalanceCard />
         </div>
       </div>
     </div>
