@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
+import { WalletConnectModal } from "@/components/wallet-connect-modal"
 
 interface ConnectWalletButtonProps {
   variant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive"
@@ -32,6 +33,7 @@ export function ConnectWalletButton({
   className = "",
 }: ConnectWalletButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const { toast } = useToast()
 
   const {
@@ -46,17 +48,22 @@ export function ConnectWalletButton({
     refreshBalances,
     isRefreshing,
     reinitializeMetaMask,
+    isLoading,
   } = useWeb3()
 
   const handleConnect = async () => {
-    try {
-      await connect()
-    } catch (error: any) {
-      toast({
-        title: "Connection Failed",
-        description: error.message || "Failed to connect wallet",
-        variant: "destructive",
-      })
+    if (window.ethereum) {
+      try {
+        await connect()
+      } catch (error: any) {
+        toast({
+          title: "Connection Failed",
+          description: error.message || "Failed to connect wallet",
+          variant: "destructive",
+        })
+      }
+    } else {
+      setIsModalOpen(true) // Open modal if MetaMask is not detected
     }
   }
 
@@ -93,21 +100,33 @@ export function ConnectWalletButton({
     }
   }
 
+  if (isLoading) {
+    return (
+      <Button disabled variant={variant} size={size} className={className}>
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Loading...
+      </Button>
+    )
+  }
+
   if (!isConnected) {
     return (
-      <Button variant={variant} size={size} onClick={handleConnect} disabled={isConnecting} className={className}>
-        {isConnecting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Connecting...
-          </>
-        ) : (
-          <>
-            <Wallet className="mr-2 h-4 w-4" />
-            Connect Wallet
-          </>
-        )}
-      </Button>
+      <>
+        <Button variant={variant} size={size} onClick={handleConnect} disabled={isConnecting} className={className}>
+          {isConnecting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Connecting...
+            </>
+          ) : (
+            <>
+              <Wallet className="mr-2 h-4 w-4" />
+              Connect Wallet
+            </>
+          )}
+        </Button>
+        <WalletConnectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      </>
     )
   }
 

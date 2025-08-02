@@ -1,141 +1,108 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
-import { ChevronDown, Wifi, WifiOff } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { ChevronDown, Loader2 } from "lucide-react"
 import { useWeb3 } from "@/components/web3-provider"
-import { NETWORKS, getNetworkByChainId, isSupportedNetwork } from "@/lib/constants"
+import { NETWORKS } from "@/lib/constants"
 import { toast } from "@/hooks/use-toast"
 
 export function NetworkSelector() {
-  const { chainId, provider, isConnected } = useWeb3()
-  const [isChangingNetwork, setIsChangingNetwork] = useState(false)
+  const { chainId, networkName, switchNetwork, isConnected, isLoading } = useWeb3()
+  const [isSwitching, setIsSwitching] = useState(false)
 
-  const currentNetwork = chainId ? getNetworkByChainId(chainId) : null
-  const isSupported = chainId ? isSupportedNetwork(chainId) : false
-
-  const switchNetwork = async (targetChainId: number) => {
-    if (!provider || !window.ethereum) {
+  const handleNetworkSwitch = async (targetChainId: number) => {
+    if (!isConnected) {
       toast({
         title: "Wallet Not Connected",
-        description: "Please connect your wallet first",
+        description: "Please connect your wallet first to switch networks.",
         variant: "destructive",
       })
       return
     }
-
-    setIsChangingNetwork(true)
-
-    try {
-      const chainIdHex = `0x${targetChainId.toString(16)}`
-
-      // Try to switch to the network
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: chainIdHex }],
-      })
-
+    if (chainId === targetChainId) {
       toast({
-        title: "Network Switched",
-        description: `Successfully switched to ${getNetworkByChainId(targetChainId)?.name}`,
+        title: "Already Connected",
+        description: `You are already connected to ${NETWORKS[Object.keys(NETWORKS).find((key) => NETWORKS[key].chainId === targetChainId) || ""]?.name || "this network"}.`,
       })
-    } catch (error: any) {
-      console.error("Error switching network:", error)
+      return
+    }
 
-      // If the network doesn't exist, try to add it
-      if (error.code === 4902) {
-        try {
-          const network = getNetworkByChainId(targetChainId)
-          if (network) {
-            await window.ethereum.request({
-              method: "wallet_addEthereumChain",
-              params: [
-                {
-                  chainId: `0x${targetChainId.toString(16)}`,
-                  chainName: network.name,
-                  rpcUrls: [network.rpcUrl],
-                  blockExplorerUrls: [network.blockExplorer],
-                  nativeCurrency: {
-                    name: "ETH",
-                    symbol: "ETH",
-                    decimals: 18,
-                  },
-                },
-              ],
-            })
-
-            toast({
-              title: "Network Added",
-              description: `Successfully added and switched to ${network.name}`,
-            })
-          }
-        } catch (addError) {
-          console.error("Error adding network:", addError)
-          toast({
-            title: "Failed to Add Network",
-            description: "Could not add the network to your wallet",
-            variant: "destructive",
-          })
-        }
-      } else {
-        toast({
-          title: "Network Switch Failed",
-          description: error.message || "Failed to switch network",
-          variant: "destructive",
-        })
-      }
+    setIsSwitching(true)
+    try {
+      await switchNetwork(targetChainId)
+    } catch (error) {
+      console.error("Failed to switch network:", error)
+      toast({
+        title: "Network Switch Failed",
+        description: "Could not switch network. Please try again or add the network manually to your wallet.",
+        variant: "destructive",
+      })
     } finally {
-      setIsChangingNetwork(false)
+      setIsSwitching(false)
     }
   }
 
-  if (!isConnected) {
-    return null
+  if (isLoading) {
+    return (
+      <Button variant="outline" disabled>
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Loading Networks...
+      </Button>
+    )
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2 bg-transparent"
-            disabled={isChangingNetwork}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+          {isSwitching ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Switching...
+            </>
+          ) : (
+            <>
+              {networkName || "Select Network"}
+              <ChevronDown className="h-4 w-4" />
+            </>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {Object.values(NETWORKS).map((network) => (
+          <DropdownMenuItem
+            key={network.chainId}
+            onClick={() => handleNetworkSwitch(network.chainId)}
+            disabled={isSwitching || chainId === network.chainId}
           >
-            {isSupported ? <Wifi className="h-4 w-4 text-green-500" /> : <WifiOff className="h-4 w-4 text-red-500" />}
-            <span className="hidden sm:inline">{currentNetwork?.name || `Chain ${chainId}`}</span>
-            <span className="sm:hidden">{currentNetwork?.name.split(" ")[0] || `${chainId}`}</span>
-            <ChevronDown className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <div className="px-2 py-1.5 text-sm font-medium text-muted-foreground">Select Network</div>
-          {Object.values(NETWORKS).map((network) => (
-            <DropdownMenuItem
-              key={network.chainId}
-              onClick={() => switchNetwork(network.chainId)}
-              className="flex items-center justify-between"
-              disabled={isChangingNetwork || chainId === network.chainId}
-            >
-              <span>{network.name}</span>
-              {chainId === network.chainId && (
-                <Badge variant="secondary" className="text-xs">
-                  Current
-                </Badge>
-              )}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            {network.name}
+            {chainId === network.chainId && <Check className="ml-2 h-4 w-4" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
-      {!isSupported && chainId && (
-        <Badge variant="destructive" className="text-xs">
-          Unsupported
-        </Badge>
-      )}
-    </div>
+function Check(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
   )
 }

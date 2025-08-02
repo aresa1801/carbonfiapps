@@ -1,121 +1,78 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useWeb3 } from "@/components/web3-provider"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Settings, User, Shield } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 
-interface AdminDashboardChoiceProps {
-  isOpen?: boolean
-  onClose?: () => void
-  onChoice?: (choice: "admin" | "user") => void
-}
-
-export function AdminDashboardChoice({ isOpen, onClose, onChoice }: AdminDashboardChoiceProps = {}) {
-  const { isConnected, isAdmin, account } = useWeb3()
-  const [showModal, setShowModal] = useState(false)
+export function AdminDashboardChoice() {
   const router = useRouter()
+  const [hasMadeChoice, setHasMadeChoice] = useState(false)
 
   useEffect(() => {
-    if (isConnected && isAdmin && account) {
-      // Check if user has already made a choice this session
-      const dashboardChoice = sessionStorage.getItem("dashboard-choice")
-
-      if (!dashboardChoice) {
-        setShowModal(true)
-      }
+    const choice = sessionStorage.getItem("dashboard-choice")
+    if (choice) {
+      setHasMadeChoice(true)
+      router.replace(choice) // Redirect immediately if choice exists
     }
-  }, [isConnected, isAdmin, account])
+  }, [router])
 
-  const handleChoice = (choice: "admin" | "user") => {
-    sessionStorage.setItem("dashboard-choice", choice)
-    setShowModal(false)
-
-    if (onChoice) {
-      onChoice(choice)
-    } else {
-      router.push(choice === "admin" ? "/admin" : "/user")
-    }
-
-    if (onClose) {
-      onClose()
-    }
+  const handleChoice = (path: string) => {
+    sessionStorage.setItem("dashboard-choice", path)
+    setHasMadeChoice(true)
+    router.push(path)
   }
 
-  const isModalOpen = isOpen !== undefined ? isOpen : showModal
+  if (hasMadeChoice) {
+    return null // Don't render anything if a choice has been made and redirecting
+  }
 
   return (
-    <Dialog open={isModalOpen} onOpenChange={onClose || (() => setShowModal(false))}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-emerald-500" />
-            Admin Access Detected
-          </DialogTitle>
-          <DialogDescription>
-            You're connected with an admin wallet. Choose which dashboard you'd like to access.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-emerald-500"
-            onClick={() => handleChoice("admin")}
+    <div className="flex flex-col items-center justify-center min-h-[80vh] p-4">
+      <Card className="w-full max-w-md bg-gray-900 text-white shadow-lg">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold text-blue-400">Choose Dashboard</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-gray-300 text-center">Please select which dashboard you would like to access.</p>
+          <Button
+            onClick={() => handleChoice("/admin/retire-settings")}
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-2"
           >
-            <CardHeader className="text-center">
-              <div className="mx-auto w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-2">
-                <Settings className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle className="text-lg">Admin Dashboard</CardTitle>
-              <CardDescription>Manage contracts, settings, and system administration</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Contract Management</li>
-                <li>• Faucet Administration</li>
-                <li>• NFT & Staking Settings</li>
-                <li>• System Configuration</li>
-              </ul>
-              <Button className="w-full mt-4" onClick={() => handleChoice("admin")}>
-                Go to Admin Dashboard
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-blue-500"
-            onClick={() => handleChoice("user")}
-          >
-            <CardHeader className="text-center">
-              <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                <User className="h-6 w-6 text-blue-600" />
-              </div>
-              <CardTitle className="text-lg">User Dashboard</CardTitle>
-              <CardDescription>Access user features and interact with the platform</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Mint Carbon NFTs</li>
-                <li>• Staking & Farming</li>
-                <li>• Marketplace Trading</li>
-                <li>• Carbon Retirement</li>
-              </ul>
-              <Button variant="outline" className="w-full mt-4" onClick={() => handleChoice("user")}>
-                Go to User Dashboard
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="flex justify-center mt-4">
-          <Button variant="ghost" size="sm" onClick={onClose || (() => setShowModal(false))}>
-            Cancel
+            Retire Settings
           </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+          <Button
+            onClick={() => handleChoice("/admin/nft-settings")}
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2"
+          >
+            NFT Settings
+          </Button>
+          <Button
+            onClick={() => handleChoice("/admin/verifiers")}
+            className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2"
+          >
+            Verifiers
+          </Button>
+          <Button
+            onClick={() => handleChoice("/admin/staking-pool")}
+            className="w-full bg-red-600 hover:bg-red-700 text-white py-2"
+          >
+            Staking Pool
+          </Button>
+          <Button
+            onClick={() => handleChoice("/admin/farming")}
+            className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2"
+          >
+            Farming Pool
+          </Button>
+          <Button
+            onClick={() => handleChoice("/admin/token-config")}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2"
+          >
+            Token Configuration
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

@@ -4,7 +4,9 @@ import { useEffect, useState, useCallback } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { AlertCircle, Download, ExternalLink, RefreshCw, CheckCircle } from "lucide-react"
-import { isMobile, isIOS, isAndroid } from "@/lib/wallet-utils"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import Link from "next/link"
+import { isMobile as isMobileDevice, isIOS, isAndroid, isInAppBrowser } from "@/lib/wallet-utils"
 
 interface WalletDetectionResult {
   hasMetaMask: boolean
@@ -15,7 +17,6 @@ interface WalletDetectionResult {
 }
 
 export default function MetaMaskDetector() {
-  // Changed to default export
   const [detection, setDetection] = useState<WalletDetectionResult>({
     hasMetaMask: false,
     hasOtherWallets: false,
@@ -27,6 +28,8 @@ export default function MetaMaskDetector() {
   const [checkAttempts, setCheckAttempts] = useState(0)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [showDebugInfo, setShowDebugInfo] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+  const [isClient, setIsClient] = useState(false)
 
   // Enhanced wallet detection
   const detectWallets = useCallback((): WalletDetectionResult => {
@@ -208,6 +211,36 @@ export default function MetaMaskDetector() {
     }
   }, [checkAttempts, detectWallets, checkPreviewMode])
 
+  useEffect(() => {
+    setIsClient(true)
+    if (isClient) {
+      const checkMetaMask = () => {
+        if (!window.ethereum || !window.ethereum.isMetaMask) {
+          // Only show if not in a known in-app browser that might handle wallets differently
+          if (!isInAppBrowser()) {
+            setIsOpen(true)
+          }
+        } else {
+          setIsOpen(false)
+        }
+      }
+
+      // Check on mount
+      checkMetaMask()
+
+      // Optional: Re-check if window.ethereum becomes available later (e.g., after a slight delay)
+      const timer = setTimeout(checkMetaMask, 1000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [isClient])
+
+  const handleClose = () => {
+    setIsOpen(false)
+  }
+
+  const isMobile = isClient ? isMobileDevice() : false
+
   // Don't show anything while checking or in preview mode
   if (isChecking || isPreviewMode) {
     return null
@@ -218,147 +251,172 @@ export default function MetaMaskDetector() {
     return null
   }
 
-  const mobile = isMobile()
-  const ios = isIOS()
-  const android = isAndroid()
-
-  const handleRefresh = () => {
-    setIsChecking(true)
-    setCheckAttempts(0)
-    setDetection({
-      hasMetaMask: false,
-      hasOtherWallets: false,
-      detectedWallets: [],
-      isInjected: false,
-      canConnect: false,
-    })
-
-    // Force a fresh detection
-    setTimeout(() => {
-      const result = detectWallets()
-      setDetection(result)
-      setIsChecking(false)
-    }, 100)
-  }
-
-  const handleForceRefresh = () => {
-    window.location.reload()
-  }
-
   return (
-    <Alert variant={detection.hasOtherWallets ? "default" : "destructive"} className="mb-4">
-      <AlertCircle className="h-4 w-4" />
-      <AlertTitle>{detection.hasOtherWallets ? "MetaMask Recommended" : "MetaMask Not Detected"}</AlertTitle>
-      <AlertDescription className="mt-2">
-        {detection.hasOtherWallets ? (
-          <div>
+    <>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>MetaMask Not Detected</DialogTitle>
+            <DialogDescription>
+              {isMobile
+                ? "It looks like you're on a mobile device and MetaMask is not detected. Please open this page in the MetaMask app's browser or install MetaMask Mobile."
+                : "It looks like MetaMask is not installed in your browser. Please install MetaMask to connect your wallet."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {isMobile ? (
+              <>
+                <Button asChild>
+                  <Link href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer">
+                    Get MetaMask Mobile
+                  </Link>
+                </Button>
+                <Button onClick={handleClose} variant="outline">
+                  Close
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button asChild>
+                  <Link href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer">
+                    Install MetaMask Extension
+                  </Link>
+                </Button>
+                <Button onClick={handleClose} variant="outline">
+                  Close
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Alert variant={detection.hasOtherWallets ? "default" : "destructive"} className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>{detection.hasOtherWallets ? "MetaMask Recommended" : "MetaMask Not Detected"}</AlertTitle>
+        <AlertDescription className="mt-2">
+          {detection.hasOtherWallets ? (
+            <div>
+              <p className="mb-2">
+                We detected other wallets ({detection.detectedWallets.join(", ")}), but MetaMask is recommended for the
+                best experience with CarbonFi.
+              </p>
+              <div className="flex items-center gap-2 p-2 bg-green-50 rounded text-sm text-green-700 mb-2">
+                <CheckCircle className="h-4 w-4" />
+                <span>You can still connect with your existing wallet</span>
+              </div>
+            </div>
+          ) : (
             <p className="mb-2">
-              We detected other wallets ({detection.detectedWallets.join(", ")}), but MetaMask is recommended for the
-              best experience with CarbonFi.
+              To interact with the CarbonFi platform, you need to have MetaMask or another Ethereum wallet installed.
             </p>
-            <div className="flex items-center gap-2 p-2 bg-green-50 rounded text-sm text-green-700 mb-2">
-              <CheckCircle className="h-4 w-4" />
-              <span>You can still connect with your existing wallet</span>
-            </div>
-          </div>
-        ) : (
-          <p className="mb-2">
-            To interact with the CarbonFi platform, you need to have MetaMask or another Ethereum wallet installed.
-          </p>
-        )}
+          )}
 
-        {mobile ? (
-          <div className="mt-3">
-            <p className="mb-2">You're on a mobile device. Please use a wallet mobile app:</p>
-            <div className="flex flex-col sm:flex-row gap-2 mt-3">
-              {ios && (
+          {isMobile ? (
+            <div className="mt-3">
+              <p className="mb-2">You're on a mobile device. Please use a wallet mobile app:</p>
+              <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                {isIOS() && (
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2 bg-transparent"
+                    onClick={() =>
+                      window.open("https://apps.apple.com/us/app/metamask-blockchain-wallet/id1438144202", "_blank")
+                    }
+                  >
+                    <Download className="h-4 w-4" />
+                    MetaMask for iOS
+                  </Button>
+                )}
+                {isAndroid() && (
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2 bg-transparent"
+                    onClick={() => window.open("https://play.google.com/store/apps/details?id=io.metamask", "_blank")}
+                  >
+                    <Download className="h-4 w-4" />
+                    MetaMask for Android
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   className="flex items-center gap-2 bg-transparent"
-                  onClick={() =>
-                    window.open("https://apps.apple.com/us/app/metamask-blockchain-wallet/id1438144202", "_blank")
-                  }
+                  onClick={() => window.open("https://metamask.io/download/", "_blank")}
                 >
-                  <Download className="h-4 w-4" />
-                  MetaMask for iOS
+                  <ExternalLink className="h-4 w-4" />
+                  Visit MetaMask
                 </Button>
-              )}
-              {android && (
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3">
+              <p className="mb-2">Please install MetaMask extension for your browser:</p>
+              <div className="flex flex-col sm:flex-row gap-2 mt-3">
                 <Button
                   variant="outline"
                   className="flex items-center gap-2 bg-transparent"
-                  onClick={() => window.open("https://play.google.com/store/apps/details?id=io.metamask", "_blank")}
+                  onClick={() => window.open("https://metamask.io/download/", "_blank")}
                 >
                   <Download className="h-4 w-4" />
-                  MetaMask for Android
+                  Install MetaMask
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 bg-transparent"
-                onClick={() => window.open("https://metamask.io/download/", "_blank")}
-              >
-                <ExternalLink className="h-4 w-4" />
-                Visit MetaMask
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-3">
-            <p className="mb-2">Please install MetaMask extension for your browser:</p>
-            <div className="flex flex-col sm:flex-row gap-2 mt-3">
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 bg-transparent"
-                onClick={() => window.open("https://metamask.io/download/", "_blank")}
-              >
-                <Download className="h-4 w-4" />
-                Install MetaMask
-              </Button>
-              <Button variant="outline" className="flex items-center gap-2 bg-transparent" onClick={handleRefresh}>
-                <RefreshCw className="h-4 w-4" />
-                Check Again
-              </Button>
-              <Button variant="outline" className="flex items-center gap-2 bg-transparent" onClick={handleForceRefresh}>
-                <RefreshCw className="h-4 w-4" />
-                Refresh Page
-              </Button>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-3 p-3 bg-gray-50 rounded text-xs">
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-medium">Troubleshooting:</p>
-            <Button variant="ghost" size="sm" onClick={() => setShowDebugInfo(!showDebugInfo)} className="text-xs h-6">
-              {showDebugInfo ? "Hide" : "Show"} Debug Info
-            </Button>
-          </div>
-
-          <ul className="list-disc list-inside space-y-1">
-            <li>Make sure MetaMask extension is enabled in your browser</li>
-            <li>Try refreshing the page after installing</li>
-            <li>Check if other wallet extensions are conflicting</li>
-            <li>Disable ad blockers that might block wallet detection</li>
-            <li>Try opening in an incognito/private window</li>
-          </ul>
-
-          {showDebugInfo && (
-            <div className="mt-3 p-2 bg-gray-100 rounded text-xs">
-              <p className="font-medium mb-1">Debug Information:</p>
-              <ul className="space-y-1">
-                <li>Ethereum Injected: {detection.isInjected ? "✅" : "❌"}</li>
-                <li>MetaMask Detected: {detection.hasMetaMask ? "✅" : "❌"}</li>
-                <li>Other Wallets: {detection.hasOtherWallets ? "✅" : "❌"}</li>
-                <li>Detected Wallets: {detection.detectedWallets.join(", ") || "None"}</li>
-                <li>Can Connect: {detection.canConnect ? "✅" : "❌"}</li>
-                <li>Check Attempts: {checkAttempts}</li>
-                <li>User Agent: {navigator.userAgent.substring(0, 50)}...</li>
-              </ul>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2 bg-transparent"
+                  onClick={() => setIsChecking(true)}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Check Again
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2 bg-transparent"
+                  onClick={() => window.location.reload()}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh Page
+                </Button>
+              </div>
             </div>
           )}
-        </div>
-      </AlertDescription>
-    </Alert>
+
+          <div className="mt-3 p-3 bg-gray-50 rounded text-xs">
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-medium">Troubleshooting:</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDebugInfo(!showDebugInfo)}
+                className="text-xs h-6"
+              >
+                {showDebugInfo ? "Hide" : "Show"} Debug Info
+              </Button>
+            </div>
+
+            <ul className="list-disc list-inside space-y-1">
+              <li>Make sure MetaMask extension is enabled in your browser</li>
+              <li>Try refreshing the page after installing</li>
+              <li>Check if other wallet extensions are conflicting</li>
+              <li>Disable ad blockers that might block wallet detection</li>
+              <li>Try opening in an incognito/private window</li>
+            </ul>
+
+            {showDebugInfo && (
+              <div className="mt-3 p-2 bg-gray-100 rounded text-xs">
+                <p className="font-medium mb-1">Debug Information:</p>
+                <ul className="space-y-1">
+                  <li>Ethereum Injected: {detection.isInjected ? "✅" : "❌"}</li>
+                  <li>MetaMask Detected: {detection.hasMetaMask ? "✅" : "❌"}</li>
+                  <li>Other Wallets: {detection.hasOtherWallets ? "✅" : "❌"}</li>
+                  <li>Detected Wallets: {detection.detectedWallets.join(", ") || "None"}</li>
+                  <li>Can Connect: {detection.canConnect ? "✅" : "❌"}</li>
+                  <li>Check Attempts: {checkAttempts}</li>
+                  <li>User Agent: {navigator.userAgent.substring(0, 50)}...</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        </AlertDescription>
+      </Alert>
+    </>
   )
 }

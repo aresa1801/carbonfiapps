@@ -1,216 +1,71 @@
-// Utility functions for wallet detection and connection
-
-export type WalletType = "metamask" | "walletconnect" | "trustwallet" | "coinbase" | "brave" | "unknown"
-
-export interface WalletInfo {
-  type: WalletType
-  name: string
-  icon: string
-  installed: boolean
-  mobile: boolean
-  description: string
-}
-
-// Detect if the user is on a mobile device
-export function isMobile(): boolean {
+export function isMobileDevice(): boolean {
   if (typeof window === "undefined") return false
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera
+  return /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent)
 }
 
-// Detect if the user is on iOS
-export function isIOS(): boolean {
-  if (typeof window === "undefined") return false
-  return /iPhone|iPad|iPod/i.test(navigator.userAgent)
-}
-
-// Detect if the user is on Android
-export function isAndroid(): boolean {
-  if (typeof window === "undefined") return false
-  return /Android/i.test(navigator.userAgent)
-}
-
-// Detect if the user is in an in-app browser
 export function isInAppBrowser(): boolean {
   if (typeof window === "undefined") return false
-  const ua = navigator.userAgent
+  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera
+  // Check for common in-app browser indicators
   return (
-    /FBAN|FBAV|Instagram|Twitter|WeChat|Line|FB_IAB|FB4A|FBAN/.test(ua) || // Social media apps
-    /SamsungBrowser|MiuiBrowser/.test(ua) || // Samsung/Xiaomi browsers
-    (/Android/.test(ua) && /wv/.test(ua)) // Android WebView
+    (window as any).ethereum &&
+    (userAgent.includes("MetaMask") ||
+      userAgent.includes("CoinbaseWallet") ||
+      userAgent.includes("TrustWallet") ||
+      userAgent.includes("BinanceWallet") ||
+      userAgent.includes("Brave") ||
+      userAgent.includes("Opera Touch") ||
+      userAgent.includes("CriOS") || // Chrome on iOS
+      userAgent.includes("FxiOS") || // Firefox on iOS
+      userAgent.includes("EdgiOS") || // Edge on iOS
+      userAgent.includes("SamsungBrowser") ||
+      userAgent.includes("wv") || // WebView on Android
+      userAgent.includes("FBAN") || // Facebook in-app browser
+      userAgent.includes("FBAV") || // Facebook in-app browser
+      userAgent.includes("Instagram") ||
+      userAgent.includes("Line") ||
+      userAgent.includes("KakaoTalk") ||
+      userAgent.includes("WeChat") ||
+      userAgent.includes("Alipay") ||
+      userAgent.includes("DingTalk") ||
+      userAgent.includes("Quark") ||
+      userAgent.includes("UCBrowser") ||
+      userAgent.includes("Puffin") ||
+      userAgent.includes("MiuiBrowser") ||
+      userAgent.includes("VivoBrowser") ||
+      userAgent.includes("HuaweiBrowser"))
   )
 }
 
-// Get the type of in-app browser
 export function getInAppBrowserType(): string {
-  if (typeof window === "undefined") return "unknown"
-  const ua = navigator.userAgent
+  if (typeof window === "undefined") return "Unknown"
+  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera
 
-  if (/FBAN|FBAV|FB_IAB|FB4A/.test(ua)) return "Facebook"
-  if (/Instagram/.test(ua)) return "Instagram"
-  if (/Twitter/.test(ua)) return "Twitter"
-  if (/WeChat/.test(ua)) return "WeChat"
-  if (/Line/.test(ua)) return "Line"
-  if (/SamsungBrowser/.test(ua)) return "Samsung"
-  if (/MiuiBrowser/.test(ua)) return "Xiaomi"
+  if (userAgent.includes("MetaMask")) return "MetaMask In-App"
+  if (userAgent.includes("CoinbaseWallet")) return "Coinbase Wallet In-App"
+  if (userAgent.includes("TrustWallet")) return "Trust Wallet In-App"
+  if (userAgent.includes("BinanceWallet")) return "Binance Wallet In-App"
+  if (userAgent.includes("Brave")) return "Brave Browser"
+  if (userAgent.includes("Opera Touch")) return "Opera Touch"
+  if (userAgent.includes("CriOS")) return "Chrome (iOS)"
+  if (userAgent.includes("FxiOS")) return "Firefox (iOS)"
+  if (userAgent.includes("EdgiOS")) return "Edge (iOS)"
+  if (userAgent.includes("SamsungBrowser")) return "Samsung Browser"
+  if (userAgent.includes("wv")) return "Android WebView"
+  if (userAgent.includes("FBAN") || userAgent.includes("FBAV")) return "Facebook In-App"
+  if (userAgent.includes("Instagram")) return "Instagram In-App"
+  if (userAgent.includes("Line")) return "Line In-App"
+  if (userAgent.includes("KakaoTalk")) return "KakaoTalk In-App"
+  if (userAgent.includes("WeChat")) return "WeChat In-App"
+  if (userAgent.includes("Alipay")) return "Alipay In-App"
+  if (userAgent.includes("DingTalk")) return "DingTalk In-App"
+  if (userAgent.includes("Quark")) return "Quark Browser"
+  if (userAgent.includes("UCBrowser")) return "UC Browser"
+  if (userAgent.includes("Puffin")) return "Puffin Browser"
+  if (userAgent.includes("MiuiBrowser")) return "Miui Browser"
+  if (userAgent.includes("VivoBrowser")) return "Vivo Browser"
+  if (userAgent.includes("HuaweiBrowser")) return "Huawei Browser"
 
-  return "unknown"
-}
-
-// Detect if the user is on a mobile device
-export function isMobileDevice(): boolean {
-  if (typeof window === "undefined") return false
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-}
-
-// Get the MetaMask provider
-export function getMetaMaskProvider(): any {
-  if (typeof window === "undefined") return null
-
-  const ethereum = window.ethereum
-
-  if (!ethereum) return null
-
-  // If ethereum is MetaMask, return it
-  if (ethereum.isMetaMask) return ethereum
-
-  // If ethereum has providers, find MetaMask
-  if (ethereum.providers) {
-    const metaMaskProvider = ethereum.providers.find((p: any) => p.isMetaMask)
-    if (metaMaskProvider) return metaMaskProvider
-  }
-
-  return null
-}
-
-// Check if MetaMask is installed
-export function isMetaMaskInstalled(): boolean {
-  return !!getMetaMaskProvider()
-}
-
-// Get available wallets based on device and installed extensions
-export function getAvailableWallets(): WalletInfo[] {
-  const wallets: WalletInfo[] = []
-  const isMobile = isMobileDevice()
-  const inAppBrowser = isInAppBrowser()
-
-  // MetaMask
-  wallets.push({
-    type: "metamask",
-    name: "MetaMask",
-    icon: "/images/wallets/metamask.png",
-    installed: isMetaMaskInstalled(),
-    mobile: isMobile,
-    description: "Connect to your MetaMask Wallet",
-  })
-
-  // WalletConnect (always available as fallback)
-  wallets.push({
-    type: "walletconnect",
-    name: "WalletConnect",
-    icon: "/images/wallets/walletconnect.png",
-    installed: true,
-    mobile: true,
-    description: "Connect with QR code or deep link",
-  })
-
-  // Trust Wallet (primarily for mobile)
-  if (isMobile) {
-    wallets.push({
-      type: "trustwallet",
-      name: "Trust Wallet",
-      icon: "/images/wallets/trustwallet.png",
-      installed: getInAppBrowserType() === "Trust Wallet",
-      mobile: true,
-      description: "Connect to your Trust Wallet",
-    })
-  }
-
-  // Coinbase Wallet
-  wallets.push({
-    type: "coinbase",
-    name: "Coinbase Wallet",
-    icon: "/images/wallets/coinbase.png",
-    installed: getInAppBrowserType() === "Coinbase Wallet",
-    mobile: true,
-    description: "Connect to your Coinbase Wallet",
-  })
-
-  return wallets
-}
-
-// Check if a mobile wallet is available
-export function isMobileWalletAvailable(): boolean {
-  if (typeof window === "undefined") return false
-  return !!window.ethereum
-}
-
-// Format an Ethereum address for display
-export function formatAddress(address: string): string {
-  if (!address) return ""
-  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
-}
-
-// Auto connect to MetaMask if available
-export async function autoConnectToMetaMask(): Promise<string | null> {
-  try {
-    const provider = getMetaMaskProvider()
-    if (!provider) return null
-
-    const accounts = await provider.request({ method: "eth_requestAccounts" })
-    if (accounts && accounts.length > 0) {
-      return accounts[0]
-    }
-    return null
-  } catch (error) {
-    console.error("Error auto-connecting to MetaMask:", error)
-    return null
-  }
-}
-
-// Get the current chain ID
-export async function getChainId(): Promise<string | null> {
-  try {
-    const provider = getMetaMaskProvider()
-    if (!provider) return null
-
-    const chainId = await provider.request({ method: "eth_chainId" })
-    return chainId
-  } catch (error) {
-    console.error("Error getting chain ID:", error)
-    return null
-  }
-}
-
-// Switch to a specific chain
-export async function switchChain(chainId: string): Promise<boolean> {
-  try {
-    const provider = getMetaMaskProvider()
-    if (!provider) return false
-
-    await provider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId }],
-    })
-    return true
-  } catch (error) {
-    console.error("Error switching chain:", error)
-    return false
-  }
-}
-
-// Add a chain to MetaMask
-export async function addChain(chainParams: any): Promise<boolean> {
-  try {
-    const provider = getMetaMaskProvider()
-    if (!provider) return false
-
-    await provider.request({
-      method: "wallet_addEthereumChain",
-      params: [chainParams],
-    })
-    return true
-  } catch (error) {
-    console.error("Error adding chain:", error)
-    return false
-  }
+  return "Generic In-App Browser"
 }

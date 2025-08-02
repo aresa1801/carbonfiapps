@@ -2,55 +2,67 @@
 
 import React from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertTriangle, RefreshCw } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
+interface ErrorBoundaryProps {
+  children: React.ReactNode
+}
 
 interface ErrorBoundaryState {
   hasError: boolean
-  error?: Error
+  error: Error | null
+  errorInfo: React.ErrorInfo | null
 }
 
-export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
-  constructor(props: { children: React.ReactNode }) {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props)
-    this.state = { hasError: false }
+    this.state = { hasError: false, error: null, errorInfo: null }
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error }
+    // Update state so the next render will show the fallback UI.
+    return { hasError: true, error, errorInfo: null }
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Error caught by boundary:", error, errorInfo)
+    // You can also log the error to an error reporting service
+    console.error("Uncaught error:", error, errorInfo)
+    this.setState({ errorInfo })
   }
 
   render() {
     if (this.state.hasError) {
+      // You can render any custom fallback UI
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-4">
-                <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
-              </div>
-              <CardTitle className="text-slate-900 dark:text-slate-50">Something went wrong</CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-400">
-                An error occurred while loading the application
-              </CardDescription>
+        <div className="flex min-h-screen items-center justify-center bg-gray-950 p-4">
+          <Card className="w-full max-w-md bg-gray-900 text-white">
+            <CardHeader>
+              <CardTitle className="text-red-500">Something went wrong.</CardTitle>
             </CardHeader>
-            <CardContent className="text-center space-y-4">
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {this.state.error?.message || "Unknown error occurred"}
+            <CardContent className="space-y-4">
+              <p className="text-gray-300">
+                We're sorry, but an unexpected error occurred. Please try refreshing the page.
               </p>
+              {this.state.error && (
+                <div className="rounded-md bg-gray-800 p-3 text-sm text-gray-400">
+                  <h6 className="font-semibold">Error Details:</h6>
+                  <p className="font-mono text-red-400">{this.state.error.toString()}</p>
+                  {this.state.errorInfo?.componentStack && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer">Component Stack</summary>
+                      <pre className="mt-2 whitespace-pre-wrap text-xs">
+                        <code>{this.state.errorInfo.componentStack}</code>
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              )}
               <Button
-                onClick={() => {
-                  this.setState({ hasError: false })
-                  window.location.reload()
-                }}
-                className="w-full"
+                onClick={() => window.location.reload()}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Try Again
+                Refresh Page
               </Button>
             </CardContent>
           </Card>
@@ -61,3 +73,5 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
     return this.props.children
   }
 }
+
+export default ErrorBoundary

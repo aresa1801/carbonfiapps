@@ -9,24 +9,14 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "seller",
-        "type": "address"
-      },
-      {
         "internalType": "uint256",
         "name": "tokenId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
         "type": "uint256"
       }
     ],
     "name": "buyItem",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -132,32 +122,20 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "seller",
-        "type": "address"
-      },
-      {
-        "indexed": true,
         "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
+        "indexed": true,
+        "internalType": "address",
+        "name": "seller",
+        "type": "address"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "pricePerItem",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "listingFee",
+        "name": "price",
         "type": "uint256"
       }
     ],
@@ -169,9 +147,9 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "seller",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
       },
       {
         "indexed": true,
@@ -180,27 +158,9 @@
         "type": "address"
       },
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      },
-      {
         "indexed": false,
         "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "pricePerItem",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "buyFee",
+        "name": "price",
         "type": "uint256"
       }
     ],
@@ -212,20 +172,8 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "seller",
-        "type": "address"
-      },
-      {
-        "indexed": true,
         "internalType": "uint256",
         "name": "tokenId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "refundedFee",
         "type": "uint256"
       }
     ],
@@ -241,12 +189,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "pricePerItem",
+        "name": "price",
         "type": "uint256"
       }
     ],
@@ -394,6 +337,19 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "newFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "setMarketplaceFee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "newOwner",
         "type": "address"
@@ -473,16 +429,11 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "tokenId",
         "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
       }
     ],
-    "name": "listings",
+    "name": "getListing",
     "outputs": [
       {
         "internalType": "address",
@@ -491,22 +442,38 @@
       },
       {
         "internalType": "uint256",
-        "name": "tokenId",
+        "name": "price",
         "type": "uint256"
       },
       {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
+        "internalType": "bool",
+        "name": "isListed",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getListedTokens",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getMarketplaceFee",
+    "outputs": [
       {
         "internalType": "uint256",
-        "name": "pricePerItem",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "listingFeePaid",
+        "name": "",
         "type": "uint256"
       }
     ],

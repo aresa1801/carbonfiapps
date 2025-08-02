@@ -1,110 +1,104 @@
-import { ethers } from "ethers"
-import nftAbi from "../contracts/nft-abi.json"
-import stakingAbi from "../contracts/staking-abi.json"
-import marketplaceAbi from "../contracts/marketplace-abi.json"
-import carbonRetireAbi from "../contracts/carbon-retire-abi.json"
-import faucetAbi from "../contracts/faucet-abi.json"
-
-// Contract addresses
-const NFT_CONTRACT_ADDRESS = "0x541F250F0699765dDC5DC064DaDBed31932118B8" // Updated NFT contract address
-const STAKING_CONTRACT_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
-const MARKETPLACE_CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
-const CARBON_RETIRE_CONTRACT_ADDRESS = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
-const FAUCET_CONTRACT_ADDRESS = "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"
+import { ethers, Contract, type BrowserProvider, type JsonRpcSigner } from "ethers"
+import CAFITokenABI from "@/contracts/cafi-token-abi.json"
+import FaucetABI from "@/contracts/faucet-abi.json"
+import StakingABI from "@/contracts/staking-abi.json"
+import FarmingABI from "@/contracts/farming-abi.json"
+import NFTABI from "@/contracts/nft-abi.json"
+import CarbonRetireABI from "@/contracts/carbon-retire-abi.json"
+import MarketplaceABI from "@/contracts/marketplace-abi.json"
+import {
+  CAFI_TOKEN_ADDRESS,
+  FAUCET_ADDRESS,
+  STAKING_ADDRESS,
+  FARMING_ADDRESS,
+  NFT_ADDRESS,
+  CARBON_RETIRE_ADDRESS,
+  MARKETPLACE_ADDRESS,
+} from "@/lib/constants"
 
 class ContractService {
-  provider: ethers.providers.Web3Provider | null = null
-  signer: ethers.Signer | null = null
+  private provider: BrowserProvider | null = null
+  private signer: JsonRpcSigner | null = null
 
-  // Initialize with provider and signer
-  initialize(provider: ethers.providers.Web3Provider) {
+  setProvider(provider: BrowserProvider) {
     this.provider = provider
-    this.signer = provider.getSigner()
   }
 
-  // Get NFT contract instance
-  getNFTContract() {
-    if (!this.provider || !this.signer) {
-      throw new Error("Provider or signer not initialized")
-    }
-    return new ethers.Contract(NFT_CONTRACT_ADDRESS, nftAbi, this.signer)
+  setSigner(signer: JsonRpcSigner) {
+    this.signer = signer
   }
 
-  // Get staking contract instance
-  getStakingContract() {
-    if (!this.provider || !this.signer) {
-      throw new Error("Provider or signer not initialized")
+  async getContract(address: string, abi: any, useSigner = false): Promise<Contract> {
+    if (!this.provider) {
+      throw new Error("Provider not set. Call setProvider first.")
     }
-    return new ethers.Contract(STAKING_CONTRACT_ADDRESS, stakingAbi, this.signer)
+    const currentSigner = useSigner && this.signer ? this.signer : this.provider
+    return new Contract(address, abi, currentSigner)
   }
 
-  // Get marketplace contract instance
-  getMarketplaceContract() {
-    if (!this.provider || !this.signer) {
-      throw new Error("Provider or signer not initialized")
-    }
-    return new ethers.Contract(MARKETPLACE_CONTRACT_ADDRESS, marketplaceAbi, this.signer)
+  async getCAFITokenContract(useSigner = false): Promise<Contract> {
+    if (!this.provider) throw new Error("Provider not set.")
+    const chainId = Number((await this.provider.getNetwork()).chainId)
+    const address = CAFI_TOKEN_ADDRESS[chainId]
+    if (!address) throw new Error(`CAFI Token contract not found for chain ID: ${chainId}`)
+    return this.getContract(address, CAFITokenABI, useSigner)
   }
 
-  // Get carbon retire contract instance
-  getCarbonRetireContract() {
-    if (!this.provider || !this.signer) {
-      throw new Error("Provider or signer not initialized")
-    }
-    return new ethers.Contract(CARBON_RETIRE_CONTRACT_ADDRESS, carbonRetireAbi, this.signer)
+  async getFaucetContract(useSigner = false): Promise<Contract> {
+    if (!this.provider) throw new Error("Provider not set.")
+    const chainId = Number((await this.provider.getNetwork()).chainId)
+    const address = FAUCET_ADDRESS[chainId]
+    if (!address) throw new Error(`Faucet contract not found for chain ID: ${chainId}`)
+    return this.getContract(address, FaucetABI, useSigner)
   }
 
-  // Get faucet contract instance
-  getFaucetContract() {
-    if (!this.provider || !this.signer) {
-      throw new Error("Provider or signer not initialized")
-    }
-    return new ethers.Contract(FAUCET_CONTRACT_ADDRESS, faucetAbi, this.signer)
+  async getStakingContract(useSigner = false): Promise<Contract> {
+    if (!this.provider) throw new Error("Provider not set.")
+    const chainId = Number((await this.provider.getNetwork()).chainId)
+    const address = STAKING_ADDRESS[chainId]
+    if (!address) throw new Error(`Staking contract not found for chain ID: ${chainId}`)
+    return this.getContract(address, StakingABI, useSigner)
   }
 
-  // Check if an address is a contract owner
-  async isContractOwner(address: string) {
-    try {
-      if (!this.provider) {
-        throw new Error("Provider not initialized")
-      }
-
-      const nftContract = this.getNFTContract()
-      const owner = await nftContract.owner()
-
-      return owner.toLowerCase() === address.toLowerCase()
-    } catch (error) {
-      console.error("Error checking contract owner:", error)
-      return false
-    }
+  async getFarmingContract(useSigner = false): Promise<Contract> {
+    if (!this.provider) throw new Error("Provider not set.")
+    const chainId = Number((await this.provider.getNetwork()).chainId)
+    const address = FARMING_ADDRESS[chainId]
+    if (!address) throw new Error(`Farming contract not found for chain ID: ${chainId}`)
+    return this.getContract(address, FarmingABI, useSigner)
   }
 
-  // Check if auto-approval is enabled
-  async isAutoApproveEnabled() {
-    try {
-      const nftContract = this.getNFTContract()
-      return await nftContract.autoApproveEnabled()
-    } catch (error) {
-      console.error("Error checking auto-approval status:", error)
-      return false
-    }
+  async getNftContract(useSigner = false): Promise<Contract> {
+    if (!this.provider) throw new Error("Provider not set.")
+    const chainId = Number((await this.provider.getNetwork()).chainId)
+    const address = NFT_ADDRESS[chainId]
+    if (!address) throw new Error(`NFT contract not found for chain ID: ${chainId}`)
+    return this.getContract(address, NFTABI, useSigner)
   }
 
-  // Toggle auto-approval status
-  async toggleAutoApprove() {
-    try {
-      const nftContract = this.getNFTContract()
-      const tx = await nftContract.toggleAutoApprove()
-      await tx.wait()
-      return true
-    } catch (error) {
-      console.error("Error toggling auto-approval:", error)
-      throw error
-    }
+  async getCarbonRetireContract(useSigner = false): Promise<Contract> {
+    if (!this.provider) throw new Error("Provider not set.")
+    const chainId = Number((await this.provider.getNetwork()).chainId)
+    const address = CARBON_RETIRE_ADDRESS[chainId]
+    if (!address) throw new Error(`Carbon Retire contract not found for chain ID: ${chainId}`)
+    return this.getContract(address, CarbonRetireABI, useSigner)
+  }
+
+  async getMarketplaceContract(useSigner = false): Promise<Contract> {
+    if (!this.provider) throw new Error("Provider not set.")
+    const chainId = Number((await this.provider.getNetwork()).chainId)
+    const address = MARKETPLACE_ADDRESS[chainId]
+    if (!address) throw new Error(`Marketplace contract not found for chain ID: ${chainId}`)
+    return this.getContract(address, MarketplaceABI, useSigner)
+  }
+
+  formatTokenAmount(amount: bigint, decimals = 18): string {
+    return ethers.formatUnits(amount, decimals)
+  }
+
+  parseTokenAmount(amount: string, decimals = 18): bigint {
+    return ethers.parseUnits(amount, decimals)
   }
 }
 
-// Create a singleton instance
-const contractService = new ContractService()
-
-export default contractService
+export const contractService = new ContractService()
