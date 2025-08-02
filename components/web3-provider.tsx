@@ -669,7 +669,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         description: `Successfully connected ${walletInfo.type} wallet: ${connectedAccount.substring(0, 6)}...${connectedAccount.substring(38)}`,
       })
     } catch (error: any) {
-      console.error("Failed to connect wallet:", error)
+      console.error("Error connecting wallet:", error)
 
       let errorMessage = "Failed to connect wallet"
       if (error.code === 4001) {
@@ -1136,6 +1136,8 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     chainId,
     isConnecting,
     isConnected,
+    connect,
+    disconnect,
     error,
     // Connection state
     isAdmin,
