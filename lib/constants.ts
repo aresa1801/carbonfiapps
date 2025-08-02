@@ -1,3 +1,5 @@
+import { ethers } from "ethers"
+
 // Define network configurations
 export const NETWORK_CONFIG = {
   11155111: {
@@ -410,5 +412,74 @@ export const NETWORK_CONFIG = {
   },
   167000: {
     name: "Taiko Katla L2",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },\
-    explorer: "https://explorer.katla.
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+    explorer: "https://explorer.katla.taiko.xyz",
+    rpcUrl: "https://rpc.katla.taiko.xyz",
+  },
+  167008: {
+    name: "Taiko Jolnir L2",
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+    explorer: "https://explorer.jolnir.taiko.xyz",
+    rpcUrl: "https://rpc.jolnir.taiko.xyz",
+  },
+  167009: {
+    name: "Taiko L3",
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+    explorer: "https://explorer.taiko.xyz",
+    rpcUrl: "https://rpc.taiko.xyz",
+  },
+  167007: {
+    name: "Taiko A7",
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+    explorer: "https://explorer.a7.taiko.xyz",
+    rpcUrl: "https://rpc.a7.taiko.xyz",
+  },
+  167004: {
+    name: "Taiko A4",
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+    explorer: "https://explorer.a4.taiko.xyz",
+    rpcUrl: "https://rpc.a4.taiko.xyz",
+  },
+  167005: {
+    name: "Taiko A5",
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+    explorer: "https://explorer.a5.taiko.xyz",
+    rpcUrl: "https://rpc.a5.taiko.xyz",
+  },
+  167006: {
+    name: "Taiko A6",
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+    explorer: "https://explorer.a6.taiko.xyz",
+    rpcUrl: "https://rpc.a6.taiko.xyz",
+  },
+  167003: {
+    name: "Taiko A3",
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+    explorer: "https://explorer.a3.taiko.xyz",
+    rpcUrl: "https://rpc.a3.taiko.xyz",
+  },
+  167002: {
+    name: "Taiko A2",
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+    explorer: "https://explorer.a2.taiko.xyz",
+    rpcUrl: "https://rpc.a2.taiko.xyz",
+  },
+  167001: {
+    name: "Taiko A1",
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
+    explorer: "https://explorer.a1.taiko.xyz",
+    rpcUrl: "https://rpc.a1.taiko.xyz",
+  },
+} as const
+
+export const CONTRACT_ADDRESSES = {
+  CAFI_TOKEN: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  FAUCET: "0xe7f1725E7734CE288F8367e1853aE97d6AD7dAb3",
+  STAKING: "0x9fE46736679d29a657B2f172fE802fc442f7893d",
+  NFT: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fEf00B",
+  MARKETPLACE: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+  CARBON_RETIRE: "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+  FARMING: "0x0165878A59426CA204849FfF2C068E0Fcf9e2fF",
+} as const
+
+export const ZERO_ADDRESS = ethers.ZeroAddress
