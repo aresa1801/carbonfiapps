@@ -1,136 +1,90 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import type React from "react"
+
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Package2, Home, Settings, DollarSign, Gem, Leaf, Factory, Handshake, Wallet } from "lucide-react"
+import { LayoutDashboard, Coins, TrendingUp, ShoppingCart, Droplets, Settings, LogOut } from "lucide-react"
 import { useWeb3 } from "@/components/web3-provider"
-import { Separator } from "@/components/ui/separator"
 
-export function DashboardSidebar() {
+interface SidebarLinkProps {
+  href: string
+  icon: React.ReactNode
+  children: React.ReactNode
+}
+
+function SidebarLink({ href, icon, children }: SidebarLinkProps) {
   const pathname = usePathname()
-  const { isAdmin, isConnected } = useWeb3()
-
-  const adminNavItems = [
-    {
-      href: "/admin",
-      icon: Home,
-      label: "Dashboard",
-      active: pathname === "/admin",
-    },
-    {
-      href: "/admin/nft-settings",
-      icon: Gem,
-      label: "NFT Settings",
-      active: pathname.startsWith("/admin/nft-settings"),
-    },
-    {
-      href: "/admin/verifiers",
-      icon: Handshake,
-      label: "Verifiers",
-      active: pathname.startsWith("/admin/verifiers"),
-    },
-    {
-      href: "/admin/retire-settings",
-      icon: Leaf,
-      label: "Retire Settings",
-      active: pathname.startsWith("/admin/retire-settings"),
-    },
-    {
-      href: "/admin/staking-pool",
-      icon: DollarSign,
-      label: "Staking Pool",
-      active: pathname.startsWith("/admin/staking-pool"),
-    },
-    {
-      href: "/admin/farming",
-      icon: Factory,
-      label: "Farming",
-      active: pathname.startsWith("/admin/farming"),
-    },
-  ]
-
-  const userNavItems = [
-    {
-      href: "/user",
-      icon: Home,
-      label: "Dashboard",
-      active: pathname === "/user",
-    },
-    {
-      href: "/user/staking",
-      icon: DollarSign,
-      label: "Staking",
-      active: pathname.startsWith("/user/staking"),
-    },
-    {
-      href: "/user/farming",
-      icon: Factory,
-      label: "Farming",
-      active: pathname.startsWith("/user/farming"),
-    },
-    {
-      href: "/user/mint-nft",
-      icon: Gem,
-      label: "Mint NFT",
-      active: pathname.startsWith("/user/mint-nft"),
-    },
-    {
-      href: "/user/retire",
-      icon: Leaf,
-      label: "Retire Carbon",
-      active: pathname.startsWith("/user/retire"),
-    },
-    {
-      href: "/user/marketplace",
-      icon: Wallet,
-      label: "Marketplace",
-      active: pathname.startsWith("/user/marketplace"),
-    },
-  ]
-
-  const currentNavItems = isAdmin ? adminNavItems : userNavItems
-
-  if (!isConnected) {
-    return null // Don't render sidebar if not connected
-  }
+  const isActive = pathname === href
 
   return (
-    <div className="hidden border-r bg-muted/40 md:block">
-      <div className="flex h-full max-h-screen flex-col gap-2">
-        <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Package2 className="h-6 w-6" />
-            <span className="">CarbonFi DApps</span>
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+        isActive
+          ? "bg-emerald-100/10 text-emerald-500"
+          : "text-gray-400 hover:bg-emerald-100/10 hover:text-emerald-500",
+      )}
+    >
+      {icon}
+      <span>{children}</span>
+    </Link>
+  )
+}
+
+export function DashboardSidebar() {
+  const { disconnect } = useWeb3()
+
+  return (
+    <div className="flex h-screen w-64 flex-col border-r border-gray-800 bg-gray-900">
+      <div className="flex h-14 items-center border-b border-gray-800 px-4">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-md bg-emerald-500 flex items-center justify-center">
+            <Coins className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-white">Carbon Finance</h1>
+            <p className="text-xs text-gray-400">Sustainable financial solutions</p>
+          </div>
+        </Link>
+      </div>
+      <div className="flex-1 overflow-auto py-4">
+        <nav className="grid gap-1 px-2">
+          <SidebarLink href="/user" icon={<LayoutDashboard className="h-4 w-4" />}>
+            Dashboard
+          </SidebarLink>
+          <SidebarLink href="/user/mint-nft" icon={<Coins className="h-4 w-4" />}>
+            Mint NFT
+          </SidebarLink>
+          <SidebarLink href="/user/staking" icon={<TrendingUp className="h-4 w-4" />}>
+            Staking
+          </SidebarLink>
+          <SidebarLink href="/user/marketplace" icon={<ShoppingCart className="h-4 w-4" />}>
+            Marketplace
+          </SidebarLink>
+          <SidebarLink href="/user/retire" icon={<Droplets className="h-4 w-4" />}>
+            Retire
+          </SidebarLink>
+        </nav>
+      </div>
+      <div className="border-t border-gray-800 p-4">
+        <div className="grid gap-1">
+          <Link
+            href="/user/settings"
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-emerald-100/10 hover:text-emerald-500"
+          >
+            <Settings className="h-4 w-4" />
+            <span>Settings</span>
           </Link>
-        </div>
-        <div className="flex-1">
-          <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-            {currentNavItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                  item.active && "bg-muted text-primary",
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            ))}
-            <Separator className="my-4" />
-            <Link
-              href="/settings"
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                pathname === "/settings" && "bg-muted text-primary",
-              )}
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Link>
-          </nav>
+          <button
+            onClick={() => disconnect()}
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-red-100/10 hover:text-red-500"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Logout</span>
+          </button>
         </div>
       </div>
     </div>

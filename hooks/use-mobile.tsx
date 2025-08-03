@@ -2,22 +2,22 @@
 
 import { useState, useEffect } from "react"
 
-const MOBILE_BREAKPOINT = 768
-
-export function useMobile() {
+export function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768)
     }
 
-    checkMobile() // Check on mount
-    window.addEventListener("resize", checkMobile) // Add event listener for resize
+    // Initial check
+    checkIfMobile()
 
-    return () => {
-      window.removeEventListener("resize", checkMobile) // Clean up on unmount
-    }
+    // Add event listener
+    window.addEventListener("resize", checkIfMobile)
+
+    // Clean up
+    return () => window.removeEventListener("resize", checkIfMobile)
   }, [])
 
   return isMobile

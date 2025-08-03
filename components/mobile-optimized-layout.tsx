@@ -1,33 +1,29 @@
 "use client"
 
-import type React from "react"
-
-import { useMobile } from "@/hooks/use-mobile"
-import { MobileBottomNav } from "@/components/mobile-bottom-nav"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { useWeb3 } from "@/components/web3-provider"
+import { type ReactNode, useEffect, useState } from "react"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { cn } from "@/lib/utils"
+import { isMobileDevice } from "@/lib/wallet-utils"
 
 interface MobileOptimizedLayoutProps {
-  children: React.ReactNode
+  children: ReactNode
+  className?: string
+  mobileClassName?: string
+  desktopClassName?: string
 }
 
-export function MobileOptimizedLayout({ children }: MobileOptimizedLayoutProps) {
-  const isMobile = useMobile()
-  const { isConnected } = useWeb3()
+export function MobileOptimizedLayout({
+  children,
+  className = "",
+  mobileClassName = "",
+  desktopClassName = "",
+}: MobileOptimizedLayoutProps) {
+  const [isMobile, setIsMobile] = useState(false)
+  const isMobileView = useIsMobile()
 
-  if (!isConnected) {
-    return <>{children}</>
-  }
+  useEffect(() => {
+    setIsMobile(isMobileDevice())
+  }, [])
 
-  return (
-    <div className="flex min-h-screen w-full flex-col">
-      <DashboardHeader />
-      <div className="flex flex-1">
-        {!isMobile && <DashboardSidebar />}
-        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">{children}</main>
-      </div>
-      {isMobile && <MobileBottomNav />}
-    </div>
-  )
+  return <div className={cn(className, isMobileView ? mobileClassName : desktopClassName)}>{children}</div>
 }

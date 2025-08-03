@@ -6,7 +6,6 @@ import nftAbi from "@/contracts/nft-abi.json"
 import faucetAbi from "@/contracts/faucet-abi.json"
 import marketplaceAbi from "@/contracts/marketplace-abi.json"
 import carbonRetireAbi from "@/contracts/carbon-retire-abi.json"
-import farmingAbi from "@/contracts/farming-abi.json"
 
 // Import the NFT_ABI, STAKING_ABI, etc. from lib/contract-utils
 import {
@@ -341,10 +340,10 @@ class ContractService {
 
       if (requireSigner) {
         const signer = await this.getSigner(true)
-        return new ethers.Contract(CONTRACT_ADDRESSES.FARMING, farmingAbi, signer)
+        return new ethers.Contract(CONTRACT_ADDRESSES.FARMING, FARMING_ABI, signer)
       } else {
         const provider = await this.getProvider()
-        return new ethers.Contract(CONTRACT_ADDRESSES.FARMING, farmingAbi, provider)
+        return new ethers.Contract(CONTRACT_ADDRESSES.FARMING, FARMING_ABI, provider)
       }
     } catch (error) {
       console.error("Error getting farming contract:", error)

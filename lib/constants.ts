@@ -1,232 +1,105 @@
-import { ethers } from "ethers"
-
-// Define network configurations
-export const NETWORK_CONFIG = {
-  11155111: {
+// Network configurations
+export const NETWORKS = {
+  SEPOLIA: {
     chainId: 11155111,
     name: "Sepolia Testnet",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    rpcUrl: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://eth-sepolia.public.blastapi.io",
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 }, // Added currency
+    rpcUrl: "https://eth-sepolia.public.blastapi.io",
     blockExplorer: "https://sepolia.etherscan.io",
   },
-  80001: {
-    name: "Mumbai",
-    currency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
-    explorer: "https://mumbai.polygonscan.com",
-    rpcUrl: "https://rpc-mumbai.maticvigil.com",
+  LISK_SEPOLIA: {
+    chainId: 4202,
+    name: "Lisk Sepolia Testnet",
+    currency: { name: "Lisk", symbol: "LSK", decimals: 18 }, // Added currency
+    rpcUrl: "https://rpc.sepolia-api.lisk.com",
+    blockExplorer: "https://sepolia-blockscout.lisk.com",
   },
-  97: {
+  BSC_TESTNET: {
     chainId: 97,
     name: "BSC Testnet",
-    currency: { name: "Binance Coin", symbol: "BNB", decimals: 18 },
-    rpcUrl: process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545",
+    currency: { name: "Binance Coin", symbol: "BNB", decimals: 18 }, // Added currency
+    rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545",
     blockExplorer: "https://testnet.bscscan.com",
   },
-  296: {
+  HEDERA_TESTNET: {
     chainId: 296,
     name: "Hedera Testnet",
-    currency: { name: "Hedera", symbol: "HBAR", decimals: 18 },
-    rpcUrl: process.env.NEXT_PUBLIC_HEDERA_TESTNET_RPC_URL || "https://testnet.hashio.io/api",
-    blockExplorer: "https://hashscan.io/testnet",
+    currency: { name: "Hedera", symbol: "HBAR", decimals: 18 }, // Updated currency symbol
+    rpcUrl: "https://testnet.hashio.io/api", // Updated RPC URL
+    blockExplorer: "https://hashscan.io/testnet", // Updated Block Explorer URL
   },
-  295: {
-    name: "Hedera Mainnet",
-    currency: { name: "Hedera", symbol: "HBAR", decimals: 18 },
-    explorer: "https://hashscan.io/mainnet",
-    rpcUrl: "https://mainnet.hashio.io/api",
-  },
-  2221: {
-    name: "Kava EVM Testnet",
-    currency: { name: "Kava", symbol: "KAVA", decimals: 18 },
-    explorer: "https://explorer.testnet.kava.io",
-    rpcUrl: "https://evm.testnet.kava.io",
-  },
-  421613: {
-    name: "Arbitrum Goerli",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://goerli.arbiscan.io",
-    rpcUrl: "https://goerli-rollup.arbitrum.io/rpc",
-  },
-  420: {
-    name: "Optimism Goerli",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://goerli-optimism.etherscan.io",
-    rpcUrl: "https://goerli.optimism.io",
-  },
-  59140: {
-    name: "Linea Goerli",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://goerli.lineascan.build",
-    rpcUrl: "https://rpc.goerli.linea.build",
-  },
-  42220: {
-    name: "Celo Mainnet",
-    currency: { name: "Celo", symbol: "CELO", decimals: 18 },
-    explorer: "https://celoscan.io",
-    rpcUrl: "https://forno.celo.org",
-  },
-  44787: {
-    chainId: 44787,
-    name: "Celo Alfajores Testnet",
-    currency: { name: "Celo", symbol: "CELO", decimals: 18 },
-    rpcUrl: process.env.NEXT_PUBLIC_CELO_ALFAJORES_RPC_URL || "https://alfajores-forno.celo-testnet.org",
-    blockExplorer: "https://alfajores.celoscan.io",
-  },
-  100: {
-    name: "Gnosis Chain",
-    currency: { name: "xDAI", symbol: "xDAI", decimals: 18 },
-    explorer: "https://gnosisscan.io",
-    rpcUrl: "https://rpc.gnosischain.com",
-  },
-  84531: {
-    name: "Base Goerli Testnet",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://goerli.basescan.org",
-    rpcUrl: process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || "https://goerli.base.org",
-  },
-  42161: {
-    name: "Arbitrum One",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://arbiscan.io",
-    rpcUrl: "https://arb1.arbitrum.io/rpc",
-  },
-  10: {
-    name: "Optimism",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://optimistic.etherscan.io",
-    rpcUrl: "https://mainnet.optimism.io",
-  },
-  59144: {
-    name: "Linea Mainnet",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://lineascan.build",
-    rpcUrl: "https://rpc.linea.build",
-  },
-  5000: {
-    name: "Mantle Mainnet",
-    currency: { name: "Mantle", symbol: "MNT", decimals: 18 },
-    explorer: "https://explorer.mantle.xyz",
-    rpcUrl: "https://rpc.mantle.xyz",
-  },
-  5001: {
-    name: "Mantle Testnet",
-    currency: { name: "Mantle", symbol: "MNT", decimals: 18 },
-    explorer: "https://explorer.testnet.mantle.xyz",
-    rpcUrl: "https://rpc.testnet.mantle.xyz",
-  },
-  167000: {
-    name: "Taiko Katla L2",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://explorer.katla.taiko.xyz",
-    rpcUrl: "https://rpc.katla.taiko.xyz",
-  },
-  167008: {
-    name: "Taiko Jolnir L2",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://explorer.jolnir.taiko.xyz",
-    rpcUrl: "https://rpc.jolnir.taiko.xyz",
-  },
-  167009: {
-    name: "Taiko L3",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://explorer.taiko.xyz",
-    rpcUrl: "https://rpc.taiko.xyz",
-  },
-  167007: {
-    name: "Taiko A7",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://explorer.a7.taiko.xyz",
-    rpcUrl: "https://rpc.a7.taiko.xyz",
-  },
-  167004: {
-    name: "Taiko A4",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://explorer.a4.taiko.xyz",
-    rpcUrl: "https://rpc.a4.taiko.xyz",
-  },
-  167005: {
-    name: "Taiko A5",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://explorer.a5.taiko.xyz",
-    rpcUrl: "https://rpc.a5.taiko.xyz",
-  },
-  167006: {
-    name: "Taiko A6",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://explorer.a6.taiko.xyz",
-    rpcUrl: "https://rpc.a6.taiko.xyz",
-  },
-  167003: {
-    name: "Taiko A3",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://explorer.a3.taiko.xyz",
-    rpcUrl: "https://rpc.a3.taiko.xyz",
-  },
-  167002: {
-    name: "Taiko A2",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://explorer.a2.taiko.xyz",
-    rpcUrl: "https://rpc.a2.taiko.xyz",
-  },
-  167001: {
-    name: "Taiko A1",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    explorer: "https://explorer.a1.taiko.xyz",
-    rpcUrl: "https://rpc.a1.taiko.xyz",
-  },
-  84532: {
-    // Base Sepolia Testnet
+  BASE_SEPOLIA: {
     chainId: 84532,
     name: "Base Sepolia Testnet",
-    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-    rpcUrl: process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+    currency: { name: "Ethereum", symbol: "ETH", decimals: 18 }, // Added currency
+    rpcUrl: "https://sepolia.base.org",
     blockExplorer: "https://sepolia.basescan.org",
   },
-} as const
+  CELO_ALFAJORES: {
+    chainId: 44787,
+    name: "Celo Alfajores Testnet",
+    currency: { name: "Celo", symbol: "CELO", decimals: 18 }, // Added currency
+    rpcUrl: "https://alfajores-forno.celo-testnet.org",
+    blockExplorer: "https://alfajores.celoscan.io",
+  },
+}
 
-// Define a default set of contract addresses for development/fallback
-export const DEFAULT_CONTRACT_ADDRESSES = {
-  ADMIN: "0x732eBd7B8c50A8e31EAb04aF774F4160C8c22Dd6", // Example admin address
-  CAFI_TOKEN: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-  FAUCET: "0xe7f1725E7734CE288F8367e1853aE97d6AD7dAb3",
-  STAKING: "0x9fE46736679d29a657B2f172fE802fc442f7893d",
-  NFT: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fEf00B",
-  MARKETPLACE: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
-  CARBON_RETIRE: "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
-  FARMING: "0x0165878A59426CA204849FfF2C068E0Fcf9e2fF",
-} as const
+// Original contract addresses (Sepolia Ethereum Testnet)
+export const ORIGINAL_CONTRACT_ADDRESSES = {
+  ADMIN: "0x732eBd7B8c50A8e31EAb04aF774F4160C8c22Dd6",
+  CAFI_TOKEN: "0xa5359E55423E47Afe93D86b1bdaD827f1C1c16EB",
+  STAKING: "0x2aCB71B2861c7C64eD6D172cE23023e2990d9DAf",
+  NFT: "0xB47D4AB7041a537029AB6f939434AdFEe885356a",
+  FAUCET: "0xaa9E0Fb59474BDc8Cfe43120678B72b4012672ec",
+  MARKETPLACE: "0xf8eF029c17cf49A18b0cC4200D4c5F20a2E7A6f3",
+  CARBON_RETIRE: "0xb1F73a3fE5524D0975871Ec6E31F0d909B0773B7",
+  FARMING: "0x754a429de2cdBb4391619cc96D1466efb0921DDc",
+}
+
+// New contract addresses (Multi-network compatible)
+export const NEW_CONTRACT_ADDRESSES = {
+  ADMIN: "0x732eBd7B8c50A8e31EAb04aF774F4160C8c22Dd6",
+  CAFI_TOKEN: "0x94D04211337709F08Db73811b744c816E74C5916",
+  STAKING: "0xa6238b5cD8E13cf259790Cef6872e8a6b4E3119d",
+  NFT: "0x7945C669cE8b75259254fbA9ac0F225a21b4FB66",
+  FAUCET: "0x98a64B25545e54050C6c76301C9c6DB792A0819C",
+  MARKETPLACE: "0xBb071E9731E862bCc4953E3407424bE076886D8f",
+  CARBON_RETIRE: "0x2E08821d0613A23529c12DE33253E6572a72319D",
+  FARMING: "0x38e48065aA6Fb27EeA5aBdceF4bA297e071813d4",
+}
 
 // Multi-network contract addresses mapping
 export const MULTI_NETWORK_CONTRACTS = {
-  [NETWORK_CONFIG[11155111].chainId]: DEFAULT_CONTRACT_ADDRESSES, // Sepolia
-  [NETWORK_CONFIG[97].chainId]: DEFAULT_CONTRACT_ADDRESSES, // BSC Testnet
-  [NETWORK_CONFIG[296].chainId]: DEFAULT_CONTRACT_ADDRESSES, // Hedera Testnet
-  [NETWORK_CONFIG[84532].chainId]: DEFAULT_CONTRACT_ADDRESSES, // Base Sepolia
-  [NETWORK_CONFIG[44787].chainId]: DEFAULT_CONTRACT_ADDRESSES, // Celo Alfajores Testnet
-  // Add other chainId to contract address mappings here
-} as const
+  [NETWORKS.SEPOLIA.chainId]: ORIGINAL_CONTRACT_ADDRESSES,
+  [NETWORKS.LISK_SEPOLIA.chainId]: NEW_CONTRACT_ADDRESSES,
+  [NETWORKS.BSC_TESTNET.chainId]: NEW_CONTRACT_ADDRESSES,
+  [NETWORKS.HEDERA_TESTNET.chainId]: NEW_CONTRACT_ADDRESSES,
+  [NETWORKS.BASE_SEPOLIA.chainId]: NEW_CONTRACT_ADDRESSES,
+  [NETWORKS.CELO_ALFAJORES.chainId]: NEW_CONTRACT_ADDRESSES,
+}
 
 // Function to get contract addresses based on current network
 export const getContractAddresses = (chainId?: number) => {
-  if (chainId && MULTI_NETWORK_CONTRACTS[chainId as keyof typeof MULTI_NETWORK_CONTRACTS]) {
-    return MULTI_NETWORK_CONTRACTS[chainId as keyof typeof MULTI_NETWORK_CONTRACTS]
+  if (!chainId) {
+    // Default to new contracts if no chain ID provided
+    return NEW_CONTRACT_ADDRESSES
   }
-  // Fallback to default if chainId is not provided or not found
-  return DEFAULT_CONTRACT_ADDRESSES
+
+  return MULTI_NETWORK_CONTRACTS[chainId as keyof typeof MULTI_NETWORK_CONTRACTS] || NEW_CONTRACT_ADDRESSES
 }
 
-// Export current contract addresses (for direct use if a specific network isn't needed)
-export const CONTRACT_ADDRESSES = DEFAULT_CONTRACT_ADDRESSES
+// Export current contract addresses (backwards compatibility)
+export const CONTRACT_ADDRESSES = NEW_CONTRACT_ADDRESSES
 
 // Network detection helper
-export const getSupportedNetworks = () => Object.values(NETWORK_CONFIG)
+export const getSupportedNetworks = () => Object.values(NETWORKS)
 
 export const getNetworkByChainId = (chainId: number) => {
-  return NETWORK_CONFIG[chainId as keyof typeof NETWORK_CONFIG]
+  return Object.values(NETWORKS).find((network) => network.chainId === chainId)
 }
 
 export const isSupportedNetwork = (chainId: number) => {
-  return Object.keys(NETWORK_CONFIG).includes(chainId.toString())
+  return Object.keys(MULTI_NETWORK_CONTRACTS).includes(chainId.toString())
 }
 
 // Add type definition for AddEthereumChainParameter if not already present
@@ -245,7 +118,7 @@ declare global {
   }
 }
 
-export const addNetworkToMetamask = async (network: (typeof NETWORK_CONFIG)[keyof typeof NETWORK_CONFIG]) => {
+export const addNetworkToMetamask = async (network: (typeof NETWORKS)[keyof typeof NETWORKS]) => {
   if (!window.ethereum) {
     throw new Error("MetaMask is not installed!")
   }
@@ -269,4 +142,4 @@ export const addNetworkToMetamask = async (network: (typeof NETWORK_CONFIG)[keyo
   }
 }
 
-export const ZERO_ADDRESS = ethers.ZeroAddress
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"

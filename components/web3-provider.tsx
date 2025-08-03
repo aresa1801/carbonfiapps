@@ -12,8 +12,9 @@ import {
   getContractAddresses,
   getNetworkByChainId,
   isSupportedNetwork,
-  NETWORK_CONFIG,
-} from "@/lib/constants" // Added NETWORK_CONFIG
+  NETWORKS,
+} from "@/lib/constants"
+import { isMobileDevice, isInAppBrowser, getInAppBrowserType } from "@/lib/wallet-utils"
 
 interface Web3ContextType {
   provider: ethers.BrowserProvider | null
@@ -26,8 +27,8 @@ interface Web3ContextType {
   error: string | null
   // Connection state
   isAdmin: boolean
-  balance: string // CAFI token balance
-  nativeBalance: string // Native currency balance (ETH, HBAR, BNB, etc.)
+  balance: string
+  nativeBalance: string // Changed from ethBalance to nativeBalance
   isClient: boolean
   isMobile: boolean
   inAppBrowser: boolean
@@ -297,6 +298,18 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
     } catch (error) {
       console.error("Error detecting wallet:", error)
       return null
+    }
+  }, [])
+
+  // Initialize client-side flag and device detection
+  useEffect(() => {
+    setIsClient(true)
+    if (typeof window !== "undefined") {
+      setIsMobile(isMobileDevice())
+      setInAppBrowser(isInAppBrowser())
+      if (isInAppBrowser()) {
+        setWalletType(getInAppBrowserType())
+      }
     }
   }, [])
 
@@ -860,7 +873,13 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
 
           // Set up a fallback provider for read-only operations
           try {
-            const fallbackRPCs = Object.values(NETWORK_CONFIG).map((net) => net.rpcUrl) // Use RPCs from NETWORK_CONFIG
+            const fallbackRPCs = [
+              NETWORKS.HEDERA_TESTNET.rpcUrl, // Use Hedera Testnet RPC as a fallback
+              NETWORKS.BSC_TESTNET.rpcUrl,
+              NETWORKS.SEPOLIA.rpcUrl,
+              "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+              "https://rpc.sepolia.org",
+            ]
 
             for (const rpc of fallbackRPCs) {
               try {
@@ -900,7 +919,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         }
       }
     }
-  }, [isClient, autoConnect, hasAttemptedAutoConnect, isPreviewEnvironment, detectWallet]) // Removed dependencies
+  }, [isClient, autoConnect, hasAttemptedAutoConnect, isPreviewEnvironment])
 
   // NFT Contract Methods - Real implementations
   const getMintFee = async (): Promise<string> => {
