@@ -8,8 +8,9 @@ import { ConnectWalletButton } from "@/components/connect-wallet-button"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw, Home } from "lucide-react" // Import Home icon
 import { Button } from "@/components/ui/button"
+import Link from "next/link" // Import Link
 
 export default function AdminLayout({
   children,
@@ -190,6 +191,18 @@ export default function AdminLayout({
             <div className="p-6">{children}</div>
           </main>
         </div>
+
+        {/* Floating Home Button for Admin Dashboard */}
+        <Link href="/admin" passHref>
+          <Button
+            variant="default"
+            size="icon"
+            className="fixed bottom-4 right-4 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg rounded-full w-14 h-14 flex items-center justify-center"
+            aria-label="Go to Admin Dashboard"
+          >
+            <Home className="h-7 w-7" />
+          </Button>
+        </Link>
       </div>
     </AdminGuard>
   )

@@ -6,6 +6,9 @@ import { ConnectWalletButton } from "@/components/connect-wallet-button"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import Link from "next/link" // Import Link
+import { Button } from "@/components/ui/button" // Import Button
+import { Home } from "lucide-react" // Import Home icon
 
 export default function UserLayout({
   children,
@@ -132,6 +135,18 @@ export default function UserLayout({
         {/* Main Content - Full Width */}
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
+
+      {/* Floating Home Button for User Dashboard */}
+      <Link href="/user" passHref>
+        <Button
+          variant="default"
+          size="icon"
+          className="fixed bottom-4 right-4 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg rounded-full w-14 h-14 flex items-center justify-center"
+          aria-label="Go to User Dashboard"
+        >
+          <Home className="h-7 w-7" />
+        </Button>
+      </Link>
     </div>
   )
 }
