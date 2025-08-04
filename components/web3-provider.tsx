@@ -929,7 +929,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       if (!nftContractExists) {
         throw new Error("NFT contract not available")
       }
-      const nftContract = await contractService.getNftContract(true)
+      const nftContract = await contractService.getNftContract(undefined, true) // Corrected
       const feeInWei = contractService.parseTokenAmount(newFee)
       return await nftContract.setMintFeePerTon(feeInWei)
     } catch (error) {
@@ -956,7 +956,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       if (!nftContractExists) {
         throw new Error("NFT contract not available")
       }
-      const nftContract = await contractService.getNftContract(true)
+      const nftContract = await contractService.getNftContract(undefined, true) // Corrected
       return await nftContract.toggleAutoApprove()
     } catch (error) {
       console.error("Error toggling auto approve:", error)
@@ -995,7 +995,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       if (!nftContractExists) {
         throw new Error("NFT contract not available")
       }
-      const nftContract = await contractService.getNftContract(true)
+      const nftContract = await contractService.getNftContract(undefined, true) // Corrected
       // Get the next verifier index by trying to find an empty slot
       let index = 0
       try {
@@ -1044,7 +1044,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         throw new Error("CAFI token contract not available")
       }
       console.log(`Approving ${amount} tokens for spender ${spender}`)
-      const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN, true)
+      const tokenContract = await contractService.getCAFITokenContract(undefined, true) // Corrected
       const amountInWei = contractService.parseTokenAmount(amount)
       return await tokenContract.approve(spender, amountInWei)
     } catch (error) {
@@ -1062,7 +1062,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         throw new Error("CAFI token contract not available")
       }
       console.log(`Checking allowance for owner ${owner} and spender ${spender}`)
-      const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN)
+      const tokenContract = await contractService.getCAFITokenContract()
       const allowance = await tokenContract.allowance(owner, spender)
       return contractService.formatTokenAmount(allowance)
     } catch (error) {
@@ -1079,7 +1079,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         throw new Error("Staking contract not available")
       }
       console.log(`Adding ${amount} tokens to reward pool`)
-      const stakingContract = await contractService.getStakingContract(true)
+      const stakingContract = await contractService.getStakingContract(undefined, true) // Corrected
       const amountInWei = contractService.parseTokenAmount(amount)
       return await stakingContract.addRewardPoolFunds(amountInWei)
     } catch (error) {
@@ -1097,7 +1097,7 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
         throw new Error("Staking contract not available")
       }
       console.log(`Setting APY for period ${periodIndex} to ${apy}`)
-      const stakingContract = await contractService.getStakingContract(true)
+      const stakingContract = await contractService.getStakingContract(undefined, true) // Corrected
       // Convert APY percentage to basis points (e.g., 5% = 500)
       const apyInBasisPoints = Math.round(Number.parseFloat(apy) * 100)
       return await stakingContract.setAPY(periodIndex, apyInBasisPoints)
@@ -1114,7 +1114,6 @@ export function Web3Provider({ children, autoConnect = true }: Web3ProviderProps
       }
       console.log("Getting reward pool balance")
       const stakingContract = await contractService.getStakingContract()
-
       // Try both methods to get reward pool balance
       try {
         // Try the new method first

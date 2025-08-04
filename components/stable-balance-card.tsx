@@ -1,50 +1,83 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+"use client"
+
+import { Card, CardContent } from "@/components/ui/card"
+import { Wallet, Coins, RefreshCw } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Coins, Droplets } from "lucide-react"
+import { useState, useEffect } from "react"
 
 interface StableBalanceCardProps {
-  title?: string
+  type: "eth" | "cafi" // Keep for icon logic
+  currencyName: string // New prop for display name (e.g., "ETH", "HBAR", "CAFI")
   balance: string
-  symbol: string
   isLoading: boolean
-  subtitle?: string
-  type: "eth" | "cafi" // This type is used to determine default title and icon
+  symbol: string
+  subtitle: string
   isRefreshing?: boolean
 }
 
 export function StableBalanceCard({
-  title,
-  balance,
-  symbol,
-  isLoading,
-  subtitle,
   type,
+  currencyName, // Use this for display
+  balance,
+  isLoading,
+  symbol,
+  subtitle,
   isRefreshing = false,
 }: StableBalanceCardProps) {
-  const icon =
-    type === "eth" ? <Droplets className="h-5 w-5 text-blue-500" /> : <Coins className="h-5 w-5 text-emerald-500" />
-  const defaultTitle = type === "eth" ? "Native Token Balance" : "CAFI Token Balance"
+  const [displayBalance, setDisplayBalance] = useState(balance)
+  const [isUpdating, setIsUpdating] = useState(false)
+
+  // Smooth balance update without flickering
+  useEffect(() => {
+    if (balance !== displayBalance && !isLoading) {
+      setIsUpdating(true)
+
+      // Small delay to show update indicator
+      const timer = setTimeout(() => {
+        setDisplayBalance(balance)
+        setIsUpdating(false)
+      }, 300)
+
+      return () => clearTimeout(timer)
+    }
+  }, [balance, displayBalance, isLoading])
+
+  // Initialize display balance
+  useEffect(() => {
+    if (!isLoading && displayBalance === "0" && balance !== "0") {
+      setDisplayBalance(balance)
+    }
+  }, [balance, displayBalance, isLoading])
 
   return (
-    <Card className="bg-gray-900 border-gray-800">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-gray-300">{title || defaultTitle}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        {isLoading || isRefreshing ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
+    <Card className="border-gray-700 bg-gray-900 relative hover:shadow-md transition-shadow">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          {/* Use currencyName for the displayed text */}
+          <div className="text-sm font-medium text-gray-300">{`${currencyName} Balance`}</div>
+          <div className="flex items-center space-x-2">
+            {(isRefreshing || isUpdating) && <RefreshCw className="h-3 w-3 text-gray-500 animate-spin" />}
+            {type === "eth" ? ( // Keep type for icon selection
+              <Wallet className="h-5 w-5 text-blue-400" />
+            ) : (
+              <Coins className="h-5 w-5 text-emerald-400" />
+            )}
           </div>
-        ) : (
-          <>
-            <div className="text-2xl font-bold text-white">
-              {balance} {symbol}
+        </div>
+        <div className="mt-2 flex items-center">
+          {isLoading ? (
+            <Skeleton className="h-8 w-32 bg-gray-700" />
+          ) : (
+            <div
+              className={`text-2xl font-bold text-white transition-all duration-300 ${
+                isUpdating ? "opacity-70 scale-95" : "opacity-100 scale-100"
+              }`}
+            >
+              {displayBalance} {symbol}
             </div>
-            {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
-          </>
-        )}
+          )}
+        </div>
+        <div className="mt-1 text-xs text-gray-400">{subtitle}</div>
       </CardContent>
     </Card>
   )

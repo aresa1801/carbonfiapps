@@ -1,13 +1,6 @@
 "use client"
-
-import { AlertDescription } from "@/components/ui/alert"
-
-import { AlertTitle } from "@/components/ui/alert"
-
-import { Alert } from "@/components/ui/alert"
-
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { ethers } from "ethers"
 import { Button } from "@/components/ui/button"
@@ -92,6 +85,19 @@ export default function MintNFTPage() {
   const loadVerifiers = async () => {
     try {
       setIsLoading(true)
+
+      // Check if contract exists first
+      const contractExists = await contractService.contractExists(CONTRACT_ADDRESSES.NFT)
+      if (!contractExists) {
+        console.error("NFT contract not found at address:", CONTRACT_ADDRESSES.NFT)
+        toast({
+          title: "Contract Error",
+          description: "NFT contract not found. Please check the contract address.",
+          variant: "destructive",
+        })
+        return
+      }
+
       const nftContract = await contractService.getNftContract()
       const verifiersList = []
 
@@ -137,7 +143,7 @@ export default function MintNFTPage() {
       console.error("Error loading verifiers:", error)
       toast({
         title: "Error",
-        description: "Failed to load verifiers. Please try again.",
+        description: "Failed to load verifiers. Please check your network connection and try again.",
         variant: "destructive",
       })
     } finally {
@@ -326,45 +332,132 @@ export default function MintNFTPage() {
       // Get the NFT contract with signer
       const nftContract = await contractService.getNftContract(CONTRACT_ADDRESSES.NFT, true)
 
-      // Calculate mint fee
+      // Validate contract exists
+      const contractExists = await contractService.contractExists(CONTRACT_ADDRESSES.NFT)
+      if (!contractExists) {
+        throw new Error("NFT contract not found at the specified address")
+      }
+
+      // Check if contract is paused
+      try {
+        const isPaused = await nftContract.paused()
+        if (isPaused) {
+          throw new Error("Contract is currently paused. Please try again later.")
+        }
+      } catch (pauseError) {
+        console.log("Could not check pause status, continuing...")
+      }
+
+      // Validate carbon reduction is a positive number
+      const carbonTonsNum = Number.parseFloat(carbonReduction)
+      if (isNaN(carbonTonsNum) || carbonTonsNum <= 0) {
+        throw new Error("Carbon reduction must be a positive number")
+      }
+
+      // Calculate mint fee with proper validation
       const carbonTons = ethers.parseUnits(carbonReduction, 0)
-      const feePerTon = await nftContract.mintFeePerTon()
+      console.log("Carbon tons (BigInt):", carbonTons.toString())
+
+      let feePerTon: bigint
+      try {
+        feePerTon = await nftContract.mintFeePerTon()
+        console.log("Fee per ton:", feePerTon.toString())
+      } catch (feeError) {
+        console.error("Error getting mint fee:", feeError)
+        throw new Error("Could not retrieve mint fee from contract")
+      }
+
       const totalFee = carbonTons * feePerTon
+      console.log("Total fee:", totalFee.toString())
 
       // Check and approve tokens if needed
       if (totalFee > 0) {
-        const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN, true)
-        const allowance = await tokenContract.allowance(account, CONTRACT_ADDRESSES.NFT)
+        try {
+          const tokenContract = await contractService.getTokenContract(CONTRACT_ADDRESSES.CAFI_TOKEN, true)
 
-        if (allowance < totalFee) {
-          console.log("Approving tokens for mint fee...")
-          toast({
-            title: "Approval Required",
-            description: "Approving CAFI tokens for mint fee...",
-          })
-          const approveTx = await tokenContract.approve(CONTRACT_ADDRESSES.NFT, totalFee)
-          await approveTx.wait()
-          console.log("Token approval successful")
+          // Check user's token balance
+          const userBalance = await tokenContract.balanceOf(account)
+          console.log("User CAFI balance:", userBalance.toString())
+
+          if (userBalance < totalFee) {
+            throw new Error(
+              `Insufficient CAFI balance. Required: ${ethers.formatEther(totalFee)} CAFI, Available: ${ethers.formatEther(userBalance)} CAFI`,
+            )
+          }
+
+          const allowance = await tokenContract.allowance(account, CONTRACT_ADDRESSES.NFT)
+          console.log("Current allowance:", allowance.toString())
+
+          if (allowance < totalFee) {
+            console.log("Approving tokens for mint fee...")
+            toast({
+              title: "Approval Required",
+              description: "Approving CAFI tokens for mint fee...",
+            })
+
+            const approveTx = await tokenContract.approve(CONTRACT_ADDRESSES.NFT, totalFee)
+            console.log("Approval transaction:", approveTx.hash)
+
+            const approveReceipt = await approveTx.wait()
+            console.log("Token approval successful:", approveReceipt)
+
+            // Verify approval was successful
+            const newAllowance = await tokenContract.allowance(account, CONTRACT_ADDRESSES.NFT)
+            if (newAllowance < totalFee) {
+              throw new Error("Token approval failed")
+            }
+          }
+        } catch (tokenError) {
+          console.error("Token approval error:", tokenError)
+          throw new Error(`Token approval failed: ${tokenError.message}`)
         }
       }
 
-      // Prepare mint parameters according to the ABI struct
-      const mintParams = {
-        projectName,
-        projectType,
-        location,
-        carbonTons: carbonTons, // Note: ABI uses 'carbonTons' not 'carbonReduction'
-        methodology,
-        documentHash: documentHash || "",
-        imageCID: imageHash || "", // Note: ABI uses 'imageCID' not 'imageHash'
-        durationDays: BigInt(durationDays),
-        verifierIndex: BigInt(verifierIndex), // Include verifierIndex in the struct
+      // Validate verifier index
+      const verifierIndexNum = Number.parseInt(verifierIndex)
+      if (isNaN(verifierIndexNum) || verifierIndexNum < 0 || verifierIndexNum >= verifiers.length) {
+        throw new Error("Invalid verifier selected")
       }
 
-      console.log("Minting with params:", mintParams)
+      // Validate duration
+      if (durationDays < 30 || durationDays > 3650) {
+        throw new Error("Duration must be between 30 and 3650 days")
+      }
 
-      // Mint the NFT - pass only the struct parameter
-      const tx = await nftContract.mintCarbonNFT(mintParams)
+      // Prepare mint parameters with validation
+      const mintParams = {
+        projectName: projectName.trim(),
+        projectType: projectType.trim(),
+        location: location.trim(),
+        carbonTons: carbonTons,
+        methodology: methodology.trim(),
+        documentHash: documentHash || "",
+        imageCID: imageHash || "",
+        durationDays: BigInt(durationDays),
+        verifierIndex: BigInt(verifierIndexNum),
+      }
+
+      console.log("Minting with params:", {
+        ...mintParams,
+        carbonTons: mintParams.carbonTons.toString(),
+        durationDays: mintParams.durationDays.toString(),
+        verifierIndex: mintParams.verifierIndex.toString(),
+      })
+
+      // Estimate gas before sending transaction
+      try {
+        const gasEstimate = await nftContract.mintCarbonNFT.estimateGas(mintParams)
+        console.log("Estimated gas:", gasEstimate.toString())
+      } catch (gasError) {
+        console.error("Gas estimation failed:", gasError)
+        throw new Error("Transaction would fail. Please check your inputs and try again.")
+      }
+
+      // Mint the NFT with gas limit
+      const tx = await nftContract.mintCarbonNFT(mintParams, {
+        gasLimit: 500000, // Set a reasonable gas limit
+      })
+
       setTxHash(tx.hash)
       console.log("Mint transaction submitted:", tx.hash)
 
@@ -376,6 +469,10 @@ export default function MintNFTPage() {
       // Wait for transaction to be mined
       const receipt = await tx.wait()
       console.log("Mint transaction confirmed:", receipt)
+
+      if (!receipt || receipt.status !== 1) {
+        throw new Error("Transaction failed or was reverted")
+      }
 
       // Get token ID from events
       let newTokenId = null
@@ -415,19 +512,23 @@ export default function MintNFTPage() {
       setIsSubmitted(true)
 
       // Check approval status
-      const autoApproveEnabled = await nftContract.autoApproveEnabled()
-      if (autoApproveEnabled) {
-        setIsApproved(true)
-      } else if (newTokenId) {
-        const selectedVerifier = verifiers[Number.parseInt(verifierIndex)]
-        if (selectedVerifier) {
-          try {
-            const approved = await nftContract.isApproved(newTokenId, selectedVerifier.wallet)
-            setIsApproved(approved)
-          } catch (error) {
-            console.error("Error checking approval status:", error)
+      try {
+        const autoApproveEnabled = await nftContract.autoApproveEnabled()
+        if (autoApproveEnabled) {
+          setIsApproved(true)
+        } else if (newTokenId) {
+          const selectedVerifier = verifiers[verifierIndexNum]
+          if (selectedVerifier) {
+            try {
+              const approved = await nftContract.isApproved(newTokenId, selectedVerifier.wallet)
+              setIsApproved(approved)
+            } catch (error) {
+              console.error("Error checking approval status:", error)
+            }
           }
         }
+      } catch (approvalError) {
+        console.error("Error checking approval status:", approvalError)
       }
 
       toast({
@@ -445,8 +546,14 @@ export default function MintNFTPage() {
         errorMessage = "Transaction was rejected by user"
       } else if (error.message?.includes("execution reverted")) {
         errorMessage = "Transaction failed - please check your inputs and try again"
+      } else if (error.message?.includes("CALL_EXCEPTION")) {
+        errorMessage = "Contract call failed. The contract may be paused or your inputs may be invalid."
+      } else if (error.message?.includes("missing revert data")) {
+        errorMessage = "Contract interaction failed. Please check if the contract is deployed and accessible."
       } else if (error.message?.includes("no matching fragment")) {
         errorMessage = "Contract method not found - please contact support"
+      } else if (error.message) {
+        errorMessage = error.message
       }
 
       toast({
@@ -807,8 +914,8 @@ export default function MintNFTPage() {
                   <div className="pt-2">
                     <Alert className="bg-gray-800 text-gray-50 border-gray-700">
                       <AlertCircle className="h-4 w-4 text-gray-400" />
-                      <AlertTitle className="text-gray-50">Mint Fee</AlertTitle>
-                      <AlertDescription className="text-gray-300">
+                      <AlertTitle>Mint Fee</AlertTitle>
+                      <AlertDescription>
                         Fee per ton: {mintFeePerTon} CAFI
                         <br />
                         Total fee: {totalFee} CAFI ({carbonReduction || 0} tons × {mintFeePerTon} CAFI)

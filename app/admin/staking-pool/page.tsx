@@ -1,257 +1,144 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect, useCallback } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useWeb3 } from "@/components/web3-provider"
-import { TransactionStatus } from "@/components/transaction-status"
-import { useToast } from "@/components/ui/use-toast"
-import { AdminGuard } from "@/components/admin-guard"
-import { TrendingUp, Settings, RefreshCw, Coins, ArrowRight, AlertCircle } from "lucide-react"
-import { contractService, CONTRACT_ADDRESSES } from "@/lib/contract-utils"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/hooks/use-toast"
+import { TransactionAlert } from "@/components/transaction-alert"
+import { Loader2, RefreshCw } from "lucide-react"
+import { contractService } from "@/lib/contract-utils"
 
 export default function StakingPoolPage() {
-  const { isConnected, account, tokenSymbol, stakingContractExists, STAKING_CONTRACT_ADDRESS } = useWeb3()
-
-  const [rewardAmount, setRewardAmount] = useState("")
-  const [apyValues, setApyValues] = useState(["5", "10", "15"])
-  const [rewardPool, setRewardPool] = useState("0")
-  const [totalStaked, setTotalStaked] = useState("0")
-  const [txStatus, setTxStatus] = useState<"loading" | "success" | "error" | null>(null)
-  const [txHash, setTxHash] = useState("")
-  const [txMessage, setTxMessage] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [isLoadingPoolData, setIsLoadingPoolData] = useState(false)
-  const [allowance, setAllowance] = useState("0")
-  const [needsApproval, setNeedsApproval] = useState(false)
-  const [stakingContractPaused, setStakingContractPaused] = useState(false)
+  const {
+    account,
+    isConnected,
+    isAdmin,
+    stakingContractExists,
+    cafiTokenExists,
+    refreshBalances,
+    tokenSymbol,
+    currentNetworkContracts,
+    approveTokens, // This is from Web3Provider, but we're using contractService directly
+    checkAllowance,
+    addRewardPoolFunds, // This is from Web3Provider, but we're using contractService directly
+    setAPY, // This is from Web3Provider, but we're using contractService directly
+    getRewardPoolBalance,
+    getTotalStaked,
+  } = useWeb3()
   const { toast } = useToast()
 
-  useEffect(() => {
-    if (isConnected && account) {
-      console.log("Admin staking pool page: Connected with account", account)
-      console.log("Staking contract exists:", stakingContractExists)
-      console.log("Staking contract address:", STAKING_CONTRACT_ADDRESS)
+  const [rewardPoolBalance, setRewardPoolBalance] = useState("0")
+  const [totalStaked, setTotalStaked] = useState("0")
+  const [newRewardAmount, setNewRewardAmount] = useState("")
+  const [newAPY, setNewAPY] = useState("")
+  const [apyPeriodIndex, setApyPeriodIndex] = useState(0)
+  const [isAddingReward, setIsAddingReward] = useState(false)
+  const [isUpdatingAPY, setIsUpdatingAPY] = useState(false)
+  const [isApproving, setIsApproving] = useState(false)
+  const [txStatus, setTxStatus] = useState<"success" | "error" | "none">("none")
+  const [txMessage, setTxMessage] = useState("")
+  const [allowance, setAllowance] = useState("0")
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [stakingContractPaused, setStakingContractPaused] = useState(false) // State for contract pause status
+  const [isLoading, setIsLoading] = useState(false) // Declare setIsLoading here
 
-      checkStakingContract()
-
-      // Set up auto-refresh interval
-      const intervalId = setInterval(() => {
-        loadStakingData()
-        checkAllowance()
-      }, 30000)
-
-      return () => clearInterval(intervalId)
-    }
-  }, [isConnected, stakingContractExists, account])
-
-  // Check allowance when reward amount changes
-  useEffect(() => {
-    if (rewardAmount && account) {
-      checkAllowance()
-    }
-  }, [rewardAmount, account])
-
-  const checkStakingContract = async () => {
+  const checkContractStatus = useCallback(async () => {
     try {
-      const exists = await contractService.contractExists(CONTRACT_ADDRESSES.STAKING)
-      console.log("Staking contract exists (checked from admin page):", exists)
-
-      if (exists) {
-        await Promise.all([loadStakingData(), loadAPYValues(), checkContractStatus(), checkAllowance()])
-      } else {
-        toast({
-          title: "Staking Contract Not Found",
-          description: "The staking contract could not be found on this network.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Error checking staking contract:", error)
-    }
-  }
-
-  const checkContractStatus = async () => {
-    try {
+      if (!stakingContractExists) return
       const stakingContract = await contractService.getStakingContract()
       const paused = await stakingContract.paused()
       setStakingContractPaused(paused)
-      console.log("Staking contract paused:", paused)
     } catch (error) {
       console.error("Error checking contract status:", error)
     }
-  }
+  }, [stakingContractExists])
 
-  const checkAllowance = async () => {
+  const fetchStakingData = useCallback(async () => {
+    if (!isConnected || !stakingContractExists || !cafiTokenExists || !account) return
+
     try {
-      if (!account || !rewardAmount || !CONTRACT_ADDRESSES.CAFI_TOKEN) return
-
-      const tokenContract = await contractService.getCAFITokenContract()
-      const currentAllowance = await tokenContract.allowance(account, CONTRACT_ADDRESSES.STAKING)
-      const allowanceFormatted = contractService.formatTokenAmount(currentAllowance)
-      setAllowance(allowanceFormatted)
-
-      const rewardAmountBN = contractService.parseTokenAmount(rewardAmount)
-      setNeedsApproval(currentAllowance < rewardAmountBN)
-
-      console.log("Current allowance:", allowanceFormatted)
-      console.log("Needs approval:", currentAllowance < rewardAmountBN)
+      setIsRefreshing(true)
+      const [poolBalance, stakedTotal, currentAllowance] = await Promise.all([
+        getRewardPoolBalance(),
+        getTotalStaked(),
+        checkAllowance(account, currentNetworkContracts.STAKING),
+      ])
+      setRewardPoolBalance(poolBalance)
+      setTotalStaked(stakedTotal)
+      setAllowance(currentAllowance)
+      setTxStatus("none") // Clear transaction status on successful refresh
     } catch (error) {
-      console.error("Error checking allowance:", error)
-      setAllowance("0")
-      setNeedsApproval(true)
-    }
-  }
-
-  const loadStakingData = async () => {
-    try {
-      setIsLoadingPoolData(true)
-      console.log("Loading staking pool data...")
-
-      const stakingContract = await contractService.getStakingContract()
-      console.log("Staking contract instance created successfully")
-
-      // Get reward pool balance and total staked amount
-      try {
-        const poolBalance = await stakingContract.getRewardPoolBalance()
-        const formattedPoolBalance = contractService.formatTokenAmount(poolBalance)
-        console.log("Reward pool balance:", formattedPoolBalance)
-        setRewardPool(Number.parseFloat(formattedPoolBalance).toFixed(4))
-      } catch (error) {
-        console.error("Error getting reward pool balance:", error)
-        // Try fallback method
-        try {
-          const poolBalance = await stakingContract.rewardPoolBalance()
-          const formattedPoolBalance = contractService.formatTokenAmount(poolBalance)
-          setRewardPool(Number.parseFloat(formattedPoolBalance).toFixed(4))
-        } catch (fallbackError) {
-          console.error("Error getting reward pool balance (fallback):", fallbackError)
-        }
-      }
-
-      try {
-        const totalStakedAmount = await stakingContract.totalStaked()
-        const formattedTotalStaked = contractService.formatTokenAmount(totalStakedAmount)
-        console.log("Total staked:", formattedTotalStaked)
-        setTotalStaked(Number.parseFloat(formattedTotalStaked).toFixed(4))
-      } catch (error) {
-        console.error("Error getting total staked:", error)
-      }
-    } catch (error) {
-      console.error("Error loading staking data:", error)
+      console.error("Error fetching staking data:", error)
       toast({
-        title: "Error loading staking data",
-        description: "Failed to load staking pool information. Please try again.",
+        title: "Error",
+        description: "Failed to fetch staking pool data.",
         variant: "destructive",
       })
     } finally {
-      setIsLoadingPoolData(false)
+      setIsRefreshing(false)
     }
-  }
+  }, [
+    isConnected,
+    stakingContractExists,
+    cafiTokenExists,
+    account,
+    getRewardPoolBalance,
+    getTotalStaked,
+    checkAllowance,
+    currentNetworkContracts.STAKING,
+    toast,
+  ])
 
-  const loadAPYValues = async () => {
+  const loadAPYValues = useCallback(async () => {
     try {
-      console.log("Loading APY values...")
-
+      if (!stakingContractExists) return
       const stakingContract = await contractService.getStakingContract()
-
-      // Get APY values for each staking period
       const newApyValues = await Promise.all(
         [0, 1, 2].map(async (index) => {
           try {
             const apy = await stakingContract.apyRates(index)
-            // Convert from basis points to percentage (500 basis points = 5%)
             return (Number(apy) / 100).toString()
           } catch (error) {
             console.error(`Error loading APY for period ${index}:`, error)
-            return apyValues[index] // Return current value if error
+            return "0" // Default to 0 if error
           }
         }),
       )
-
-      console.log("APY values loaded:", newApyValues)
-      setApyValues(newApyValues)
+      setApyPeriodIndex(0) // Reset to first period for input
+      setNewAPY(newApyValues[0]) // Set default APY value for input
+      // Update the state that holds all APY values for display/internal use
+      // If you have a state like `allApyRates`
+      // setAllApyRates(newApyValues);
     } catch (error) {
       console.error("Error loading APY values:", error)
     }
-  }
+  }, [stakingContractExists])
 
-  const approveTokens = async () => {
-    if (!rewardAmount || Number.parseFloat(rewardAmount) <= 0) {
+  useEffect(() => {
+    if (isConnected && account) {
+      fetchStakingData()
+      loadAPYValues()
+      checkContractStatus()
+    }
+  }, [isConnected, account, fetchStakingData, loadAPYValues, checkContractStatus])
+
+  const handleAddRewardPoolFunds = async () => {
+    if (!account || !isConnected || !stakingContractExists || !cafiTokenExists) {
       toast({
-        title: "Invalid amount",
-        description: "Please enter a valid amount to approve",
+        title: "Wallet not connected or contracts not available",
+        description: "Please connect your wallet and ensure contracts are deployed.",
         variant: "destructive",
       })
       return
     }
 
-    try {
-      setIsLoading(true)
-      setTxStatus("loading")
-      setTxMessage(`Approving ${rewardAmount} ${tokenSymbol} tokens...`)
-
-      const tokenContract = await contractService.getCAFITokenContract(undefined, true) // Corrected line
-      const amountInWei = contractService.parseTokenAmount(rewardAmount)
-
-      console.log(`Approving ${rewardAmount} tokens for staking contract: ${CONTRACT_ADDRESSES.STAKING}`)
-      const tx = await tokenContract.approve(CONTRACT_ADDRESSES.STAKING, amountInWei)
-      setTxHash(tx.hash)
-
-      setTxMessage("Waiting for approval confirmation...")
-      await tx.wait()
-
-      setTxStatus("success")
-      setTxMessage(`Successfully approved ${rewardAmount} ${tokenSymbol} tokens!`)
-
-      // Refresh allowance
-      await checkAllowance()
-
+    if (Number(newRewardAmount) <= 0) {
       toast({
-        title: "Tokens approved",
-        description: `You have successfully approved ${rewardAmount} ${tokenSymbol} tokens`,
-      })
-    } catch (error: any) {
-      console.error("Error approving tokens:", error)
-      setTxStatus("error")
-      setTxMessage(error.message || "Failed to approve tokens")
-
-      toast({
-        title: "Failed to approve tokens",
-        description: error.message || "An error occurred",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const addRewardPoolFunds = async () => {
-    if (!isConnected) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to add funds",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!stakingContractExists) {
-      toast({
-        title: "Contract not found",
-        description: "The staking contract is not available on this network",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!rewardAmount || Number.parseFloat(rewardAmount) <= 0) {
-      toast({
-        title: "Invalid amount",
-        description: "Please enter a valid amount to add",
+        title: "Invalid Amount",
+        description: "Please enter a positive amount for rewards.",
         variant: "destructive",
       })
       return
@@ -259,71 +146,96 @@ export default function StakingPoolPage() {
 
     if (stakingContractPaused) {
       toast({
-        title: "Contract paused",
-        description: "The staking contract is currently paused",
+        title: "Contract Paused",
+        description: "The staking contract is currently paused. Cannot add funds.",
         variant: "destructive",
       })
       return
     }
 
     try {
-      setIsLoading(true)
-      setTxStatus("loading")
-      setTxMessage(`Adding ${rewardAmount} ${tokenSymbol} to reward pool...`)
+      setIsAddingReward(true)
+      setTxStatus("none")
 
-      // Check if approval is needed
-      if (needsApproval) {
-        setTxMessage("Approval required first. Please approve tokens.")
-        setTxStatus("error")
-        return
+      // Check allowance first
+      const currentAllowance = await checkAllowance(account, currentNetworkContracts.STAKING)
+      if (Number(currentAllowance) < Number(newRewardAmount)) {
+        setIsApproving(true)
+        toast({
+          title: "Approval Required",
+          description: `Approving ${newRewardAmount} ${tokenSymbol} for staking contract...`,
+        })
+        const tokenContract = await contractService.getCAFITokenContract(undefined, true) // Corrected
+        const approveTx = await tokenContract.approve(
+          currentNetworkContracts.STAKING,
+          contractService.parseTokenAmount(newRewardAmount),
+        )
+        await approveTx.wait()
+        toast({
+          title: "Approval Successful",
+          description: "Tokens approved for staking contract.",
+        })
+        setIsApproving(false)
       }
 
-      // Add funds to reward pool
-      const stakingContract = await contractService.getStakingContract(undefined, true)
-      const amountInWei = contractService.parseTokenAmount(rewardAmount)
-
-      console.log(`Adding ${rewardAmount} tokens to reward pool`)
-      const tx = await stakingContract.addRewardPoolFunds(amountInWei)
-      setTxHash(tx.hash)
-
-      setTxMessage("Waiting for transaction confirmation...")
-      await tx.wait()
-
-      setTxStatus("success")
-      setTxMessage(`Successfully added ${rewardAmount} ${tokenSymbol} to reward pool!`)
-
-      // Refresh data
-      await Promise.all([loadStakingData(), checkAllowance()])
-
       toast({
-        title: "Funds added",
-        description: `You have successfully added ${rewardAmount} ${tokenSymbol} to the reward pool`,
+        title: "Adding Reward Funds",
+        description: "Confirm transaction in your wallet...",
       })
+      const tx = await contractService.addRewardPoolFunds(newRewardAmount) // Using contractService directly
+      const receipt = await tx.wait()
 
-      // Reset form
-      setRewardAmount("")
+      if (receipt.status === 1) {
+        setTxStatus("success")
+        setTxMessage(`Successfully added ${newRewardAmount} ${tokenSymbol} to reward pool!`)
+        setNewRewardAmount("")
+        await fetchStakingData()
+        await refreshBalances()
+        toast({
+          title: "Success",
+          description: "Reward funds added successfully.",
+        })
+      } else {
+        throw new Error("Transaction failed")
+      }
     } catch (error: any) {
-      console.error("Error adding funds to reward pool:", error)
+      console.error("Error adding reward pool funds:", error)
       setTxStatus("error")
-      setTxMessage(error.message || "Failed to add funds")
-
+      let errorMessage = "Failed to add reward pool funds."
+      if (error.code === 4001) {
+        errorMessage = "Transaction rejected by user."
+      } else if (error.reason) {
+        errorMessage = error.reason
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      setTxMessage(errorMessage)
       toast({
-        title: "Failed to add funds",
-        description: error.message || "An error occurred",
+        title: "Error",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsAddingReward(false)
+      setIsApproving(false)
     }
   }
 
-  const updateAPY = async (periodIndex: number) => {
-    const apy = apyValues[periodIndex]
+  const handleUpdateAPY = async () => {
+    if (!account || !isConnected || !stakingContractExists) {
+      toast({
+        title: "Wallet not connected or contract not available",
+        description: "Please connect your wallet and ensure staking contract is deployed.",
+        variant: "destructive",
+      })
+      return
+    }
 
-    if (!apy || Number.parseFloat(apy) < 0) {
+    if (Number(newAPY) < 0 || Number(newAPY) > 10000) {
+      // Example validation: 0-10000%
       toast({
         title: "Invalid APY",
-        description: "Please enter a valid APY percentage",
+        description: "Please enter a valid APY percentage (e.g., 5 for 5%).",
         variant: "destructive",
       })
       return
@@ -331,82 +243,104 @@ export default function StakingPoolPage() {
 
     if (stakingContractPaused) {
       toast({
-        title: "Contract paused",
-        description: "The staking contract is currently paused",
+        title: "Contract Paused",
+        description: "The staking contract is currently paused. Cannot update APY.",
         variant: "destructive",
       })
       return
     }
 
     try {
-      setIsLoading(true)
-      setTxStatus("loading")
-      setTxMessage(`Updating APY for period ${periodIndex + 1} to ${apy}%...`)
-
-      const stakingContract = await contractService.getStakingContract(undefined, true)
-      // Convert APY percentage to basis points (e.g., 5% = 500)
-      const apyInBasisPoints = Math.round(Number.parseFloat(apy) * 100)
-      console.log(`Setting APY for period ${periodIndex} to ${apyInBasisPoints} basis points`)
-
-      const tx = await stakingContract.setAPY(periodIndex, apyInBasisPoints)
-      setTxHash(tx.hash)
-
-      setTxMessage("Waiting for transaction confirmation...")
-      await tx.wait()
-
-      setTxStatus("success")
-      setTxMessage(`Successfully updated APY for period ${periodIndex + 1} to ${apy}%!`)
-
+      setIsUpdatingAPY(true)
+      setTxStatus("none")
       toast({
-        title: "APY updated",
-        description: `APY for period ${periodIndex + 1} has been updated to ${apy}%`,
+        title: "Updating APY",
+        description: "Confirm transaction in your wallet...",
       })
+      const tx = await contractService.setAPY(apyPeriodIndex, newAPY) // Using contractService directly
+      const receipt = await tx.wait()
+
+      if (receipt.status === 1) {
+        setTxStatus("success")
+        setTxMessage(`Successfully updated APY for period ${apyPeriodIndex} to ${newAPY}%!`)
+        setNewAPY("")
+        await loadAPYValues() // Reload APY values after update
+        toast({
+          title: "Success",
+          description: "APY updated successfully.",
+        })
+      } else {
+        throw new Error("Transaction failed")
+      }
     } catch (error: any) {
       console.error("Error updating APY:", error)
       setTxStatus("error")
-      setTxMessage(error.message || "Failed to update APY")
-
+      let errorMessage = "Failed to update APY."
+      if (error.code === 4001) {
+        errorMessage = "Transaction rejected by user."
+      } else if (error.reason) {
+        errorMessage = error.reason
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      setTxMessage(errorMessage)
       toast({
-        title: "Failed to update APY",
-        description: error.message || "An error occurred",
+        title: "Error",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsUpdatingAPY(false)
     }
   }
 
-  const togglePause = async () => {
-    try {
-      setIsLoading(true)
-      setTxStatus("loading")
-      setTxMessage(`${stakingContractPaused ? "Unpausing" : "Pausing"} staking contract...`)
-
-      const stakingContract = await contractService.getStakingContract(undefined, true)
-      const tx = await stakingContract.togglePause()
-      setTxHash(tx.hash)
-
-      setTxMessage("Waiting for transaction confirmation...")
-      await tx.wait()
-
-      setTxStatus("success")
-      setTxMessage(`Successfully ${stakingContractPaused ? "unpaused" : "paused"} staking contract!`)
-
-      // Refresh contract status
-      await checkContractStatus()
-
+  const handleTogglePause = async () => {
+    if (!account || !isConnected || !stakingContractExists) {
       toast({
-        title: "Contract status updated",
-        description: `Staking contract has been ${stakingContractPaused ? "unpaused" : "paused"}`,
+        title: "Wallet not connected or contract not available",
+        description: "Please connect your wallet and ensure staking contract is deployed.",
+        variant: "destructive",
       })
+      return
+    }
+
+    try {
+      setIsLoading(true) // Using a generic isLoading for this action
+      setTxStatus("none")
+      toast({
+        title: `${stakingContractPaused ? "Unpausing" : "Pausing"} Contract`,
+        description: "Confirm transaction in your wallet...",
+      })
+      const stakingContract = await contractService.getStakingContract(undefined, true) // Corrected
+      const tx = await stakingContract.togglePause()
+      const receipt = await tx.wait()
+
+      if (receipt.status === 1) {
+        setTxStatus("success")
+        setTxMessage(`Successfully ${stakingContractPaused ? "unpaused" : "paused"} staking contract!`)
+        await checkContractStatus() // Refresh pause status
+        toast({
+          title: "Success",
+          description: `Contract ${stakingContractPaused ? "unpaused" : "paused"} successfully.`,
+        })
+      } else {
+        throw new Error("Transaction failed")
+      }
     } catch (error: any) {
       console.error("Error toggling pause:", error)
       setTxStatus("error")
-      setTxMessage(error.message || "Failed to toggle pause")
-
+      let errorMessage = `Failed to ${stakingContractPaused ? "unpause" : "pause"} contract.`
+      if (error.code === 4001) {
+        errorMessage = "Transaction rejected by user."
+      } else if (error.reason) {
+        errorMessage = error.reason
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      setTxMessage(errorMessage)
       toast({
-        title: "Failed to update contract status",
-        description: error.message || "An error occurred",
+        title: "Error",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -414,301 +348,167 @@ export default function StakingPoolPage() {
     }
   }
 
-  const handleRefreshData = () => {
-    Promise.all([loadStakingData(), loadAPYValues(), checkContractStatus(), checkAllowance()])
-
-    toast({
-      title: "Data refreshed",
-      description: "Staking pool information has been updated",
-    })
+  if (!isConnected || !isAdmin) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-950 text-white">
+        <Card className="w-full max-w-md bg-gray-900 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-gray-50">Access Denied</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-400">You must be connected as an admin to view this page.</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
-    <AdminGuard>
-      <div className="container mx-auto max-w-6xl space-y-6 p-4 md:p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Staking Pool Management</h1>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefreshData}
-              disabled={isLoadingPoolData || isLoading}
-              className="flex items-center gap-1 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border-gray-700"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </Button>
-            <Button
-              variant={stakingContractPaused ? "default" : "destructive"}
-              size="sm"
-              onClick={togglePause}
-              disabled={isLoading}
-              className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white"
-            >
-              {stakingContractPaused ? "Unpause" : "Pause"} Contract
-            </Button>
-          </div>
+    <div className="flex flex-col min-h-screen bg-gray-950 text-gray-50 p-6">
+      <h1 className="text-3xl font-bold mb-6">Staking Pool Management</h1>
+
+      {txStatus !== "none" && (
+        <div className="mb-6">
+          <TransactionAlert status={txStatus} message={txMessage} />
         </div>
+      )}
 
-        {stakingContractPaused && (
-          <Alert variant="destructive" className="border-red-700 bg-red-900/20 text-red-300">
-            <AlertCircle className="h-4 w-4 text-red-400" />
-            <AlertDescription>
-              The staking contract is currently paused. Some functions may not be available.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <TransactionStatus status={txStatus} hash={txHash} message={txMessage} />
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Add Reward Pool Funds */}
-          <div className="lg:col-span-2">
-            <Card className="bg-gray-900 border border-gray-700">
-              <CardHeader>
-                <div className="flex items-center space-x-3 mb-2">
-                  <div className="p-2 bg-emerald-900/20 rounded-lg">
-                    <Coins className="h-5 w-5 text-emerald-400" />
-                  </div>
-                  <CardTitle className="text-white">Add Reward Pool Funds</CardTitle>
-                </div>
-                <CardDescription className="text-gray-400">
-                  Add {tokenSymbol} tokens to the staking reward pool
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="rewardAmount" className="text-gray-300">
-                      Amount to Add ({tokenSymbol})
-                    </Label>
-                    <Input
-                      id="rewardAmount"
-                      type="number"
-                      placeholder="0.0"
-                      value={rewardAmount}
-                      onChange={(e) => setRewardAmount(e.target.value)}
-                      className="bg-gray-800 text-white border-gray-700 focus:border-emerald-500"
-                    />
-                    {rewardAmount && (
-                      <div className="text-sm text-gray-400 space-y-1">
-                        <p>
-                          Current allowance: {Number.parseFloat(allowance).toFixed(4)} {tokenSymbol}
-                        </p>
-                        {needsApproval && <p className="text-orange-400">⚠️ Approval required before adding funds</p>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex gap-2">
-                {needsApproval && rewardAmount && Number.parseFloat(rewardAmount) > 0 && (
-                  <Button
-                    onClick={approveTokens}
-                    disabled={!isConnected || isLoading}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    {isLoading ? "Approving..." : `Approve ${tokenSymbol}`}
-                  </Button>
-                )}
-                <Button
-                  onClick={addRewardPoolFunds}
-                  disabled={
-                    !isConnected ||
-                    !rewardAmount ||
-                    Number.parseFloat(rewardAmount) <= 0 ||
-                    needsApproval ||
-                    isLoading ||
-                    stakingContractPaused
-                  }
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  {isLoading ? "Processing..." : `Add ${tokenSymbol} to Pool`}
-                </Button>
-              </CardFooter>
-            </Card>
-          </div>
-
-          {/* Pool Information */}
-          <div className="space-y-6">
-            <Card className="bg-gray-900 border border-gray-700">
-              <CardHeader>
-                <div className="flex items-center space-x-3 mb-2">
-                  <div className="p-2 bg-emerald-900/20 rounded-lg">
-                    <TrendingUp className="h-5 w-5 text-emerald-400" />
-                  </div>
-                  <CardTitle className="text-white">Pool Information</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                    <div className="text-sm font-medium text-gray-400 mb-1">Reward Pool</div>
-                    <div className="text-xl md:text-2xl font-bold text-white">
-                      {isLoadingPoolData ? (
-                        <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-gray-700 rounded"></div>
-                      ) : (
-                        `${rewardPool} ${tokenSymbol}`
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                    <div className="text-sm font-medium text-gray-400 mb-1">Total Staked</div>
-                    <div className="text-xl md:text-2xl font-bold text-white">
-                      {isLoadingPoolData ? (
-                        <div className="animate-pulse h-6 md:h-8 w-20 md:w-24 bg-gray-700 rounded"></div>
-                      ) : (
-                        `${totalStaked} ${tokenSymbol}`
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                    <div className="text-sm font-medium text-gray-400 mb-1">Contract Status</div>
-                    <div className={`text-lg font-bold ${stakingContractPaused ? "text-red-400" : "text-emerald-400"}`}>
-                      {stakingContractPaused ? "Paused" : "Active"}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gray-900 border border-gray-700">
-              <CardHeader>
-                <div className="flex items-center space-x-3 mb-2">
-                  <div className="p-2 bg-emerald-900/20 rounded-lg">
-                    <Settings className="h-5 w-5 text-emerald-400" />
-                  </div>
-                  <CardTitle className="text-white">Contract Info</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm text-gray-300">
-                  <div className="flex items-center justify-between">
-                    <span>Staking Contract:</span>
-                    <span className="font-mono text-xs text-gray-100">
-                      {CONTRACT_ADDRESSES.STAKING.substring(0, 10)}...
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Token Contract:</span>
-                    <span className="font-mono text-xs text-gray-100">
-                      {CONTRACT_ADDRESSES.CAFI_TOKEN.substring(0, 10)}...
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* APY Management */}
-        <Card className="bg-gray-900 border border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">APY Management</CardTitle>
-            <CardDescription className="text-gray-400">
-              Configure APY rates for different staking periods
-            </CardDescription>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <Card className="bg-gray-900 border-gray-700">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-300">Reward Pool Balance</CardTitle>
+            <RefreshCw
+              className={`h-4 w-4 text-gray-400 cursor-pointer ${isRefreshing ? "animate-spin" : ""}`}
+              onClick={fetchStakingData}
+            />
           </CardHeader>
           <CardContent>
-            <div className="grid gap-6 md:grid-cols-3">
-              {/* 30 Days APY */}
-              <Card className="bg-gray-800 border border-gray-700">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-white">30 Days Period</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      type="number"
-                      value={apyValues[0]}
-                      onChange={(e) => setApyValues([e.target.value, apyValues[1], apyValues[2]])}
-                      className="bg-gray-700 text-white border-gray-600"
-                      step="0.1"
-                      min="0"
-                    />
-                    <span className="text-lg font-bold text-white">%</span>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button
-                    onClick={() => updateAPY(0)}
-                    disabled={isLoading || stakingContractPaused}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    Update <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              {/* 90 Days APY */}
-              <Card className="bg-gray-800 border border-gray-700">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-white">90 Days Period</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      type="number"
-                      value={apyValues[1]}
-                      onChange={(e) => setApyValues([apyValues[0], e.target.value, apyValues[2]])}
-                      className="bg-gray-700 text-white border-gray-600"
-                      step="0.1"
-                      min="0"
-                    />
-                    <span className="text-lg font-bold text-white">%</span>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button
-                    onClick={() => updateAPY(1)}
-                    disabled={isLoading || stakingContractPaused}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    Update <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              {/* 180 Days APY */}
-              <Card className="bg-gray-800 border border-gray-700">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-white">180 Days Period</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      type="number"
-                      value={apyValues[2]}
-                      onChange={(e) => setApyValues([apyValues[0], apyValues[1], e.target.value])}
-                      className="bg-gray-700 text-white border-gray-600"
-                      step="0.1"
-                      min="0"
-                    />
-                    <span className="text-lg font-bold text-white">%</span>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button
-                    onClick={() => updateAPY(2)}
-                    disabled={isLoading || stakingContractPaused}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    Update <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
+            <div className="text-2xl font-bold text-white">
+              {isRefreshing ? <Loader2 className="h-6 w-6 animate-spin" /> : `${rewardPoolBalance} ${tokenSymbol}`}
             </div>
+            <p className="text-xs text-gray-400">Total CAFI available for rewards</p>
           </CardContent>
         </Card>
 
-        {/* Removed global styles as they are now inline or replaced */}
-        <style jsx global>{`
-          /* Removed .gradient-card, .card-hover, .btn-blue as styles are now inline or replaced */
-        `}</style>
+        <Card className="bg-gray-900 border-gray-700">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-300">Total Staked</CardTitle>
+            <RefreshCw
+              className={`h-4 w-4 text-gray-400 cursor-pointer ${isRefreshing ? "animate-spin" : ""}`}
+              onClick={fetchStakingData}
+            />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">
+              {isRefreshing ? <Loader2 className="h-6 w-6 animate-spin" /> : `${totalStaked} ${tokenSymbol}`}
+            </div>
+            <p className="text-xs text-gray-400">Total CAFI staked by users</p>
+          </CardContent>
+        </Card>
       </div>
-    </AdminGuard>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="bg-gray-900 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-gray-50">Add Reward Pool Funds</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reward-amount" className="text-gray-300">
+                Amount ({tokenSymbol})
+              </Label>
+              <Input
+                id="reward-amount"
+                type="number"
+                placeholder="e.g., 1000"
+                value={newRewardAmount}
+                onChange={(e) => setNewRewardAmount(e.target.value)}
+                className="bg-gray-800 border-gray-600 text-white focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
+            <Button
+              onClick={handleAddRewardPoolFunds}
+              disabled={
+                isAddingReward || isApproving || !stakingContractExists || !cafiTokenExists || stakingContractPaused
+              }
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {isAddingReward ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : isApproving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {isApproving ? "Approving..." : isAddingReward ? "Adding Funds..." : "Add Funds"}
+            </Button>
+            <p className="text-sm text-gray-400">
+              Current Allowance: {allowance} {tokenSymbol}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-900 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-gray-50">Update APY</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="apy-period" className="text-gray-300">
+                Period Index (0, 1, 2 for 30, 90, 180 days)
+              </Label>
+              <Input
+                id="apy-period"
+                type="number"
+                placeholder="e.g., 0 for 30 days, 1 for 90 days"
+                value={apyPeriodIndex}
+                onChange={(e) => setApyPeriodIndex(Number(e.target.value))}
+                className="bg-gray-800 border-gray-600 text-white focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-apy" className="text-gray-300">
+                New APY (%)
+              </Label>
+              <Input
+                id="new-apy"
+                type="number"
+                placeholder="e.g., 5 for 5%"
+                value={newAPY}
+                onChange={(e) => setNewAPY(e.target.value)}
+                className="bg-gray-800 border-gray-600 text-white focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
+            <Button
+              onClick={handleUpdateAPY}
+              disabled={isUpdatingAPY || !stakingContractExists || stakingContractPaused}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {isUpdatingAPY ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isUpdatingAPY ? "Updating APY..." : "Update APY"}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card className="bg-gray-900 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-gray-50">Contract Status</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <p className="text-gray-300">Current Status:</p>
+            <span className={`font-bold ${stakingContractPaused ? "text-red-400" : "text-emerald-400"}`}>
+              {stakingContractPaused ? "Paused" : "Active"}
+            </span>
+            <Button
+              onClick={handleTogglePause}
+              disabled={!stakingContractExists || isAddingReward || isUpdatingAPY} // Use generic isLoading if available
+              className={`ml-4 ${stakingContractPaused ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"} text-white`}
+            >
+              {stakingContractPaused ? "Unpause Contract" : "Pause Contract"}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   )
 }
